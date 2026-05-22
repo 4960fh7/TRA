@@ -6,7 +6,7 @@ const svg = d3.select("#map")
     .append("svg")
     .attr("viewBox", `0 0 ${width} ${height}`);
 
-// Create a main group wrapper inside SVG to handle Zoom manipulations properly
+// Main group wrapper to handle zoom transformations
 const mainGroup = svg.append("g");
 
 // Setup Taiwan Map Projection
@@ -19,16 +19,25 @@ const path = d3.geoPath().projection(projection);
 const tooltip = d3.select("#tooltip");
 const mapUrl = "counties.json";
 
-// Setup Zoom Behavior
+// 1. Zoom behavior with dynamic circle scaling
 const zoom = d3.zoom()
-    .scaleExtent([1, 25]) // Limit scaling depth
+    .scaleExtent([1, 40]) // Increased scale extent for close-up viewing
     .on("zoom", (event) => {
+        // Apply transform to the main map group
         mainGroup.attr("transform", event.transform);
+        
+        // Get current scale factor (1 means original size, 10 means 10x zoomed in)
+        const k = event.transform.k;
+        
+        // Dynamically shrink the circles and their strokes as you zoom in
+        mainGroup.selectAll(".station")
+            .attr("r", Math.max(1, 4 / Math.sqrt(k))) 
+            .style("stroke-width", `${0.5 / k}px`);
     });
 
 svg.call(zoom);
 
-// Generate Today's String Parameter (Format: YYYYMMDD)
+// Generate Today's Date String (Format: YYYYMMDD)
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -53,7 +62,7 @@ function getCoords(d) {
     return (lat && lon) ? { lat, lon } : null;
 }
 
-// Data loading configuration sequence
+// Data loading sequence
 async function loadData() {
     try {
         const twData = await d3.json(mapUrl);
@@ -75,7 +84,7 @@ function drawMap(twData, stationsData) {
     const objectsKey = Object.keys(twData.objects)[0];
     const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
 
-    // Draw counties inside our zoomable group wrapper
+    // Draw counties
     mainGroup.selectAll(".county")
         .data(counties)
         .enter()
@@ -83,13 +92,13 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
-    // Draw station markers inside our zoomable group wrapper
+    // Draw station markers
     mainGroup.selectAll(".station")
         .data(stationsData)
         .enter()
         .append("circle")
         .attr("class", "station")
-        .attr("r", 4)
+        .attr("r", 4) // Initial base radius
         .attr("cx", d => {
             const coords = getCoords(d);
             return coords ? projection([coords.lon, coords.lat])[0] : -9999;
@@ -99,7 +108,11 @@ function drawMap(twData, stationsData) {
             return coords ? projection([coords.lon, coords.lat])[1] : -9999;
         })
         .on("mouseover", function(event, d) {
-            d3.select(this).attr("r", 6);
+            // Get current zoom transform scale so the hover effect scales accurately
+            const currentTransform = d3.zoomTransform(svg.node());
+            const baseRadius = 4 / Math.sqrt(currentTransform.k);
+            d3.select(this).attr("r", baseRadius * 1.5);
+            
             const name = d.stationName || d['車站中文名稱'] || d.name || "Unknown Station";
             
             tooltip.style("opacity", 1)
@@ -108,7 +121,8 @@ function drawMap(twData, stationsData) {
                    .style("top", (event.pageY - 10) + "px");
         })
         .on("mouseout", function() {
-            d3.select(this).attr("r", 4);
+            const currentTransform = d3.zoomTransform(svg.node());
+            d3.select(this).attr("r", Math.max(1, 4 / Math.sqrt(currentTransform.k)));
             tooltip.style("opacity", 0);
         })
         .on("click", function(event, d) {
@@ -123,10 +137,8 @@ function drawMap(twData, stationsData) {
 
 // Update DOM elements & Load daily operational timetables
 async function showStationInfoPanel(code, name, address) {
-    // Reveal sidebar layout shift
     document.getElementById("app-container").classList.add("split-mode");
 
-    // Populate static fields
     const detailsContainer = document.getElementById("station-details");
     detailsContainer.innerHTML = `
         <h2>${name}</h2>
@@ -138,67 +150,62 @@ async function showStationInfoPanel(code, name, address) {
     listContainer.innerHTML = `<p class="placeholder-text">Fetching live schedule tracking logs...</p>`;
 
     const dateStr = getTodayDateString();
-    // Resolve Raw CDN pathway targeting user GitHub profile repository matching standard format layouts
+    
+    // Using raw.githubusercontent.com for CORS compatibility
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
 
     try {
         const scheduleData = await d3.json(targetScheduleUrl);
-        renderPassingTrains(scheduleData, code, listContainer);
+        renderPassingTrains(scheduleData, name, listContainer); // We pass station 'name' to filter matches
     } catch (error) {
         console.error("CORS / Repository File Request Failure:", error);
-        listContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load schedule dataset for date (${dateStr}). Verify path or configuration constraints.</p>`;
+        listContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load schedule dataset for date (${dateStr}). Verify path constraints.</p>`;
     }
 }
 
-// Scan daily schedules mapping matching entries passing target station nodes
-function renderPassingTrains(trainsList, targetStationCode) {
-    const listContainer = document.getElementById("train-list-container");
-    
+// 2. Scan train list and check if the station name matches an item in the "data" array
+function renderPassingTrains(trainsList, targetStationName, listContainer) {
     if (!Array.isArray(trainsList)) {
-        listContainer.innerHTML = `<p class="placeholder-text">Malformed calendar layout. Expecting high-level index collection lists.</p>`;
+        listContainer.innerHTML = `<p class="placeholder-text">Malformed JSON structure.</p>`;
         return;
     }
 
-    // Adapt logic based on target station properties stored inside variations of standard structures (e.g., StopTimes, stops)
+    // Filter trains where any stop 'x' inside the "data" array matches our station name
     const activeMatches = trainsList.filter(train => {
-        const stops = train.stopTimes || train.StopTimes || train.stops || [];
-        return stops.some(stop => {
-            const currentStopCode = stop.stationCode || stop.StationID || stop.stationId || stop.stationNo;
-            return String(currentStopCode).trim() === String(targetStationCode).trim();
-        });
+        const routeStops = train.data || [];
+        return routeStops.some(stop => stop.x === targetStationName);
     });
 
     if (activeMatches.length === 0) {
-        listContainer.innerHTML = `<p class="placeholder-text">No active operations scheduled tracking matches through this station today.</p>`;
+        listContainer.innerHTML = `<p class="placeholder-text">No active operations scheduled through this station today.</p>`;
         return;
     }
 
-    listContainer.innerHTML = ""; // Wipe active tracking templates
+    listContainer.innerHTML = ""; // Clear loader placeholder text
 
     activeMatches.forEach(train => {
         const card = document.createElement("div");
         card.className = "train-card";
 
-        const trainTitle = train.train || train.TrainNo || "N/A";
-        const trainNumber = train.number || train.TrainNo || "N/A";
+        const trainType = train.train || "N/A";
+        const trainNumber = train.number || "N/A";
 
-        // Generate inner key-value metadata dynamically from info block properties
+        // Generate inner key-value metadata dynamically from the updated "info" block structure
         let dynamicGridItems = "";
         if (train.info && typeof train.info === 'object') {
             Object.entries(train.info).forEach(([key, value]) => {
-                const formattedValue = typeof value === 'object' ? JSON.stringify(value) : value;
                 dynamicGridItems += `
                     <div class="info-item">
-                        <span>${key}:</span> ${formattedValue}
+                        <span>${key}:</span> ${value}
                     </div>
                 `;
             });
         } else {
-            dynamicGridItems = `<div class="info-item"><span>Info Details:</span> ${train.info || 'N/A'}</div>`;
+            dynamicGridItems = `<div class="info-item"><span>Info:</span> ${train.info || 'N/A'}</div>`;
         }
 
         card.innerHTML = `
-            <h4>Train No: ${trainNumber} (${trainTitle})</h4>
+            <h4>${trainType} ${trainNumber}</h4>
             <div class="train-info-grid">
                 ${dynamicGridItems}
             </div>
@@ -207,7 +214,7 @@ function renderPassingTrains(trainsList, targetStationCode) {
     });
 }
 
-// Panel close handling registration event listeners
+// Panel close event handler
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
 });
