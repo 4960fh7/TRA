@@ -16,23 +16,36 @@ const path = d3.geoPath().projection(projection);
 const tooltip = d3.select("#tooltip");
 const mapUrl = "counties.json";
 
-// Keep track of the currently selected circle node
-let activeStationSelection = null;
+// D3 Selection prototype utility extensions to clear highlight classes smoothly
+d3.selection.prototype.classList = function() {
+    return {
+        remove: (className) => {
+            this.each(function() { this.classList.remove(className); });
+            return this;
+        }
+    };
+};
 
-// Zoom configuration
+let activeStationSelection = null;
+let globalStationsData = []; // Cached stations dataset reference for search index match lookups
+
+// Zoom behavior configuration
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
         mainGroup.selectAll(".station")
-            .attr("r", Math.max(1, 4 / Math.sqrt(k))) 
+            .attr("r", d => {
+                // If it's active or connected, let it be slightly larger when zoomed in
+                const base = (d3.select(activeStationSelection).datum() === d) ? 5 : 4;
+                return Math.max(1, base / Math.sqrt(k));
+            })
             .style("stroke-width", `${0.5 / k}px`);
     });
 
 svg.call(zoom);
 
-// Generate Today's Date String (Format: YYYYMMDD)
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -41,9 +54,7 @@ function getTodayDateString() {
     return `${yyyy}${mm}${dd}`;
 }
 
-// Minute number to absolute timestamp calculator string conversion
 function convertMinutesToHHMM(totalMinutes) {
-    // Drop remaining fraction decimals completely via integer truncation floor
     const absoluteMinutes = Math.floor(totalMinutes);
     const hours = Math.floor(absoluteMinutes / 60) % 24;
     const mins = absoluteMinutes % 60;
@@ -65,18 +76,23 @@ function getCoords(d) {
     return (lat && lon) ? { lat, lon } : null;
 }
 
+// Get the standardized name string of a station object
+function getStationName(d) {
+    return d.stationName || d['車站中文名稱'] || d.name || "";
+}
+
 async function loadData() {
     try {
         const twData = await d3.json(mapUrl);
-        let stationsData = [];
         try {
-            stationsData = await d3.json("stations.json");
+            globalStationsData = await d3.json("stations.json");
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
-        drawMap(twData, stationsData);
+        drawMap(twData, globalStationsData);
+        initSearchAutocomplete();
     } catch (err) {
-        console.error("Error configuration mapping pipeline:", err);
+        console.error("Error configuring mapping pipeline:", err);
     }
 }
 
@@ -95,7 +111,7 @@ function drawMap(twData, stationsData) {
         .data(stationsData)
         .enter()
         .append("circle")
-        .attr("class", "station") // Starts out black based on CSS definitions
+        .attr("class", "station")
         .attr("r", 4)
         .attr("cx", d => {
             const coords = getCoords(d);
@@ -110,7 +126,7 @@ function drawMap(twData, stationsData) {
             const baseRadius = 4 / Math.sqrt(currentTransform.k);
             d3.select(this).attr("r", baseRadius * 1.5);
             
-            const name = d.stationName || d['車站中文名稱'] || d.name || "Unknown Station";
+            const name = getStationName(d);
             tooltip.style("opacity", 1)
                    .html(name)
                    .style("left", (event.pageX + 10) + "px")
@@ -123,85 +139,138 @@ function drawMap(twData, stationsData) {
         })
         .on("click", function(event, d) {
             event.stopPropagation();
-            
-            // 1. Reset color of previous selection and color the current one red
-            if (activeStationSelection) {
-                activeStationSelection.classList.remove("active");
-            }
-            this.classList.add("active");
-            activeStationSelection = this;
-
-            const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
-            const stationName = d.stationName || d['車站中文名稱'] || d.name || "Unknown Station";
-            const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
-
-            showStationInfoPanel(stationCode, stationName, stationAddrTw);
+            selectStationElement(this, d);
         });
+}
+
+// Unified trigger to select a station (handles both clicks and search matching updates)
+function selectStationElement(circleDOM, d) {
+    if (activeStationSelection) {
+        activeStationSelection.classList.remove("active");
+    }
+    
+    // Clear all previous highlights
+    mainGroup.selectAll(".station").classList.remove("connected");
+
+    circleDOM.classList.add("active");
+    activeStationSelection = circleDOM;
+
+    const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
+    const stationName = getStationName(d);
+    const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
+
+    showStationInfoPanel(stationCode, stationName, stationAddrTw);
+    
+    // Focus, center, and zoom map viewport on the selected coordinates
+    const coords = getCoords(d);
+    if (coords) {
+        const projectedCoords = projection([coords.lon, coords.lat]);
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
+    }
 }
 
 async function showStationInfoPanel(code, name, address) {
     document.getElementById("app-container").classList.add("split-mode");
 
-    const detailsContainer = document.getElementById("station-details");
-    detailsContainer.innerHTML = `
+    document.getElementById("station-details").innerHTML = `
         <h2>${name}</h2>
         <p><strong>Station Code:</strong> ${code}</p>
         <p><strong>Address:</strong> ${address}</p>
     `;
 
-    const listContainer = document.getElementById("train-list-container");
-    listContainer.innerHTML = `<p class="placeholder-text">Fetching live schedule tracking logs...</p>`;
+    const ccwContainer = document.getElementById("train-list-ccw");
+    const cwContainer = document.getElementById("train-list-cw");
+    
+    ccwContainer.innerHTML = `<p class="placeholder-text">Loading logs...</p>`;
+    cwContainer.innerHTML = `<p class="placeholder-text">Loading logs...</p>`;
 
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
 
     try {
         const scheduleData = await d3.json(targetScheduleUrl);
-        renderPassingTrains(scheduleData, name, listContainer);
+        renderSplitDirectionPassingTrains(scheduleData, name, ccwContainer, cwContainer);
     } catch (error) {
         console.error(error);
-        listContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load schedule dataset for date (${dateStr}).</p>`;
+        ccwContainer.innerHTML = cwContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
 }
 
-function renderPassingTrains(trainsList, targetStationName, listContainer) {
+// 1 & 3. Processes matching routes, highlights map paths, and separates direction streams
+function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwContainer, cwContainer) {
     if (!Array.isArray(trainsList)) {
-        listContainer.innerHTML = `<p class="placeholder-text">Malformed JSON structure.</p>`;
+        ccwContainer.innerHTML = cwContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
         return;
     }
 
-    const processedTrains = [];
+    const connectedStationNames = new Set();
+    const ccwTrains = []; // Counter-clockwise (Odd numbers)
+    const cwTrains = [];  // Clockwise (Even numbers)
 
     trainsList.forEach(train => {
         const routeStops = train.data || [];
-        
-        // Find all stops matching this station name
         const matchingStops = routeStops.filter(stop => stop.x === targetStationName);
         
         if (matchingStops.length > 0) {
-            // Find departure timestamp (last element index sequence matching the target station name)
             const depStop = matchingStops[matchingStops.length - 1];
             const departureMinutes = depStop.y;
             
-            processedTrains.push({
+            const trainData = {
                 ...train,
                 calculatedDepMinutes: departureMinutes,
                 formattedTime: convertMinutesToHHMM(departureMinutes)
+            };
+
+            // 1. Log all stations visited by this train to highlight connections
+            routeStops.forEach(stop => {
+                if (stop.x && stop.x !== targetStationName) {
+                    connectedStationNames.add(stop.x);
+                }
             });
+
+            // 3. Split streams dynamically by odd/even numerical properties
+            const trainNumberInt = parseInt(train.number, 10);
+            if (!isNaN(trainNumberInt)) {
+                if (trainNumberInt % 2 === 0) {
+                    cwTrains.push(trainData); // Even -> Clockwise (順行)
+                } else {
+                    ccwTrains.push(trainData); // Odd -> Counter-clockwise (逆行)
+                }
+            } else {
+                ccwTrains.push(trainData); // Default fallback sorting
+            }
         }
     });
 
-    if (processedTrains.length === 0) {
-        listContainer.innerHTML = `<p class="placeholder-text">No active operations scheduled through this station today.</p>`;
+    // 1. Update map element aesthetics to blue for connected stops
+    mainGroup.selectAll(".station")
+        .filter(function(d) {
+            const name = getStationName(d);
+            return connectedStationNames.has(name) && this !== activeStationSelection;
+        })
+        .classed("connected", true);
+
+    // Sort both direction tracks independently by time priorities
+    ccwTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
+    cwTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
+
+    // Render lists into their respective columns
+    populateColumnContainer(ccwTrains, ccwContainer);
+    populateColumnContainer(cwTrains, cwContainer);
+}
+
+// 2 & 3. Injects custom formatted item card entries with click-to-toggle details behavior
+function populateColumnContainer(trainsArray, containerElement) {
+    containerElement.innerHTML = "";
+    
+    if (trainsArray.length === 0) {
+        containerElement.innerHTML = `<p class="placeholder-text">No active schedules.</p>`;
         return;
     }
 
-    // 4. Sort columns ascending using the calculated departure timeline coordinates
-    processedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
-
-    listContainer.innerHTML = ""; // Clear wrapper container elements
-
-    processedTrains.forEach(train => {
+    trainsArray.forEach(train => {
         const card = document.createElement("div");
         card.className = "train-card";
 
@@ -212,10 +281,7 @@ function renderPassingTrains(trainsList, targetStationName, listContainer) {
         const viaLine = infoObj.via || "-";
         const rawEndStr = infoObj.end || "";
         
-        // Emulate Python strip logic: strip first 6 chars ("18:19 ") to reveal terminal base target ("永康")
         const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
-
-        // 3. Format conditional segments string structures
         const viaSegment = (viaLine !== "-") ? `經${viaLine}線 ` : "";
         const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
 
@@ -223,7 +289,6 @@ function renderPassingTrains(trainsList, targetStationName, listContainer) {
         const endText = rawEndStr || "N/A";
         const noteText = infoObj.note || "無";
 
-        // Construct interactive HTML card
         card.innerHTML = `
             <div class="train-header">
                 <strong>${train.formattedTime}</strong> ${trainType} ${trainNumber}
@@ -234,22 +299,110 @@ function renderPassingTrains(trainsList, targetStationName, listContainer) {
             </div>
         `;
 
-        // 2. Click to toggle info block layout display conditions
+        // 2. Click to toggle info section collapse state
         card.querySelector(".train-header").addEventListener("click", () => {
             card.classList.toggle("expanded");
         });
 
-        listContainer.appendChild(card);
+        containerElement.appendChild(card);
     });
 }
 
-// Reset view on closing side info panel
+// 2. Setup interactive autocomplete indexing logic loops
+function initSearchAutocomplete() {
+    const searchInput = document.getElementById("station-search-input");
+    const suggestionsDropdown = document.getElementById("search-suggestions");
+
+    searchInput.addEventListener("input", function() {
+        const value = this.value.trim().toLowerCase();
+        suggestionsDropdown.innerHTML = "";
+
+        if (!value) {
+            suggestionsDropdown.style.display = "none";
+            return;
+        }
+
+        // Filter current stations array looking for partial string queries matching titles
+        const matches = globalStationsData.filter(station => {
+            const name = getStationName(station).toLowerCase();
+            return name.includes(value);
+        });
+
+        if (matches.length === 0) {
+            suggestionsDropdown.style.display = "none";
+            return;
+        }
+
+        matches.forEach(station => {
+            const name = getStationName(station);
+            const item = document.createElement("div");
+            item.className = "suggestion-item";
+            item.textContent = name;
+            
+            item.addEventListener("click", () => {
+                searchInput.value = name;
+                suggestionsDropdown.style.display = "none";
+                triggerSelectionByStationName(name);
+            });
+            suggestionsDropdown.appendChild(item);
+        });
+
+        suggestionsDropdown.style.display = "block";
+    });
+
+    // Select the station if the user presses enter inside the search input
+    searchInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            const val = this.value.trim();
+            if (val) {
+                triggerSelectionByStationName(val);
+                suggestionsDropdown.style.display = "none";
+            }
+        }
+    });
+
+    // Close suggestions dropdown when clicking outside the input area
+    document.addEventListener("click", (e) => {
+        if (e.target !== searchInput) {
+            suggestionsDropdown.style.display = "none";
+        }
+    });
+}
+
+// Finds the D3 circle element corresponding to a station name and triggers the selection sequence
+function triggerSelectionByStationName(targetName) {
+    const d3Circles = mainGroup.selectAll(".station");
+    let matchedData = null;
+    let matchedNode = null;
+
+    d3Circles.each(function(d) {
+        if (getStationName(d).toLowerCase() === targetName.toLowerCase()) {
+            matchedData = d;
+            matchedNode = this;
+        }
+    });
+
+    if (matchedNode && matchedData) {
+        selectStationElement(matchedNode, matchedData);
+    } else {
+        alert("Station not found. Please clarify spelling entries.");
+    }
+}
+
+// Close Panel Button Actions
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
     if (activeStationSelection) {
         activeStationSelection.classList.remove("active");
         activeStationSelection = null;
     }
+    // Clear connection path highlights on layout close resets
+    mainGroup.selectAll(".station").classed("connected", false);
+    
+    // Zoom back out to show the full map overview
+    svg.transition()
+        .duration(750)
+        .call(zoom.transform, d3.zoomIdentity);
 });
 
 loadData();

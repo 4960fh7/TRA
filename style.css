@@ -8,14 +8,74 @@ body {
 
 .header {
     padding: 15px;
+    position: relative;
+    height: 15%;
 }
 
-/* Flex Container handling the two primary panels */
+/* Search Bar Styling */
+.search-container {
+    position: relative;
+    width: 320px;
+    margin: 10px auto 0 auto;
+}
+
+#station-search-input {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 20px;
+    outline: none;
+    box-sizing: border-box;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+#station-search-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+}
+
+/* Scrollable Suggestions Dropdown */
+.suggestions-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    border-radius: 0 0 8px 8px;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    text-align: left;
+    display: none;
+}
+
+.suggestion-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 14px;
+    color: #334155;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.suggestion-item:hover {
+    background-color: #f1f5f9;
+}
+
+/* Flex Container Layout */
 #app-container {
     display: flex;
     width: 95%;
+    height: 80%;
     max-width: 1400px;
-    margin: 0 auto;
+    margin: 0 auto 20px auto;
     background: #ffffff;
     border-radius: 8px;
     box-shadow: 0 4px 12px rgba(0,0,0,0.08);
@@ -40,7 +100,6 @@ svg {
     height: 100%;
 }
 
-/* Hidden side panel by default */
 #info-panel {
     width: 0%;
     opacity: 0;
@@ -54,7 +113,6 @@ svg {
     padding: 0;
 }
 
-/* Split-screen Mode Activation Class */
 #app-container.split-mode #map-container {
     width: 40%;
 }
@@ -86,7 +144,6 @@ svg {
     stroke-width: 0.8px;
 }
 
-/* 1. Stations are black by default */
 .station {
     fill: #000000;
     stroke: #fff;
@@ -99,9 +156,14 @@ svg {
     fill: #333333;
 }
 
-/* 1. Class for active selected station */
+/* Selected active station state color */
 .station.active {
     fill: #ef4444 !important;
+}
+
+/* Connected route stations state color */
+.station.connected {
+    fill: #3b82f6 !important;
 }
 
 .tooltip {
@@ -120,14 +182,46 @@ svg {
     white-space: nowrap;
 }
 
-/* Train Scroll List components */
-#train-list-container {
+/* Two-Column Train Split System */
+.train-split-layout {
+    display: flex;
+    gap: 16px;
+    width: 100%;
+}
+
+.train-column {
+    flex: 1;
+    width: 50%;
+    display: flex;
+    flex-direction: column;
+}
+
+.column-header {
+    font-size: 16px;
+    font-weight: bold;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+    text-align: center;
+}
+
+.counter-clockwise-header {
+    background-color: #fee2e2;
+    color: #991b1b;
+}
+
+.clockwise-header {
+    background-color: #dbeafe;
+    color: #1e40af;
+}
+
+.train-list-container {
     max-height: 480px;
     overflow-y: auto;
     padding-right: 5px;
 }
 
-/* 2. Collapsible Train Cards styles */
+/* Collapsible Cards */
 .train-card {
     background: #fff;
     border: 1px solid #e2e8f0;
@@ -138,36 +232,36 @@ svg {
 }
 
 .train-header {
-    padding: 12px 16px;
+    padding: 10px 12px;
     cursor: pointer;
     background: #ffffff;
     user-select: none;
     transition: background 0.2s;
+    font-size: 13px;
 }
 
 .train-header:hover {
     background: #f8fafc;
 }
 
-/* 3. Smaller sizing context for secondary itinerary strings */
 .train-sub-title {
-    font-size: 13px;
+    font-size: 11px;
     color: #64748b;
     font-weight: normal;
-    margin-left: 6px;
+    display: block;
+    margin-top: 2px;
 }
 
 .train-details {
     display: none;
-    padding: 12px 16px;
+    padding: 10px 12px;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
-    font-size: 14px;
+    font-size: 12px;
     color: #334155;
     line-height: 1.5;
 }
 
-/* Toggle expansion engine class */
 .train-card.expanded .train-details {
     display: block;
 }
@@ -175,4 +269,6 @@ svg {
 .placeholder-text {
     color: #94a3b8;
     font-style: italic;
+    font-size: 13px;
+    text-align: center;
 }
