@@ -17,21 +17,29 @@ const tooltip = d3.select("#tooltip");
 const mapUrl = "counties.json";
 
 let activeStationSelection = null;
-let globalStationsData = []; // Cached stations dataset reference for search index match lookups
+let globalStationsData = [];
 
-// Zoom behavior configuration
+// Zoom behavior with responsive circle adjustments and label display triggers
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
+        
+        // Dynamic Node Shrinking
         mainGroup.selectAll(".station")
             .attr("r", d => {
-                // If it's active or connected, let it be slightly larger when zoomed in
                 const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 5 : 4;
                 return Math.max(1, base / Math.sqrt(k));
             })
             .style("stroke-width", `${0.5 / k}px`);
+
+        // Dynamic Text Adjustments
+        mainGroup.selectAll(".station-label")
+            .style("font-size", `${Math.max(3, 11 / Math.sqrt(k))}px`)
+            .attr("dx", Math.max(2, 6 / Math.sqrt(k)))
+            .attr("dy", Math.max(1, 3 / Math.sqrt(k)))
+            .style("opacity", k > 2.5 ? 1 : 0); // 3. Shows label names if zoomed past threshold
     });
 
 svg.call(zoom);
@@ -66,7 +74,6 @@ function getCoords(d) {
     return (lat && lon) ? { lat, lon } : null;
 }
 
-// Get the standardized name string of a station object
 function getStationName(d) {
     return d.stationName || d['車站中文名稱'] || d.name || "";
 }
@@ -82,7 +89,7 @@ async function loadData() {
         drawMap(twData, globalStationsData);
         initSearchAutocomplete();
     } catch (err) {
-        console.error("Error configuring mapping pipeline:", err);
+        console.error("Error configuration mapping pipeline:", err);
     }
 }
 
@@ -97,6 +104,7 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
+    // Draw station circle markers
     mainGroup.selectAll(".station")
         .data(stationsData)
         .enter()
@@ -131,19 +139,31 @@ function drawMap(twData, stationsData) {
             event.stopPropagation();
             selectStationElement(this, d);
         });
+
+    // 3. Append matching structural metadata labels right next to markers
+    mainGroup.selectAll(".station-label")
+        .data(stationsData)
+        .enter()
+        .append("text")
+        .attr("class", "station-label")
+        .attr("x", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+        })
+        .attr("y", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
+        })
+        .text(d => getStationName(d));
 }
 
-// Unified trigger to select a station (handles both clicks and search matching updates)
 function selectStationElement(circleDOM, d) {
-    // 1. Reset active class on the old selection using D3
     if (activeStationSelection) {
         d3.select(activeStationSelection).classed("active", false);
     }
     
-    // 2. Clear all previous connected station highlights natively via D3
     mainGroup.selectAll(".station").classed("connected", false);
 
-    // 3. Set new active selection
     d3.select(circleDOM).classed("active", true);
     activeStationSelection = circleDOM;
 
@@ -153,13 +173,13 @@ function selectStationElement(circleDOM, d) {
 
     showStationInfoPanel(stationCode, stationName, stationAddrTw);
     
-    // Focus, center, and zoom map viewport on the selected coordinates
     const coords = getCoords(d);
     if (coords) {
         const projectedCoords = projection([coords.lon, coords.lat]);
         svg.transition()
             .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
+            // 1. Reduced zoom factor from 12 down to 4 (about 20% less zoomed-in feel)
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(4).translate(-projectedCoords[0], -projectedCoords[1]));
     }
 }
 
@@ -172,34 +192,30 @@ async function showStationInfoPanel(code, name, address) {
         <p><strong>Address:</strong> ${address}</p>
     `;
 
-    const ccwContainer = document.getElementById("train-list-ccw");
-    const cwContainer = document.getElementById("train-list-cw");
-    
-    ccwContainer.innerHTML = `<p class="placeholder-text">Loading logs...</p>`;
-    cwContainer.innerHTML = `<p class="placeholder-text">Loading logs...</p>`;
+    const unifiedListContainer = document.getElementById("unified-train-list");
+    unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules...</p>`;
 
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
 
     try {
         const scheduleData = await d3.json(targetScheduleUrl);
-        renderSplitDirectionPassingTrains(scheduleData, name, ccwContainer, cwContainer);
+        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer);
     } catch (error) {
         console.error(error);
-        ccwContainer.innerHTML = cwContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
+        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
 }
 
-// Processes matching routes, highlights map paths, and separates direction streams
-function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwContainer, cwContainer) {
+// 2. Maps, tags and aligns elements inside single rows
+function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer) {
     if (!Array.isArray(trainsList)) {
-        ccwContainer.innerHTML = cwContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
+        listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
         return;
     }
 
     const connectedStationNames = new Set();
-    const ccwTrains = []; // Counter-clockwise (Odd numbers)
-    const cwTrains = [];  // Clockwise (Even numbers)
+    const combinedSortedTrains = [];
 
     trainsList.forEach(train => {
         const routeStops = train.data || [];
@@ -215,28 +231,16 @@ function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwCon
                 formattedTime: convertMinutesToHHMM(departureMinutes)
             };
 
-            // Log all stations visited by this train to highlight connections
             routeStops.forEach(stop => {
                 if (stop.x && stop.x !== targetStationName) {
                     connectedStationNames.add(stop.x);
                 }
             });
 
-            // Split streams dynamically by odd/even numerical properties
-            const trainNumberInt = parseInt(train.number, 10);
-            if (!isNaN(trainNumberInt)) {
-                if (trainNumberInt % 2 === 0) {
-                    cwTrains.push(trainData); // Even -> Clockwise (順行)
-                } else {
-                    ccwTrains.push(trainData); // Odd -> Counter-clockwise (逆行)
-                }
-            } else {
-                ccwTrains.push(trainData); // Default fallback sorting
-            }
+            combinedSortedTrains.push(trainData);
         }
     });
 
-    // Update map element aesthetics to blue for connected stops using D3's classed function
     mainGroup.selectAll(".station")
         .filter(function(d) {
             const name = getStationName(d);
@@ -244,27 +248,31 @@ function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwCon
         })
         .classed("connected", true);
 
-    // Sort both direction tracks independently by time priorities
-    ccwTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
-    cwTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
-
-    // Render lists into their respective columns
-    populateColumnContainer(ccwTrains, ccwContainer);
-    populateColumnContainer(cwTrains, cwContainer);
-}
-
-// Injects custom formatted item card entries with click-to-toggle details behavior
-function populateColumnContainer(trainsArray, containerElement) {
-    containerElement.innerHTML = "";
-    
-    if (trainsArray.length === 0) {
-        containerElement.innerHTML = `<p class="placeholder-text">No active schedules.</p>`;
+    if (combinedSortedTrains.length === 0) {
+        listContainer.innerHTML = `<p class="placeholder-text">No active schedules today.</p>`;
         return;
     }
 
-    trainsArray.forEach(train => {
+    // Sort everything linearly chronologically first
+    combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
+
+    listContainer.innerHTML = ""; 
+
+    // 2. Build single item rows mapped to left/right grid alignments
+    combinedSortedTrains.forEach(train => {
+        const rowGridWrapper = document.createElement("div");
+        rowGridWrapper.className = "train-row-grid";
+
         const card = document.createElement("div");
         card.className = "train-card";
+
+        const trainNumberInt = parseInt(train.number, 10);
+        // Odd -> Left side alignment class, Even -> Right side alignment class
+        if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
+            card.classList.add("side-right");
+        } else {
+            card.classList.add("side-left");
+        }
 
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
@@ -274,7 +282,7 @@ function populateColumnContainer(trainsArray, containerElement) {
         const rawEndStr = infoObj.end || "";
         
         const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
-        const viaSegment = (viaLine !== "-") ? `經${viaLine}線 ` : "";
+        const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
         const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
 
         const startText = infoObj.start || "N/A";
@@ -291,16 +299,15 @@ function populateColumnContainer(trainsArray, containerElement) {
             </div>
         `;
 
-        // Click to toggle info section collapse state
         card.querySelector(".train-header").addEventListener("click", () => {
             card.classList.toggle("expanded");
         });
 
-        containerElement.appendChild(card);
+        rowGridWrapper.appendChild(card);
+        listContainer.appendChild(rowGridWrapper);
     });
 }
 
-// Setup interactive autocomplete indexing logic loops
 function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
@@ -314,7 +321,6 @@ function initSearchAutocomplete() {
             return;
         }
 
-        // Filter current stations array looking for partial string queries matching titles
         const matches = globalStationsData.filter(station => {
             const name = getStationName(station).toLowerCase();
             return name.includes(value);
@@ -342,7 +348,6 @@ function initSearchAutocomplete() {
         suggestionsDropdown.style.display = "block";
     });
 
-    // Select the station if the user presses enter inside the search input
     searchInput.addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
             const val = this.value.trim();
@@ -353,7 +358,6 @@ function initSearchAutocomplete() {
         }
     });
 
-    // Close suggestions dropdown when clicking outside the input area
     document.addEventListener("click", (e) => {
         if (e.target !== searchInput) {
             suggestionsDropdown.style.display = "none";
@@ -361,7 +365,6 @@ function initSearchAutocomplete() {
     });
 }
 
-// Finds the D3 circle element corresponding to a station name and triggers the selection sequence
 function triggerSelectionByStationName(targetName) {
     const d3Circles = mainGroup.selectAll(".station");
     let matchedData = null;
@@ -381,17 +384,14 @@ function triggerSelectionByStationName(targetName) {
     }
 }
 
-// Close Panel Button Actions
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
     if (activeStationSelection) {
         d3.select(activeStationSelection).classed("active", false);
         activeStationSelection = null;
     }
-    // Clear connection path highlights on layout close resets using D3
     mainGroup.selectAll(".station").classed("connected", false);
     
-    // Zoom back out to show the full map overview
     svg.transition()
         .duration(750)
         .call(zoom.transform, d3.zoomIdentity);
