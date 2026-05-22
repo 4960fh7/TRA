@@ -16,16 +16,6 @@ const path = d3.geoPath().projection(projection);
 const tooltip = d3.select("#tooltip");
 const mapUrl = "counties.json";
 
-// D3 Selection prototype utility extensions to clear highlight classes smoothly
-d3.selection.prototype.classList = function() {
-    return {
-        remove: (className) => {
-            this.each(function() { this.classList.remove(className); });
-            return this;
-        }
-    };
-};
-
 let activeStationSelection = null;
 let globalStationsData = []; // Cached stations dataset reference for search index match lookups
 
@@ -38,7 +28,7 @@ const zoom = d3.zoom()
         mainGroup.selectAll(".station")
             .attr("r", d => {
                 // If it's active or connected, let it be slightly larger when zoomed in
-                const base = (d3.select(activeStationSelection).datum() === d) ? 5 : 4;
+                const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 5 : 4;
                 return Math.max(1, base / Math.sqrt(k));
             })
             .style("stroke-width", `${0.5 / k}px`);
@@ -145,14 +135,16 @@ function drawMap(twData, stationsData) {
 
 // Unified trigger to select a station (handles both clicks and search matching updates)
 function selectStationElement(circleDOM, d) {
+    // 1. Reset active class on the old selection using D3
     if (activeStationSelection) {
-        activeStationSelection.classList.remove("active");
+        d3.select(activeStationSelection).classed("active", false);
     }
     
-    // Clear all previous highlights
-    mainGroup.selectAll(".station").classList.remove("connected");
+    // 2. Clear all previous connected station highlights natively via D3
+    mainGroup.selectAll(".station").classed("connected", false);
 
-    circleDOM.classList.add("active");
+    // 3. Set new active selection
+    d3.select(circleDOM).classed("active", true);
     activeStationSelection = circleDOM;
 
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
@@ -198,7 +190,7 @@ async function showStationInfoPanel(code, name, address) {
     }
 }
 
-// 1 & 3. Processes matching routes, highlights map paths, and separates direction streams
+// Processes matching routes, highlights map paths, and separates direction streams
 function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwContainer, cwContainer) {
     if (!Array.isArray(trainsList)) {
         ccwContainer.innerHTML = cwContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
@@ -223,14 +215,14 @@ function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwCon
                 formattedTime: convertMinutesToHHMM(departureMinutes)
             };
 
-            // 1. Log all stations visited by this train to highlight connections
+            // Log all stations visited by this train to highlight connections
             routeStops.forEach(stop => {
                 if (stop.x && stop.x !== targetStationName) {
                     connectedStationNames.add(stop.x);
                 }
             });
 
-            // 3. Split streams dynamically by odd/even numerical properties
+            // Split streams dynamically by odd/even numerical properties
             const trainNumberInt = parseInt(train.number, 10);
             if (!isNaN(trainNumberInt)) {
                 if (trainNumberInt % 2 === 0) {
@@ -244,7 +236,7 @@ function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwCon
         }
     });
 
-    // 1. Update map element aesthetics to blue for connected stops
+    // Update map element aesthetics to blue for connected stops using D3's classed function
     mainGroup.selectAll(".station")
         .filter(function(d) {
             const name = getStationName(d);
@@ -261,7 +253,7 @@ function renderSplitDirectionPassingTrains(trainsList, targetStationName, ccwCon
     populateColumnContainer(cwTrains, cwContainer);
 }
 
-// 2 & 3. Injects custom formatted item card entries with click-to-toggle details behavior
+// Injects custom formatted item card entries with click-to-toggle details behavior
 function populateColumnContainer(trainsArray, containerElement) {
     containerElement.innerHTML = "";
     
@@ -299,7 +291,7 @@ function populateColumnContainer(trainsArray, containerElement) {
             </div>
         `;
 
-        // 2. Click to toggle info section collapse state
+        // Click to toggle info section collapse state
         card.querySelector(".train-header").addEventListener("click", () => {
             card.classList.toggle("expanded");
         });
@@ -308,7 +300,7 @@ function populateColumnContainer(trainsArray, containerElement) {
     });
 }
 
-// 2. Setup interactive autocomplete indexing logic loops
+// Setup interactive autocomplete indexing logic loops
 function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
@@ -393,10 +385,10 @@ function triggerSelectionByStationName(targetName) {
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
     if (activeStationSelection) {
-        activeStationSelection.classList.remove("active");
+        d3.select(activeStationSelection).classed("active", false);
         activeStationSelection = null;
     }
-    // Clear connection path highlights on layout close resets
+    // Clear connection path highlights on layout close resets using D3
     mainGroup.selectAll(".station").classed("connected", false);
     
     // Zoom back out to show the full map overview
