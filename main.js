@@ -154,7 +154,7 @@ function drawMap(twData, stationsData) {
             const coords = getCoords(d);
             return coords ? projection([coords.lon, coords.lat])[1] : -9999;
         })
-        .style("opacity", 0) // FIXED: Ensures labels start hidden when zoomed out initially
+        .style("opacity", 0) 
         .text(d => getStationName(d));
 }
 
@@ -257,9 +257,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     listContainer.innerHTML = ""; 
 
     combinedSortedTrains.forEach(train => {
-        const rowGridWrapper = document.createElement("div");
-        rowGridWrapper.className = "train-row-grid";
-
         const card = document.createElement("div");
         card.className = "train-card";
 
@@ -299,8 +296,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        rowGridWrapper.appendChild(card);
-        listContainer.appendChild(rowGridWrapper);
+        // FIXED: Inject directly into the 2-column grid container
+        listContainer.appendChild(card);
     });
 }
 

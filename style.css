@@ -9,10 +9,9 @@ body {
 .header {
     padding: 15px;
     position: relative;
-    height: 15%;
 }
 
-/* Search Bar Styling */
+/* Search Bar UI */
 .search-container {
     position: relative;
     width: 320px;
@@ -35,7 +34,6 @@ body {
     box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
 }
 
-/* Scrollable Suggestions Dropdown */
 .suggestions-dropdown {
     position: absolute;
     top: 100%;
@@ -61,10 +59,6 @@ body {
     border-bottom: 1px solid #f1f5f9;
 }
 
-.suggestion-item:last-child {
-    border-bottom: none;
-}
-
 .suggestion-item:hover {
     background-color: #f1f5f9;
 }
@@ -73,7 +67,6 @@ body {
 #app-container {
     display: flex;
     width: 95%;
-    height: 80%;
     max-width: 1400px;
     margin: 0 auto 20px auto;
     background: #ffffff;
@@ -137,7 +130,7 @@ svg {
     background: #cbd5e1;
 }
 
-/* Map Components */
+/* Map Elements */
 .county {
     fill: #d8e2eb;
     stroke: #ffffff;
@@ -152,18 +145,22 @@ svg {
     transition: fill 0.2s ease-in-out;
 }
 
-.station:hover {
-    fill: #333333;
-}
-
-/* Selected active station state color */
 .station.active {
     fill: #ef4444 !important;
 }
 
-/* Connected route stations state color */
 .station.connected {
     fill: #3b82f6 !important;
+}
+
+/* Map Typography Labels */
+.station-label {
+    font-family: sans-serif;
+    font-weight: 600;
+    fill: #1e293b;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
 }
 
 .tooltip {
@@ -177,58 +174,70 @@ svg {
     font-size: 14px;
     transform: translate(-50%, -100%);
     margin-top: -10px;
-    transition: opacity 0.15s;
     z-index: 100;
     white-space: nowrap;
 }
 
-/* Two-Column Train Split System */
-.train-split-layout {
+/* Unified Layout Wrapper System */
+#unified-train-wrapper {
     display: flex;
-    gap: 16px;
+    flex-direction: column;
     width: 100%;
 }
 
-.train-column {
-    flex: 1;
-    width: 50%;
+.sticky-direction-header {
+    position: sticky;
+    top: 0;
     display: flex;
-    flex-direction: column;
+    gap: 16px;
+    background: #fcfdfe;
+    padding: 8px 0;
+    z-index: 10;
+    border-bottom: 1px solid #e2e8f0;
+    margin-bottom: 12px;
 }
 
-.column-header {
-    font-size: 16px;
+.dir-indicator {
+    flex: 1;
+    font-size: 15px;
     font-weight: bold;
-    padding: 8px 12px;
+    padding: 8px;
     border-radius: 6px;
-    margin-bottom: 12px;
     text-align: center;
 }
 
-.counter-clockwise-header {
-    background-color: #fee2e2;
-    color: #991b1b;
-}
+.ccw-ind { background-color: #fee2e2; color: #991b1b; }
+.cw-ind { background-color: #dbeafe; color: #1e40af; }
 
-.clockwise-header {
-    background-color: #dbeafe;
-    color: #1e40af;
-}
-
-.train-list-container {
+/* FIXED: Configured parent as a single 2-column grid layout */
+#unified-train-list {
     max-height: 480px;
     overflow-y: auto;
-    padding-right: 5px;
+    padding-right: 4px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px 16px;
+    align-items: start;
 }
 
-/* Collapsible Cards */
+/* Train item layout cards */
 .train-card {
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 6px;
-    margin-bottom: 10px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     overflow: hidden;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* FIXED: Map side positioning directly on the grid-tracks */
+.train-card.side-left {
+    grid-column: 1;
+}
+
+.train-card.side-right {
+    grid-column: 2;
 }
 
 .train-header {
@@ -238,6 +247,7 @@ svg {
     user-select: none;
     transition: background 0.2s;
     font-size: 13px;
+    text-align: left;
 }
 
 .train-header:hover {
@@ -260,6 +270,7 @@ svg {
     font-size: 12px;
     color: #334155;
     line-height: 1.5;
+    text-align: left;
 }
 
 .train-card.expanded .train-details {
@@ -267,8 +278,10 @@ svg {
 }
 
 .placeholder-text {
+    grid-column: 1 / span 2; /* Span across both columns */
     color: #94a3b8;
     font-style: italic;
     font-size: 13px;
     text-align: center;
+    margin: 20px 0;
 }
