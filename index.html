@@ -11,11 +11,27 @@
 <body>
     <div class="header">
         <h1>Taiwan TRA Stations</h1>
-        <p>Hover over the circles to see the station names</p>
+        <p>Hover over the circles to see the station names. Click to view daily schedules.</p>
     </div>
     
     <div id="tooltip" class="tooltip"></div>
-    <div id="map"></div>
+
+    <div id="app-container">
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+        
+        <div id="info-panel">
+            <div id="close-panel-btn" class="close-btn">&times; Close Panel</div>
+            <div id="station-details">
+                </div>
+            <hr>
+            <h3>Daily Passing Trains</h3>
+            <div id="train-list-container">
+                <p class="placeholder-text">Select a station to load schedule information.</p>
+            </div>
+        </div>
+    </div>
 
     <script src="main.js"></script>
 </body>
