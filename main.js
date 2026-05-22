@@ -39,7 +39,7 @@ const zoom = d3.zoom()
             .style("font-size", `${Math.max(3, 11 / Math.sqrt(k))}px`)
             .attr("dx", Math.max(2, 6 / Math.sqrt(k)))
             .attr("dy", Math.max(1, 3 / Math.sqrt(k)))
-            .style("opacity", k > 2.5 ? 1 : 0); // 3. Shows label names if zoomed past threshold
+            .style("opacity", k > 2.5 ? 1 : 0); // Shows label names if zoomed past threshold
     });
 
 svg.call(zoom);
@@ -140,7 +140,7 @@ function drawMap(twData, stationsData) {
             selectStationElement(this, d);
         });
 
-    // 3. Append matching structural metadata labels right next to markers
+    // Append text labels right next to markers
     mainGroup.selectAll(".station-label")
         .data(stationsData)
         .enter()
@@ -154,6 +154,7 @@ function drawMap(twData, stationsData) {
             const coords = getCoords(d);
             return coords ? projection([coords.lon, coords.lat])[1] : -9999;
         })
+        .style("opacity", 0) // FIXED: Ensures labels start hidden when zoomed out initially
         .text(d => getStationName(d));
 }
 
@@ -178,7 +179,6 @@ function selectStationElement(circleDOM, d) {
         const projectedCoords = projection([coords.lon, coords.lat]);
         svg.transition()
             .duration(750)
-            // 1. Reduced zoom factor from 12 down to 4 (about 20% less zoomed-in feel)
             .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(4).translate(-projectedCoords[0], -projectedCoords[1]));
     }
 }
@@ -207,7 +207,6 @@ async function showStationInfoPanel(code, name, address) {
     }
 }
 
-// 2. Maps, tags and aligns elements inside single rows
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer) {
     if (!Array.isArray(trainsList)) {
         listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
@@ -253,12 +252,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
-    // Sort everything linearly chronologically first
     combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
 
     listContainer.innerHTML = ""; 
 
-    // 2. Build single item rows mapped to left/right grid alignments
     combinedSortedTrains.forEach(train => {
         const rowGridWrapper = document.createElement("div");
         rowGridWrapper.className = "train-row-grid";
@@ -267,7 +264,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         card.className = "train-card";
 
         const trainNumberInt = parseInt(train.number, 10);
-        // Odd -> Left side alignment class, Even -> Right side alignment class
         if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
             card.classList.add("side-right");
         } else {

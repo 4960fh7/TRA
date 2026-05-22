@@ -14,7 +14,7 @@
         <p>Hover over the circles to see the station names. Click to view daily schedules.</p>
         
         <div class="search-container">
-            <input type="text" id="station-search-input" placeholder="Search station name (e.g., 臺北, 高雄)..." autocomplete="off">
+            <input type="text" id="station-search-input" placeholder="Search station name (e.g., 臺南, 沙崙)..." autocomplete="off">
             <div id="search-suggestions" class="suggestions-dropdown"></div>
         </div>
     </div>
@@ -28,23 +28,16 @@
         
         <div id="info-panel">
             <div id="close-panel-btn" class="close-btn">&times; Close Panel</div>
-            <div id="station-details">
-                </div>
+            <div id="station-details"></div>
             <hr>
             
-            <div class="train-split-layout">
-                <div class="train-column">
-                    <div class="column-header counter-clockwise-header">逆行</div>
-                    <div id="train-list-ccw" class="train-list-container">
-                        <p class="placeholder-text">Select a station...</p>
-                    </div>
+            <div id="unified-train-wrapper">
+                <div class="sticky-direction-header">
+                    <div class="dir-indicator ccw-ind">逆行 (Odd)</div>
+                    <div class="dir-indicator cw-ind">順行 (Even)</div>
                 </div>
-                
-                <div class="train-column">
-                    <div class="column-header clockwise-header">順行</div>
-                    <div id="train-list-cw" class="train-list-container">
-                        <p class="placeholder-text">Select a station...</p>
-                    </div>
+                <div id="unified-train-list">
+                    <p class="placeholder-text">Select a station to load schedule information.</p>
                 </div>
             </div>
         </div>
