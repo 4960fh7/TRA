@@ -21,17 +21,16 @@ let globalStationsData = [];
 
 // Sci-Fi Dynamic Color Palette Mapping
 const colorPalette = {
-    "普悠瑪": "#FF5252",  // Lightened to a vibrant, high-visibility coral red
-    "太魯閣": "#FFA726",  // Shifted to a bright, glowing orange
-    "新自強": "#ce6be0",  // Changed from deep purple to a luminous lavender/magenta
-    "自強": "#5ad362",    // Swapped forest green for a crisp, bright mint/emerald green
-    "莒光": "#FFEE58",    // Brightened to a vivid, high-contrast yellow
-    "區間快": "#5b7cfe",  // Shifted from dark indigo to a vibrant neon purple/blue
-    "區間": "#00ffff"     // Kept cyan as it inherently boasts excellent contrast on dark backgrounds
+    "普悠瑪": "#FF5252",  
+    "太魯閣": "#FFA726",  
+    "新自強": "#ce6be0",  
+    "自強": "#5ad362",    
+    "莒光": "#FFEE58",    
+    "區間快": "#5b7cfe",  
+    "區間": "#00ffff"     
 };
 
 // Zoom configuration behavior logic
-// --- Updated Zoom Behavior Logic (Requirement 3) ---
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
@@ -47,7 +46,6 @@ const zoom = d3.zoom()
             .style("stroke-width", `${0.3 / k}px`);
 
         // Increased threshold: station names only show when zoomed in a lot (k > 8.0 instead of 2.5)
-        // Font sizes also scale down to prevent text overlapping at extreme zoom depths
         mainGroup.selectAll(".station-label")
             .style("font-size", `${Math.max(2.5, 9 / Math.sqrt(k))}px`)
             .attr("dx", Math.max(1.5, 5 / Math.sqrt(k)))
@@ -194,16 +192,12 @@ function selectStationElement(circleDOM, d) {
     }
 }
 
-// Helper to fetch and build the real-time TDX data target URL
 function getLatestTDXUrl() {
     const now = new Date();
-    
-    // Extract local time segments
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const date = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     
-    // Round down minutes to the nearest multiple of 5
     const rawMinutes = now.getMinutes();
     const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
     const minutes = String(roundedMinutes).padStart(2, '0');
@@ -229,16 +223,14 @@ async function showStationInfoPanel(code, name, address) {
     const liveBoardUrl = getLatestTDXUrl();
 
     try {
-        // Fetch both static diagram schedule and live board status files concurrently
         const [scheduleData, liveBoardData] = await Promise.all([
             d3.json(targetScheduleUrl),
             d3.json(liveBoardUrl).catch(err => {
                 console.warn("Failed to fetch live board tracking snapshot:", err);
-                return null; // Graceful fallback if the specific 5-min tracking node isn't updated yet
+                return null; 
             })
         ]);
 
-        // Construct a key-value Map for immediate train lookup O(1)
         const delayMap = new Map();
         if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
             liveBoardData.TrainLiveBoards.forEach(board => {
@@ -246,14 +238,15 @@ async function showStationInfoPanel(code, name, address) {
             });
         }
 
-        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap);
+        // FIXED: liveBoardData is now passed through to renderUnifiedPassingTrains
+        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData);
     } catch (error) {
         console.error(error);
         unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
 }
 
-function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap) {
+function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
     if (!Array.isArray(trainsList)) {
         listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
         return;
@@ -262,7 +255,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
 
-    // Get current time in total minutes from midnight to calculate departure thresholds
     const now = new Date();
     const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
 
@@ -274,7 +266,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             const depStop = matchingStops[matchingStops.length - 1];
             const departureMinutes = depStop.y;
             
-            // Map live delay properties using the Train Number
             const trainNumber = train.number || "N/A";
             const delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
 
@@ -307,12 +298,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
-    // Chronological Sort
     combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
 
     listContainer.innerHTML = ""; 
 
-    // Tracker variable to identify the first upcoming train container node
     let upcomingTrainDOMElement = null;
 
     combinedSortedTrains.forEach(train => {
@@ -351,7 +340,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const endText = rawEndStr || "N/A";
         const noteText = infoObj.note || "無";
 
-        // --- Custom Delay Status Logic Based on TrainStationStatus (Requirement 2) ---
         let delayBadgeHTML = "";
         
         if (train.delay !== undefined) {
@@ -361,8 +349,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 delayBadgeHTML = `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
             }
         } else {
-            // Locate raw live JSON metadata fields if available in the global tracking dictionary
-            // Station status configurations: 0 = Not yet departed from first stop, 2 = Arrived at final destination terminal.
             const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
             
             if (rawLiveBoardInfo) {
@@ -374,8 +360,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
                 }
             } else {
-                // If the train is completely missing from the live feed:
-                // If its scheduled departure time has passed by more than 30 minutes, assume it completed its run (已收班)
                 if (currentMinutesMidnight > train.calculatedDepMinutes + 30) {
                     delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
                 } else {
@@ -405,7 +389,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // Append items based on direction placement
         if (isEven) {
             listContainer.appendChild(spacerCard);
             listContainer.appendChild(card);
@@ -414,15 +397,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             listContainer.appendChild(spacerCard);
         }
 
-        // Track the first train card whose scheduled departure time is equal to or greater than the current time
         if (!upcomingTrainDOMElement && train.calculatedDepMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
         }
     });
 
-    // --- Smooth Scroll Execution Target (Requirement 1) ---
     if (upcomingTrainDOMElement) {
-        // Request an animation frame callback loop to ensure elements are fully painted in DOM layout before scrolling
         requestAnimationFrame(() => {
             setTimeout(() => {
                 listContainer.scrollTo({
@@ -473,7 +453,6 @@ function initSearchAutocomplete() {
             item.textContent = name;
             
             item.addEventListener("click", () => {
-                // Clear query strings immediately
                 searchInput.value = "";
                 suggestionsDropdown.style.display = "none";
                 triggerSelectionByStationName(name);
@@ -488,7 +467,6 @@ function initSearchAutocomplete() {
         if (e.key === "Enter") {
             const val = this.value.trim();
             if (val) {
-                // Clear text string entries cleanly
                 this.value = "";
                 triggerSelectionByStationName(val);
                 suggestionsDropdown.style.display = "none";
