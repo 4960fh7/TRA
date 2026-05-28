@@ -67,84 +67,136 @@ const zoom = d3.zoom()
 svg.call(zoom);
 
 // 關鍵修復：專門用來計算、排斥重疊、且絕不壓到車站圓圈的力學模擬
+// 關鍵修復：因為要求標籤完全固定不動，移除複雜的力學模擬系統，改用靜態位置計算
 function updateLabelForceSimulation(k) {
-    if (labelSimulation) labelSimulation.stop();
+    // 停止任何可能殘留的力學模擬
+    if (labelSimulation) {
+        labelSimulation.stop();
+        labelSimulation = null;
+    }
 
     const fontSize = Math.max(2.5, 9 / Math.sqrt(k));
-    mainGroup.selectAll(".station-label").style("font-size", `${fontSize}px`);
-
-    // 動態計算目前視角下的車站圓圈半徑
     const activeCircleRadius = 4 / Math.sqrt(k);
     const standardCircleRadius = 3 / Math.sqrt(k);
 
-    globalStationsData.forEach(d => {
-        const coords = getCoords(d);
-        if (coords) {
+    // 靜態計算並固定文字標籤的位置與字體大小
+    mainGroup.selectAll(".station-label")
+        .style("font-size", `${fontSize}px`)
+        .attr("x", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+        })
+        .attr("y", d => {
+            const coords = getCoords(d);
+            if (!coords) return -9999;
             const pos = projection([coords.lon, coords.lat]);
-            
-            // 重要：不要使用 fx 和 fy，這會把節點完全鎖死，導致碰撞系統失效。
-            // 使用 targetX 和 targetY 作為引力目標。
-            d.targetX = pos[0];
-            d.targetY = pos[1];
-
-            // 如果是第一次執行，給予初始坐標
-            if (d.x === undefined) d.x = pos[0];
-            if (d.y === undefined) {
-                const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-                const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-                d.y = pos[1] - r - (3 / k); 
-            }
-        }
-    });
-
-    // 建立 D3 物理碰撞模擬系統
-    labelSimulation = d3.forceSimulation(globalStationsData)
-        // 1. 調整碰撞半徑：中文字是方塊，寬度大約等於 字數 * 字體大小。
-        // 改用稍微寬一點的碰撞半徑，防堵左右文字護城河重疊。
-        .force("collide", d3.forceCollide(d => {
-            const nameLen = getStationName(d).length;
             const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-            const currentRadius = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-            // 安全緩衝半徑 = (字串長度 * 字體半寬) + 圓圈半徑 + 微調安全值
-            return (nameLen * fontSize * 0.5) + currentRadius + (2 / k); 
-        }).iterations(4))
-        // 2. 引力系統：溫和地把標籤維持在車站原本坐標的附近
-        .force("x", d3.forceX(d => d.targetX).strength(0.4))
-        .force("y", d3.forceY(d => d.targetY).strength(0.4))
-        .alpha(0.5)
-        .alphaDecay(0.05) // 稍微放慢冷卻，讓字體有足夠的時間彈開
-        .restart();
+            const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+            
+            // 將標籤固定放置在車站圓圈的上方（扣除半徑外加一個固定呼吸安全邊距）
+            return pos[1] - r - (4 / k);
+        });
+}
 
-    // 在物理系統運算的每一步（tick）即時校正坐標與更新 DOM
-    labelSimulation.on("tick", () => {
-        mainGroup.selectAll(".station-label")
-            .attr("x", d => d.x)
-            .attr("y", d => {
-                // 計算當前文字物理中心 (d.x, d.y) 與 車站實際目標坐標 (d.targetX, d.targetY) 的直線距離
-                const dx = d.x - d.targetX;
-                const dy = d.y - d.targetY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
+function drawMap(twData, stationsData) {
+    if (!twData || !twData.objects) return;
 
-                // 判定該車站圓圈目前的實際防守半徑
-                const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-                const currentRadius = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-                
-                // 設定「絕對禁區半徑」＝ 圓圈半徑 ＋ 字體高度的一半 ＋ 安全邊距
-                const forbiddenZone = currentRadius + (fontSize * 0.6) + (2 / k);
+    let objectsKey = Object.keys(twData.objects)[0];
+    if (twData.objects["counties"]) objectsKey = "counties";
+    else if (twData.objects["towns"]) objectsKey = "towns";
 
-                // 核心防壓圓圈機制：如果文字靠得太近，壓到了圓圈禁區
-                if (distance < forbiddenZone) {
-                    if (distance === 0) {
-                        return d.targetY - forbiddenZone;
-                    }
-                    // 沿著原本的夾角方向，將文字推向圓圈禁區範圍線之外
-                    const ratio = forbiddenZone / distance;
-                    d.x = d.targetX + dx * ratio; 
-                    d.y = d.targetY + dy * ratio; 
-                }
-                return d.y;
-            });
-    });
+    if (!twData.objects[objectsKey]) return;
+
+    const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
+
+    mainGroup.selectAll(".county")
+        .data(counties)
+        .enter()
+        .append("path")
+        .attr("class", "county")
+        .attr("d", path);
+
+    // 1. 先建立車站圓圈節點
+    const circles = mainGroup.selectAll(".station")
+        .data(stationsData)
+        .enter()
+        .append("circle")
+        .attr("class", "station")
+        .attr("r", 4)
+        .attr("cx", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+        })
+        .attr("cy", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
+        })
+        .on("mouseover", function(event, d) {
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
+            
+            d3.select(this).attr("r", currentBaseRadius * 1.5);
+            
+            const name = getStationName(d);
+            tooltip.style("opacity", 1)
+                   .html(name)
+                   .style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseout", function(event, d) {
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            
+            d3.select(this).attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            tooltip.style("opacity", 0);
+        })
+        .on("click", function(event, d) {
+            event.stopPropagation();
+            selectStationElement(this, d);
+        });
+
+    // 2. 建立文字標籤節點（使其同步支援點擊事件與動態色彩）
+    mainGroup.selectAll(".station-label")
+        .data(stationsData)
+        .enter()
+        .append("text")
+        .attr("class", "station-label")
+        .style("opacity", 0) 
+        .text(d => getStationName(d))
+        // 核心修改 1 & 3: 綁定與圓圈完全一模一樣的滑鼠與點擊事件
+        .on("mouseover", function(event, d) {
+            // 觸發對應圓圈的放大視覺特效
+            const correspondingCircle = circles.filter(cData => cData === d);
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            correspondingCircle.attr("r", Math.max(0.6, base / Math.sqrt(k)) * 1.5);
+
+            const name = getStationName(d);
+            tooltip.style("opacity", 1)
+                   .html(name)
+                   .style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseout", function(event, d) {
+            // 還原對應圓圈的半徑
+            const correspondingCircle = circles.filter(cData => cData === d);
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            correspondingCircle.attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            
+            tooltip.style("opacity", 0);
+        })
+        .on("click", function(event, d) {
+            event.stopPropagation();
+            // 找出與此文字標籤對應的圓圈 DOM 元素，一併傳入現有的 selectStationElement 邏輯
+            const correspondingCircleNode = circles.filter(cData => cData === d).node();
+            selectStationElement(correspondingCircleNode, d);
+        });
 }
 
 function getTodayDateString() {

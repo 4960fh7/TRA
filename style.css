@@ -408,12 +408,35 @@ hr {
 .station-label {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    fill: #00f0ff;
-    pointer-events: none;
+    /* 核心修改 1: 將 fill 設為 currentColor，使其自動隨 CSS 狀態類別（如 .active, .connected）繼承圓圈相同的配色 */
+    fill: currentColor; 
+    
+    /* 核心修改 3: 開啟 pointer-events 使其可被滑鼠點擊，並換上指針樣式 */
+    pointer-events: auto; 
+    cursor: pointer;
+
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
     text-anchor: middle;
     dominant-baseline: central;
-    letter-spacing: 0.5px; /* Keeps text slightly tighter horizontally */
+}
+
+/* 核心修改 1 的配套 CSS 選取器：確保文字色彩同步繼承動態狀態 */
+.station.active ~ .station-label, 
+.station-label:has(~ .station.active),
+.station:active, 
+.station.active {
+    color: #ff0055;
+}
+
+.station.connected ~ .station-label,
+.station-label:has(~ .station.connected),
+.station.connected {
+    color: #00ffaa;
+}
+
+/* 預設沒特別狀態時，文字與圓圈同步為基本青藍色 */
+.station-label {
+    color: #00f0ff;
 }
 
 .tooltip {
