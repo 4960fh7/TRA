@@ -1,52 +1,71 @@
+/* --- Sci-Fi / Cyberpunk Theme Overhaul --- */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Courier New', Courier, monospace, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f0f4f8;
+    background-color: #060b13; /* Deep space dark blue */
+    color: #e2e8f0;
     text-align: center;
 }
 
 .header {
-    padding: 15px;
+    padding: 20px;
     position: relative;
+    border-bottom: 2px dashed #00f0ff;
+    background: linear-gradient(180deg, #0b1424 0%, #060b13 100%);
 }
 
-/* Search Bar UI */
+.header h1 {
+    font-size: 2.2rem;
+    color: #00f0ff;
+    text-shadow: 0 0 10px rgba(0, 240, 255, 0.6);
+    letter-spacing: 2px;
+    margin: 5px 0;
+}
+
+.header p {
+    color: #94a3b8;
+    font-size: 13px;
+}
+
+/* Sci-Fi Search Bar Layout */
 .search-container {
     position: relative;
-    width: 320px;
-    margin: 10px auto 0 auto;
+    width: 340px;
+    margin: 15px auto 0 auto;
 }
 
 #station-search-input {
     width: 100%;
-    padding: 10px 14px;
-    font-size: 14px;
-    border: 1px solid #cbd5e1;
-    border-radius: 20px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #0d1b2a;
+    color: #00f0ff;
+    border: 1px solid #00f0ff;
+    border-radius: 4px;
     outline: none;
     box-sizing: border-box;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.2);
+    transition: all 0.3s ease;
 }
 
 #station-search-input:focus {
-    border-color: #3b82f6;
-    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6), inset 0 0 8px rgba(0, 240, 255, 0.3);
 }
 
 .suggestions-dropdown {
     position: absolute;
-    top: 100%;
+    top: 105%;
     left: 0;
     right: 0;
     max-height: 200px;
     overflow-y: auto;
-    background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-top: none;
-    border-radius: 0 0 8px 8px;
+    background: #0b1424;
+    border: 1px solid #00f0ff;
+    border-radius: 4px;
     z-index: 1000;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    box-shadow: 0 5px 20px rgba(0, 240, 255, 0.3);
     text-align: left;
     display: none;
 }
@@ -54,32 +73,37 @@ body {
 .suggestion-item {
     padding: 10px 14px;
     cursor: pointer;
-    font-size: 14px;
-    color: #334155;
-    border-bottom: 1px solid #f1f5f9;
+    font-size: 13px;
+    color: #94a3b8;
+    border-bottom: 1px solid #1e293b;
+    transition: all 0.2s;
 }
 
 .suggestion-item:hover {
-    background-color: #f1f5f9;
+    background-color: #112240;
+    color: #00f0ff;
+    padding-left: 18px;
 }
 
-/* Flex Container Layout */
+/* Main Dashboard Wrapper Grid */
 #app-container {
     display: flex;
-    width: 95%;
-    max-width: 1400px;
-    margin: 0 auto 20px auto;
-    background: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    width: 96%;
+    max-width: 1500px;
+    margin: 25px auto;
+    background: #0b1424;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
+    box-shadow: 0 0 25px rgba(0,0,0,0.5);
     overflow: hidden;
     transition: all 0.4s ease-in-out;
 }
 
 #map-container {
     width: 100%;
-    height: 750px;
+    height: 780px;
     position: relative;
+    background: #030712;
     transition: width 0.4s ease-in-out;
 }
 
@@ -96,11 +120,11 @@ svg {
 #info-panel {
     width: 0%;
     opacity: 0;
-    height: 750px;
+    height: 780px;
     box-sizing: border-box;
     overflow-y: auto;
-    background-color: #fcfdfe;
-    border-left: 1px solid #e2e8f0;
+    background-color: #070d19;
+    border-left: 2px solid #00f0ff;
     text-align: left;
     transition: width 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.4s ease-in-out;
     padding: 0;
@@ -119,66 +143,43 @@ svg {
 .close-btn {
     float: right;
     cursor: pointer;
-    background: #e2e8f0;
-    padding: 6px 12px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: 600;
+    background: #1e293b;
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    padding: 5px 12px;
+    border-radius: 2px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+    transition: all 0.2s;
 }
 
 .close-btn:hover {
-    background: #cbd5e1;
-}
-
-/* Map Elements */
-.county {
-    fill: #d8e2eb;
-    stroke: #ffffff;
-    stroke-width: 0.8px;
-}
-
-.station {
-    fill: #000000;
-    stroke: #fff;
-    stroke-width: 0.5px;
-    cursor: pointer;
-    transition: fill 0.2s ease-in-out;
-}
-
-.station.active {
-    fill: #ef4444 !important;
-}
-
-.station.connected {
-    fill: #3b82f6 !important;
-}
-
-/* Map Typography Labels */
-.station-label {
-    font-family: sans-serif;
-    font-weight: 600;
-    fill: #1e293b;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity 0.2s ease-in-out;
-}
-
-.tooltip {
-    position: absolute;
-    opacity: 0;
-    background: rgba(0, 0, 0, 0.85);
+    background: #ef4444;
     color: #fff;
-    padding: 6px 12px;
-    border-radius: 4px;
-    pointer-events: none;
-    font-size: 14px;
-    transform: translate(-50%, -100%);
-    margin-top: -10px;
-    z-index: 100;
-    white-space: nowrap;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
 }
 
-/* Unified Layout Wrapper System */
+#station-details h2 {
+    color: #00f0ff;
+    font-size: 1.8rem;
+    margin-top: 0;
+    text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
+}
+
+#station-details p {
+    color: #94a3b8;
+    font-size: 13px;
+    margin: 6px 0;
+}
+
+hr {
+    border: 0;
+    border-top: 1px dashed #1e293b;
+    margin: 20px 0;
+}
+
+/* Train Log Container Framework */
 #unified-train-wrapper {
     display: flex;
     flex-direction: column;
@@ -189,49 +190,64 @@ svg {
     position: sticky;
     top: 0;
     display: flex;
-    gap: 16px;
-    background: #fcfdfe;
-    padding: 8px 0;
+    gap: 20px;
+    background: #070d19;
+    padding: 10px 0;
     z-index: 10;
-    border-bottom: 1px solid #e2e8f0;
-    margin-bottom: 12px;
+    border-bottom: 1px solid #1e293b;
+    margin-bottom: 15px;
 }
 
 .dir-indicator {
     flex: 1;
-    font-size: 15px;
+    font-size: 13px;
     font-weight: bold;
     padding: 8px;
-    border-radius: 6px;
+    border-radius: 2px;
     text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.ccw-ind { background-color: #fee2e2; color: #991b1b; }
-.cw-ind { background-color: #dbeafe; color: #1e40af; }
+.ccw-ind { 
+    background-color: rgba(239, 68, 68, 0.1); 
+    color: #ef4444; 
+    border: 1px dashed #ef4444;
+}
+.cw-ind { 
+    background-color: rgba(59, 130, 246, 0.1); 
+    color: #3b82f6; 
+    border: 1px dashed #3b82f6;
+}
 
-/* FIXED: Configured parent as a single 2-column grid layout */
 #unified-train-list {
     max-height: 480px;
     overflow-y: auto;
-    padding-right: 4px;
+    padding-right: 6px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px 16px;
+    /* Two symmetrical columns */
+    grid-template-columns: 1fr 1fr; 
+    gap: 14px 20px;
     align-items: start;
 }
 
-/* Train item layout cards */
+/* Sci-Fi Train Detail Cards */
 .train-card {
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    border-radius: 6px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+    background: #0d1527;
+    border: 1px solid #1e293b;
+    border-left: 4px solid #64748b; /* Fallback accent line */
+    border-radius: 2px;
     overflow: hidden;
     width: 100%;
     box-sizing: border-box;
+    transition: transform 0.2s, box-shadow 0.2s;
 }
 
-/* FIXED: Map side positioning directly on the grid-tracks */
+.train-card:hover {
+    transform: translateY(-2px);
+}
+
+/* Force elements into individual dedicated columns */
 .train-card.side-left {
     grid-column: 1;
 }
@@ -241,35 +257,34 @@ svg {
 }
 
 .train-header {
-    padding: 10px 12px;
+    padding: 12px;
     cursor: pointer;
-    background: #ffffff;
     user-select: none;
-    transition: background 0.2s;
-    font-size: 13px;
+    font-size: 12px;
     text-align: left;
 }
 
-.train-header:hover {
-    background: #f8fafc;
+.train-header strong {
+    font-size: 14px;
+    color: #fff;
+    margin-right: 4px;
 }
 
 .train-sub-title {
     font-size: 11px;
-    color: #64748b;
-    font-weight: normal;
+    color: #94a3b8;
     display: block;
-    margin-top: 2px;
+    margin-top: 5px;
 }
 
 .train-details {
     display: none;
-    padding: 10px 12px;
-    background: #f8fafc;
-    border-top: 1px solid #e2e8f0;
-    font-size: 12px;
-    color: #334155;
-    line-height: 1.5;
+    padding: 12px;
+    background: #090e1a;
+    border-top: 1px solid #1e293b;
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.6;
     text-align: left;
 }
 
@@ -278,10 +293,63 @@ svg {
 }
 
 .placeholder-text {
-    grid-column: 1 / span 2; /* Span across both columns */
-    color: #94a3b8;
+    grid-column: 1 / span 2;
+    color: #64748b;
     font-style: italic;
     font-size: 13px;
     text-align: center;
-    margin: 20px 0;
+    margin: 30px 0;
+}
+
+/* Map Typography & Graphics Rendering */
+.county {
+    fill: #0c1829;
+    stroke: #1e293b;
+    stroke-width: 0.8px;
+}
+
+.station {
+    fill: #00f0ff;
+    stroke: #030712;
+    stroke-width: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.station.active {
+    fill: #ff0055 !important;
+    filter: drop-shadow(0 0 6px #ff0055);
+}
+
+.station.connected {
+    fill: #00ffaa !important;
+    filter: drop-shadow(0 0 5px #00ffaa);
+}
+
+.station-label {
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    fill: #00f0ff;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    text-shadow: 0 0 4px #030712, 0 0 4px #030712;
+}
+
+.tooltip {
+    position: absolute;
+    opacity: 0;
+    background: #0b1424;
+    color: #00f0ff;
+    border: 1px solid #00f0ff;
+    padding: 5px 10px;
+    border-radius: 2px;
+    pointer-events: none;
+    font-size: 12px;
+    font-family: monospace;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+    transform: translate(-50%, -100%);
+    margin-top: -10px;
+    z-index: 100;
+    white-space: nowrap;
 }

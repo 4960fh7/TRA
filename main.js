@@ -19,14 +19,24 @@ const mapUrl = "counties.json";
 let activeStationSelection = null;
 let globalStationsData = [];
 
-// Zoom behavior with responsive circle adjustments and label display triggers
+// 3. Sci-Fi Dynamic Color Theme Key Definitions Matrix
+const colorPalette = {
+    "普悠瑪": "#F12F2F", 
+    "太魯閣": "#F57C00", 
+    "新自強": "#7B1FA2", 
+    "自強": "#00994D", 
+    "莒光": "#FBC02D", 
+    "區間快": "#1A1AFF", 
+    "區間": "#00ffff" // Adjusted from black (#262626) to cyan (#00ffff) to make it legible on the dark UI theme
+};
+
+// Zoom configuration behavior logic
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
         
-        // Dynamic Node Shrinking
         mainGroup.selectAll(".station")
             .attr("r", d => {
                 const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 5 : 4;
@@ -34,12 +44,11 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.5 / k}px`);
 
-        // Dynamic Text Adjustments
         mainGroup.selectAll(".station-label")
             .style("font-size", `${Math.max(3, 11 / Math.sqrt(k))}px`)
             .attr("dx", Math.max(2, 6 / Math.sqrt(k)))
             .attr("dy", Math.max(1, 3 / Math.sqrt(k)))
-            .style("opacity", k > 2.5 ? 1 : 0); // Shows label names if zoomed past threshold
+            .style("opacity", k > 2.5 ? 1 : 0);
     });
 
 svg.call(zoom);
@@ -104,7 +113,6 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
-    // Draw station circle markers
     mainGroup.selectAll(".station")
         .data(stationsData)
         .enter()
@@ -140,7 +148,6 @@ function drawMap(twData, stationsData) {
             selectStationElement(this, d);
         });
 
-    // Append text labels right next to markers
     mainGroup.selectAll(".station-label")
         .data(stationsData)
         .enter()
@@ -207,6 +214,7 @@ async function showStationInfoPanel(code, name, address) {
     }
 }
 
+// 1 & 3. Processes layout arrays applying distinct rows and color palette glow settings
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer) {
     if (!Array.isArray(trainsList)) {
         listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
@@ -260,16 +268,22 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const card = document.createElement("div");
         card.className = "train-card";
 
-        const trainNumberInt = parseInt(train.number, 10);
+        const trainType = train.train || "N/A";
+        const trainNumber = train.number || "N/A";
+        
+        // 1. Alternating Row Isolation System (Odd -> Column 1, Even -> Column 2)
+        const trainNumberInt = parseInt(trainNumber, 10);
         if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
             card.classList.add("side-right");
         } else {
             card.classList.add("side-left");
         }
 
-        const trainType = train.train || "N/A";
-        const trainNumber = train.number || "N/A";
-        
+        // 3. Apply Custom Color Coding Mapping Palette Styles dynamically
+        const matchingNeonThemeColor = colorPalette[trainType] || "#64748b";
+        card.style.borderLeftColor = matchingNeonThemeColor;
+        card.style.boxShadow = `0 0 8px rgba(${hexToRgbChannels(matchingNeonThemeColor)}, 0.15)`;
+
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
         const rawEndStr = infoObj.end || "";
@@ -283,12 +297,13 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const noteText = infoObj.note || "無";
 
         card.innerHTML = `
-            <div class="train-header">
-                <strong>${train.formattedTime}</strong> ${trainType} ${trainNumber}
+            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgbChannels(matchingNeonThemeColor)}, 0.2)">
+                <strong style="color: ${matchingNeonThemeColor}">${train.formattedTime}</strong> 
+                <span style="color: ${matchingNeonThemeColor}; font-weight: bold; margin-left:2px;">${trainType} ${trainNumber}</span>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details">
-                ${startText} → ${endText} 註：${noteText}
+                ${startText} → ${endText} <br>註：${noteText}
             </div>
         `;
 
@@ -296,9 +311,18 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // FIXED: Inject directly into the 2-column grid container
         listContainer.appendChild(card);
     });
+}
+
+// 3. Helper Utility function to format hexadecimal values into raw RGB channels for glow effects
+function hexToRgbChannels(hex) {
+    let c = hex.substring(1);
+    if(c.length === 3) {
+        c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    }
+    const num = parseInt(c, 16);
+    return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
 function initSearchAutocomplete() {
@@ -331,7 +355,8 @@ function initSearchAutocomplete() {
             item.textContent = name;
             
             item.addEventListener("click", () => {
-                searchInput.value = name;
+                // 2. FIXED: Clears search bar box value cleanly upon selection
+                searchInput.value = "";
                 suggestionsDropdown.style.display = "none";
                 triggerSelectionByStationName(name);
             });
@@ -345,6 +370,8 @@ function initSearchAutocomplete() {
         if (e.key === "Enter") {
             const val = this.value.trim();
             if (val) {
+                // 2. FIXED: Clears search bar box value cleanly upon striking Enter key
+                this.value = "";
                 triggerSelectionByStationName(val);
                 suggestionsDropdown.style.display = "none";
             }
