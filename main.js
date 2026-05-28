@@ -31,24 +31,28 @@ const colorPalette = {
 };
 
 // Zoom configuration behavior logic
+// --- Updated Zoom Behavior Logic (Requirement 3) ---
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
         
+        // Make station circles smaller as you zoom in (r reduces relative to sqrt(k))
         mainGroup.selectAll(".station")
             .attr("r", d => {
-                const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 5 : 4;
-                return Math.max(1, base / Math.sqrt(k));
+                const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+                return Math.max(0.6, base / Math.sqrt(k));
             })
-            .style("stroke-width", `${0.5 / k}px`);
+            .style("stroke-width", `${0.3 / k}px`);
 
+        // Increased threshold: station names only show when zoomed in a lot (k > 8.0 instead of 2.5)
+        // Font sizes also scale down to prevent text overlapping at extreme zoom depths
         mainGroup.selectAll(".station-label")
-            .style("font-size", `${Math.max(3, 11 / Math.sqrt(k))}px`)
-            .attr("dx", Math.max(2, 6 / Math.sqrt(k)))
-            .attr("dy", Math.max(1, 3 / Math.sqrt(k)))
-            .style("opacity", k > 2.5 ? 1 : 0);
+            .style("font-size", `${Math.max(2.5, 9 / Math.sqrt(k))}px`)
+            .attr("dx", Math.max(1.5, 5 / Math.sqrt(k)))
+            .attr("dy", Math.max(0.8, 2.5 / Math.sqrt(k)))
+            .style("opacity", k > 8.0 ? 1 : 0); 
     });
 
 svg.call(zoom);
@@ -258,6 +262,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
 
+    // Get current time in total minutes from midnight to calculate departure thresholds
+    const now = new Date();
+    const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
+
     trainsList.forEach(train => {
         const routeStops = train.data || [];
         const matchingStops = routeStops.filter(stop => stop.x === targetStationName);
@@ -266,7 +274,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             const depStop = matchingStops[matchingStops.length - 1];
             const departureMinutes = depStop.y;
             
-            // Map live delay using the Train Number
+            // Map live delay properties using the Train Number
             const trainNumber = train.number || "N/A";
             const delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
 
@@ -274,7 +282,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 ...train,
                 calculatedDepMinutes: departureMinutes,
                 formattedTime: convertMinutesToHHMM(departureMinutes),
-                delay: delay // Assign delay (undefined, 0, or positive integer)
+                delay: delay 
             };
 
             routeStops.forEach(stop => {
@@ -304,6 +312,9 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
     listContainer.innerHTML = ""; 
 
+    // Tracker variable to identify the first upcoming train container node
+    let upcomingTrainDOMElement = null;
+
     combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
         card.className = "train-card";
@@ -311,11 +322,9 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
         
-        // Define Column Placements
         const trainNumberInt = parseInt(trainNumber, 10);
         const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
 
-        // Create the counterpart visual empty spacer node
         const spacerCard = document.createElement("div");
 
         if (isEven) {
@@ -326,7 +335,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             spacerCard.className = "train-card-spacer side-right";
         }
 
-        // Apply Custom Sci-Fi Theme Color Palette Configs
         const neonColor = colorPalette[trainType] || "#64748b";
         card.style.borderLeftColor = neonColor;
         card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.12)`;
@@ -343,13 +351,36 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const endText = rawEndStr || "N/A";
         const noteText = infoObj.note || "無";
 
-        // Build Delay HTML Tag element dynamically
-        let delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+        // --- Custom Delay Status Logic Based on TrainStationStatus (Requirement 2) ---
+        let delayBadgeHTML = "";
+        
         if (train.delay !== undefined) {
             if (train.delay === 0) {
                 delayBadgeHTML = `<span class="delay-badge delay-ontime">準點</span>`;
             } else {
                 delayBadgeHTML = `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
+            }
+        } else {
+            // Locate raw live JSON metadata fields if available in the global tracking dictionary
+            // Station status configurations: 0 = Not yet departed from first stop, 2 = Arrived at final destination terminal.
+            const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
+            
+            if (rawLiveBoardInfo) {
+                if (rawLiveBoardInfo.TrainStationStatus === 0) {
+                    delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+                } else if (rawLiveBoardInfo.TrainStationStatus === 2) {
+                    delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+                } else {
+                    delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+                }
+            } else {
+                // If the train is completely missing from the live feed:
+                // If its scheduled departure time has passed by more than 30 minutes, assume it completed its run (已收班)
+                if (currentMinutesMidnight > train.calculatedDepMinutes + 30) {
+                    delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+                } else {
+                    delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+                }
             }
         }
 
@@ -374,7 +405,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // Append items based on direction
+        // Append items based on direction placement
         if (isEven) {
             listContainer.appendChild(spacerCard);
             listContainer.appendChild(card);
@@ -382,7 +413,25 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             listContainer.appendChild(card);
             listContainer.appendChild(spacerCard);
         }
+
+        // Track the first train card whose scheduled departure time is equal to or greater than the current time
+        if (!upcomingTrainDOMElement && train.calculatedDepMinutes >= currentMinutesMidnight) {
+            upcomingTrainDOMElement = card;
+        }
     });
+
+    // --- Smooth Scroll Execution Target (Requirement 1) ---
+    if (upcomingTrainDOMElement) {
+        // Request an animation frame callback loop to ensure elements are fully painted in DOM layout before scrolling
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                listContainer.scrollTo({
+                    top: upcomingTrainDOMElement.offsetTop - listContainer.offsetTop - 10,
+                    behavior: 'smooth'
+                });
+            }, 100);
+        });
+    }
 }
 
 function hexToRgb(hex) {
