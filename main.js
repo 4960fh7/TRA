@@ -373,14 +373,21 @@ function selectStationElement(circleDOM, d) {
     }
 }
 
-function getLatestTDXUrl() {
+// 核心優化：允許傳入偏移量（分鐘），以便在遇到 404 時向過去時間回溯尋找可用檔案
+function getLatestTDXUrl(minuteOffset = 0) {
     const now = new Date();
+    // 如果有傳入偏移量，將時間減去對應的分鐘數
+    if (minuteOffset > 0) {
+        now.setMinutes(now.getMinutes() - minuteOffset);
+    }
+
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const date = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
     const rawMinutes = now.getMinutes();
     const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
     const minutes = String(roundedMinutes).padStart(2, '0');
+    
     const datetimeStr = `${month}${date}${hours}${minutes}`;
     return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${now.getTime()}`;
 }
@@ -436,13 +443,36 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json?t=${new Date().getTime()}`;
-    const liveBoardUrl = getLatestTDXUrl();
+
+    // =======================================================
+    // 核心穩定度修改：自動容錯迴圈 (嘗試讀取最新、5分鐘前、10分鐘前檔案)
+    // =======================================================
+    let liveBoardData = null;
+    let attempts = 0;
+    const maxAttempts = 3; // 最多往前找 3 個週期（即 15 分鐘前）
+
+    while (attempts < maxAttempts) {
+        // 第一次嘗試 offset = 0 (最新), 第二次 offset = 5 (5分鐘前), 第三次 offset = 10 (10分鐘前)
+        let currentOffset = attempts * 5; 
+        let liveBoardUrl = getLatestTDXUrl(currentOffset);
+
+        try {
+            liveBoardData = await d3.json(liveBoardUrl);
+            // 如果成功抓到資料，直接跳出迴圈
+            if (liveBoardData) {
+                console.log(`Successfully fetched real-time logs with offset -${currentOffset}m`);
+                break;
+            }
+        } catch (err) {
+            console.warn(`Data file not found (404) for offset -${currentOffset}m. Retrying older packet...`);
+            attempts++;
+        }
+    }
+    // =======================================================
 
     try {
-        const [scheduleData, liveBoardData] = await Promise.all([
-            d3.json(targetScheduleUrl),
-            d3.json(liveBoardUrl).catch(err => null)
-        ]);
+        // 載入固定排班表數據（此處不再因即時資料 404 而被阻斷中斷）
+        const scheduleData = await d3.json(targetScheduleUrl);
 
         let updateBadge = document.getElementById("live-data-update-time-badge");
         if (!updateBadge) {
@@ -459,6 +489,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
             updateBadge.innerHTML = `最後更新：${formattedLiveTime}`;
             updateBadge.style.display = "block";
         } else {
+            // 如果嘗試 3 次都 404，呈現離線模式，但不崩潰，依然正常渲染基礎時刻表
             updateBadge.innerHTML = `最後更新：離線`;
             updateBadge.style.display = "block";
         }
