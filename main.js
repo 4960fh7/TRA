@@ -60,16 +60,14 @@ const zoom = d3.zoom()
             updateLabelForceSimulation(k);
         } else {
             mainGroup.selectAll(".station-label").style("opacity", 0);
-            if (labelSimulation) labelSimulation.stop();
         }
     });
 
 svg.call(zoom);
 
 // 關鍵修復：專門用來計算、排斥重疊、且絕不壓到車站圓圈的力學模擬
-// 關鍵修復：因為要求標籤完全固定不動，移除複雜的力學模擬系統，改用靜態位置計算
 function updateLabelForceSimulation(k) {
-    // 停止任何可能殘留的力學模擬
+    // 徹底廢棄力學模擬，確保完全固定不動
     if (labelSimulation) {
         labelSimulation.stop();
         labelSimulation = null;
@@ -79,22 +77,16 @@ function updateLabelForceSimulation(k) {
     const activeCircleRadius = 4 / Math.sqrt(k);
     const standardCircleRadius = 3 / Math.sqrt(k);
 
-    // 靜態計算並固定文字標籤的位置與字體大小
+    // 調整文字大小
     mainGroup.selectAll(".station-label")
         .style("font-size", `${fontSize}px`)
-        .attr("x", d => {
-            const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
-        })
         .attr("y", d => {
-            const coords = getCoords(d);
-            if (!coords) return -9999;
-            const pos = projection([coords.lon, coords.lat]);
+            // 根據目前該車站是否為選取狀態，決定對應的圓圈半徑避讓間隔
             const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
             const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
             
-            // 將標籤固定放置在車站圓圈的上方（扣除半徑外加一個固定呼吸安全邊距）
-            return pos[1] - r - (4 / k);
+            // 固定放置在車站上方（半徑 + 安全邊距 4 像素）
+            return -r - (4 / k);
         });
 }
 
@@ -260,6 +252,7 @@ function drawMap(twData, stationsData) {
 
     const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
 
+    // 繪製背景縣市地圖
     mainGroup.selectAll(".county")
         .data(counties)
         .enter()
@@ -267,27 +260,28 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
-    mainGroup.selectAll(".station")
+    // 【核心修改】：將每個車站的圓圈與文字，用一個統一的 <g class="station-group"> 包起來
+    const stationGroups = mainGroup.selectAll(".station-group")
         .data(stationsData)
         .enter()
-        .append("circle")
-        .attr("class", "station")
-        .attr("r", 4)
-        .attr("cx", d => {
+        .append("g")
+        .attr("class", "station-group")
+        // 把整組移動到正確的地理投影坐標上
+        .attr("transform", d => {
             const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+            if (!coords) return "translate(-9999, -9999)";
+            const pos = projection([coords.lon, coords.lat]);
+            return `translate(${pos[0]}, ${pos[1]})`;
         })
-        .attr("cy", d => {
-            const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
-        })
+        // 【優化點擊】：滑鼠互動直接綁定在整組容器上，點文字或點圓圈均會完美觸發
         .on("mouseover", function(event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
             const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
             
-            d3.select(this).attr("r", currentBaseRadius * 1.5);
+            // 放大該群組內的圓圈
+            d3.select(this).select(".station").attr("r", currentBaseRadius * 1.5);
             
             const name = getStationName(d);
             tooltip.style("opacity", 1)
@@ -300,21 +294,28 @@ function drawMap(twData, stationsData) {
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
             
-            d3.select(this).attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            d3.select(this).select(".station").attr("r", Math.max(0.6, base / Math.sqrt(k)));
             tooltip.style("opacity", 0);
         })
         .on("click", function(event, d) {
             event.stopPropagation();
-            selectStationElement(this, d);
+            // 傳入群組內部的圓圈 DOM 節點，完美相容現有的 selectStationElement 演算法
+            const circleDOM = d3.select(this).select(".station").node();
+            selectStationElement(circleDOM, d);
         });
 
-    // 繪製初始文字標籤
-    mainGroup.selectAll(".station-label")
-        .data(stationsData)
-        .enter()
-        .append("text")
+    // 在群組內添加圓圈 (坐標原點設為 0,0 因為父層已經 translate 移過去了)
+    stationGroups.append("circle")
+        .attr("class", "station")
+        .attr("r", 4)
+        .attr("cx", 0)
+        .attr("cy", 0);
+
+    // 在群組內添加固定文字標籤
+    stationGroups.append("text")
         .attr("class", "station-label")
         .style("opacity", 0) 
+        .attr("x", 0)
         .text(d => getStationName(d));
 }
 
@@ -325,14 +326,22 @@ function selectStationElement(circleDOM, d) {
         
         const currentTransform = d3.zoomTransform(svg.node());
         const k = currentTransform.k;
-        d3.select(oldSelection)
-          .classed("active", false)
-          .attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
+        
+        // 移除圓圈和父級群組的 active 樣式
+        d3.select(oldSelection).classed("active", false);
+        d3.select(oldSelection.parentNode).classed("active", false);
+        
+        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
     
+    // 清除全域所有連線群組狀態
+    mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
 
+    // 為當前點擊的圓圈及其群組套用 active 類別
     d3.select(circleDOM).classed("active", true);
+    d3.select(circleDOM.parentNode).classed("active", true);
+    
     activeStationSelection = circleDOM;
     
     const currentTransform = d3.zoomTransform(svg.node());
@@ -348,7 +357,6 @@ function selectStationElement(circleDOM, d) {
 
     showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget);
     
-    // 選取車站時觸發一次力學系統重新定位，確保文字順暢讓開
     if (k > 8.0) updateLabelForceSimulation(k);
 
     const coords = getCoords(d);
@@ -725,10 +733,13 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         
         const currentTransform = d3.zoomTransform(svg.node());
         const k = currentTransform.k;
-        d3.select(oldSelection)
-          .classed("active", false)
-          .attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
+        
+        d3.select(oldSelection).classed("active", false);
+        d3.select(oldSelection.parentNode).classed("active", false);
+        
+        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
+    mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
     
     svg.transition()

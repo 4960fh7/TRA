@@ -408,35 +408,66 @@ hr {
 .station-label {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    /* 核心修改 1: 將 fill 設為 currentColor，使其自動隨 CSS 狀態類別（如 .active, .connected）繼承圓圈相同的配色 */
-    fill: currentColor; 
-    
-    /* 核心修改 3: 開啟 pointer-events 使其可被滑鼠點擊，並換上指針樣式 */
-    pointer-events: auto; 
-    cursor: pointer;
-
+    fill: #00f0ff;             /* 預設為基本青藍色 */
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
     text-anchor: middle;
     dominant-baseline: central;
+    
+    /* 核心修改 3：開啟點擊穿透或響應，指針呈現手勢 */
+    pointer-events: auto;
+    cursor: pointer;
 }
 
 /* 核心修改 1 的配套 CSS 選取器：確保文字色彩同步繼承動態狀態 */
-.station.active ~ .station-label, 
-.station-label:has(~ .station.active),
-.station:active, 
-.station.active {
-    color: #ff0055;
+/* --- Map Graphics styling --- */
+.county {
+    fill: #3c455a;
+    stroke: #522424;
+    stroke-width: 0.8px;
 }
 
-.station.connected ~ .station-label,
-.station-label:has(~ .station.connected),
-.station.connected {
-    color: #00ffaa;
+/* 預設基礎狀態：青藍色 */
+.station {
+    fill: #00f0ff;
+    stroke: #040810;
+    stroke-width: 0.5px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
 }
 
-/* 預設沒特別狀態時，文字與圓圈同步為基本青藍色 */
 .station-label {
-    color: #00f0ff;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    fill: #00f0ff;             /* 預設為基本青藍色 */
+    text-shadow: 0 0 4px #040810, 0 0 4px #040810;
+    text-anchor: middle;
+    dominant-baseline: central;
+    
+    /* 核心修改 3：開啟點擊穿透或響應，指針呈現手勢 */
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+/* =======================================================
+   核心修改 1：基於群組結構 (.station-group) 進行配色狀態管理 
+   ======================================================= */
+
+/* 狀態 A：選取中的主要車站 -> 紅色 (Circle & Label) */
+.station-group.active .station {
+    fill: #ff0055 !important;
+    filter: drop-shadow(0 0 6px #ff0055);
+}
+.station-group.active .station-label {
+    fill: #ff0055 !important;
+}
+
+/* 狀態 B：與其連線交會的車站 -> 綠色 (Circle & Label) */
+.station-group.connected .station {
+    fill: #00ffaa !important;
+    filter: drop-shadow(0 0 5px #00ffaa);
+}
+.station-group.connected .station-label {
+    fill: #00ffaa !important;
 }
 
 .tooltip {
