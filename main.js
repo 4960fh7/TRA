@@ -27,10 +27,10 @@ const colorPalette = {
     "自強": "#00994D", 
     "莒光": "#FBC02D", 
     "區間快": "#1A1AFF", 
-    "區間": "#00ffff" // Cyber-cyan highlight for readability on dark backgrounds
+    "區間": "#00ffff" // High-contrast neon cyan for readability on dark backgrounds
 };
 
-// Zoom behavior with responsive circle adjustments and label display triggers
+// Zoom configuration behavior logic
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
@@ -270,7 +270,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
         
-        // FIX 1: Staggered tracking. Force odd/even to column 1 or column 2 directly.
+        // Odd -> Column 1 (Left), Even -> Column 2 (Right)
         const trainNumberInt = parseInt(trainNumber, 10);
         if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
             card.classList.add("side-right");
@@ -278,10 +278,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.add("side-left");
         }
 
-        // FIX 3: Assign custom cyberpunk hex coloring scheme
-        const neonAccentColor = colorPalette[trainType] || "#64748b";
-        card.style.borderLeftColor = neonAccentColor;
-        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonAccentColor)}, 0.15)`;
+        // Apply Custom Theme Color Palette Configurations
+        const neonColor = colorPalette[trainType] || "#64748b";
+        card.style.borderLeftColor = neonColor;
+        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.15)`;
 
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
@@ -296,12 +296,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const noteText = infoObj.note || "無";
 
         card.innerHTML = `
-            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonAccentColor)}, 0.15)">
-                <strong style="color: ${neonAccentColor}">${train.formattedTime}</strong> 
-                <span style="color: ${neonAccentColor}; font-weight: bold;">${trainType} ${trainNumber}</span>
+            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
+                <strong style="color: ${neonColor}">${train.formattedTime}</strong> 
+                <span style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</span>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details" style="border-left: 2px solid ${neonAccentColor}">
+            <div class="train-details" style="border-left: 2px solid ${neonColor}">
                 <span style="color: #00f0ff">➔ ROUTE:</span> ${startText} → ${endText} <br>
                 <span style="color: #64748b">註：${noteText}</span>
             </div>
@@ -311,12 +311,11 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // FIX 1: Append directly into the master grid container instead of individual wrapper divs
+        // CRITICAL FIX: Append the card directly to the parent layout container
         listContainer.appendChild(card);
     });
 }
 
-// Helper parsing hex strings to RGB channels
 function hexToRgb(hex) {
     let c = hex.substring(1);
     if(c.length === 3) {
@@ -356,7 +355,7 @@ function initSearchAutocomplete() {
             item.textContent = name;
             
             item.addEventListener("click", () => {
-                // FIX 2: Clear search text string upon selection
+                // Clear query strings immediately
                 searchInput.value = "";
                 suggestionsDropdown.style.display = "none";
                 triggerSelectionByStationName(name);
@@ -371,7 +370,7 @@ function initSearchAutocomplete() {
         if (e.key === "Enter") {
             const val = this.value.trim();
             if (val) {
-                // FIX 2: Clear search input field cleanly upon Enter strike
+                // Clear text string entries cleanly
                 this.value = "";
                 triggerSelectionByStationName(val);
                 suggestionsDropdown.style.display = "none";

@@ -84,7 +84,7 @@ body {
     color: #00f0ff;
 }
 
-/* App Flex Grid Layout Workspace */
+/* App Layout Container Workspaces */
 #app-container {
     display: flex;
     width: 96%;
@@ -177,7 +177,7 @@ hr {
     margin: 20px 0;
 }
 
-/* Unified Timetable Panel Structure */
+/* Timetable Dashboard Containers */
 #unified-train-wrapper {
     display: flex;
     flex-direction: column;
@@ -217,7 +217,9 @@ hr {
     border: 1px dashed #3b82f6;
 }
 
-/* FIX 1: Grid setup. Setting this to 2 columns forces items into completely separate row slots */
+/* CRITICAL STRUCTURAL FIX: 
+   Applying grid variables straight onto the primary container handles staggered line item distributions perfectly.
+*/
 #unified-train-list {
     max-height: 520px;
     overflow-y: auto;
@@ -227,7 +229,7 @@ hr {
     gap: 16px 20px;
 }
 
-/* Cyber Terminal Schedule Cards */
+/* Cyber Dashboard Typography Log Cards */
 .train-card {
     background: #0d1526;
     border: 1px solid #162238;
@@ -243,7 +245,7 @@ hr {
     transform: translateY(-2px);
 }
 
-/* FIX 1: Force column alignment properties so they never share the same row */
+/* Explicit columns allocation settings for sibling cards */
 .train-card.side-left {
     grid-column: 1;
 }
@@ -295,7 +297,7 @@ hr {
     margin: 30px 0;
 }
 
-/* Map Vectors & Geolocation Markers */
+/* Geolocation Markers & Vectors Layout */
 .county {
     fill: #09101f;
     stroke: #162238;
