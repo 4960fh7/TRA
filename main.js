@@ -237,6 +237,11 @@ async function showStationInfoPanel(code, name, address) {
         <p><strong>地　　址：</strong> ${address}</p>
     `;
 
+    const trainWrapper = document.getElementById("unified-train-wrapper");
+    if (trainWrapper) {
+        trainWrapper.style.height = window.innerWidth <= 768 ? "calc(100vh - 320px)" : "100%";
+    }
+
     const unifiedListContainer = document.getElementById("unified-train-list");
     unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
 

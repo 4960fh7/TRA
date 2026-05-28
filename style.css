@@ -427,6 +427,11 @@ hr {
 
 /* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
 @media screen and (max-width: 768px) {
+    /* Adjust overall container for screens with fixed headers */
+    #app-container {
+        height: calc(100vh - 120px) !important;
+    }
+
     /* When a station is active on mobile, hide the map container completely */
     #app-container.split-mode #map-container {
         display: none !important;
@@ -436,7 +441,21 @@ hr {
     #app-container.split-mode #info-panel {
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 100% !important;
         border-left: none;
+        padding: 12px !important;
+        height: 100% !important;
+        overflow-y: auto !important;
+    }
+
+    /* Fix the timetable list container to scroll correctly inside the panel */
+    #unified-train-list {
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 4px !important;
+        gap: 12px !important;
+        overflow-y: auto !important;
+        height: auto !important;
     }
 
     /* Change header contents wrapping behavior to force badge layout line break */
@@ -449,25 +468,17 @@ hr {
     .train-header .delay-badge {
         margin-top: 6px !important;
         align-self: flex-start !important;
-        display: inline-block;
+        display: inline-block !important;
     }
 
     /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
     .train-card {
         width: 100% !important;
-        box-sizing: border-box;
-        grid-column: auto !important; /* CRITICAL FIX: Reset desktop grid track assignments */
+        box-sizing: border-box !important;
+        grid-column: auto !important; /* Reset desktop grid tracks */
     }
     
     .train-card-spacer {
         display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
-    }
-    
-    #unified-train-list {
-        display: flex !important; /* CRITICAL FIX: Ensure the grid behavior is completely killed */
-        flex-direction: column !important;
-        max-height: none !important; /* Expand to let standard scrolling physics take over on phone views */
-        padding: 10px;
-        gap: 12px;
     }
 }
