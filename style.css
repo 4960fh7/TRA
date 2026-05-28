@@ -5,6 +5,7 @@ body {
     padding: 0;
     background-color: #060a12; /* Deep space dark backdrop */
     color: #e2e8f0;
+    overflow: hidden; /* Avoid dual scrolling on standard desktop viewports */
 }
 
 .header {
@@ -15,10 +16,9 @@ body {
     border-bottom: 1px dashed #d0ffe6;
     box-sizing: border-box;
     display: flex;
-    justify-content: space-between; /* Pushes title to left and search to right */
-    align-items: center; /* Vertically centers the content */
-    text-align: left;
-    z-index: 1001; /* CRITICAL FIX: Ensure dropdown overlaps panel layers underneath */
+    justify-content: space-between; /* Push title group left and search bar right */
+    align-items: center; /* Vertically center content elements */
+    z-index: 1005; /* Force dropdown overlap priority over panel surfaces underneath */
 }
 
 .header-title-group {
@@ -34,14 +34,7 @@ body {
     text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
     margin: 0;
     letter-spacing: 2px;
-    text-align: left; /* Explicitly forced left layout alignment */
-}
-
-.header p {
-    color: #64748b;
-    font-size: 11px;
-    margin: 2px 0 0 0;
-    text-align: left;
+    text-align: left; /* Explicitly forced left alignment */
 }
 
 /* Cybernetic Search Bar Component */
@@ -80,7 +73,7 @@ body {
     background: #0a1120;
     border: 1px solid #d0ffe6;
     border-radius: 2px;
-    z-index: 2000; /* Forces high priority above panel surfaces */
+    z-index: 2000; /* Overlaps map layout grids and active split panels smoothly */
     box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35);
     text-align: left;
     display: none;
@@ -88,7 +81,7 @@ body {
 }
 
 .suggestion-item {
-    display: block; /* Ensure full structural box layout */
+    display: block; /* Ensures full structural clickable layout target block size */
     width: 100%;
     padding: 10px 14px;
     cursor: pointer;
@@ -103,27 +96,28 @@ body {
     color: #d0ffe6;
 }
 
+/* App Container Layout Frame */
 #app-container {
     display: flex;
     position: relative;
     width: 100%;
-    height: 85vh; /* Configured to explicitly occupy 85% of viewport height */
+    height: 90vh; /* Takes the remaining 90% space below the header */
     overflow: hidden;
     z-index: 1;
 }
 
 #map-container {
-    width: 100%; /* Default width when no station is chosen */
+    width: 100%; /* Default width when info panel is hidden */
     height: 100%;
     transition: width 0.3s ease-in-out;
 }
 
 #info-panel {
-    width: 0%; /* Hidden panel initial state width */
+    width: 0%; /* Collapsed width state initially */
     height: 100%;
     background: #091120;
     border-left: none;
-    overflow: hidden; /* Prevent global duplicate scroll bars */
+    overflow: hidden; 
     transition: all 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
@@ -141,13 +135,13 @@ svg {
     height: 100%;
 }
 
-/* WIDE SCREEN BREAKPOINT OVERRIDES */
+/* Split-Mode Layout Definitions */
 #app-container.split-mode #map-container {
-    width: 40%; /* Explicitly lock map bounds to 40% when split-mode active */
+    width: 40%; /* Anchor the map canvas framework to 40% when panel slides open */
 }
 
 #app-container.split-mode #info-panel {
-    width: 60%; /* Explicitly expand schedule view to 60% when split-mode active */
+    width: 60%; /* Expand timetable info panel space cleanly to 60% */
     max-width: 60%;
     min-width: 60%;
     opacity: 1;
@@ -155,24 +149,19 @@ svg {
     border-left: 1px solid #1e293b;
 }
 
-/* Structural sizing ratios for items nested within info panel */
-#info-panel > .info-panel-header-actions,
-#info-panel > #station-details,
-#info-panel > hr {
-    flex-shrink: 0;
-    max-height: 20%; /* Ensure general station meta takes no more than 20% height */
-}
-
+/* Explicit Structural Height Distributions */
 #info-panel-meta-container {
-    height: 20%;
-    flex-shrink: 0;
+    height: 20% !important; /* CRITICAL RATIO FIX: Forced to occupy exactly 20% */
+    max-height: 20% !important;
+    min-height: 20% !important;
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
     overflow: hidden;
     box-sizing: border-box;
+    flex-shrink: 0;
 }
 
-/* Wrapper alignment to accommodate floated or absolute badges neatly */
 .info-panel-header-actions {
     width: 100%;
     box-sizing: border-box;
@@ -216,7 +205,7 @@ svg {
 hr {
     border: 0;
     border-top: 1px dashed #162238;
-    margin: 10px 0;
+    margin: auto 0 0 0; /* Align perfectly to bottom boundaries */
     width: 100%;
 }
 
@@ -225,11 +214,11 @@ hr {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 75% !important; /* REQUIREMENT FIX: Explicitly forced 75% height allocations */
+    height: 75% !important; /* CRITICAL RATIO FIX: Explicitly forced to occupy 75% height allocations */
     max-height: 75% !important;
     min-height: 75% !important;
     overflow: hidden;
-    flex-grow: 0;
+    margin-top: 5%; /* Fills the rest of the height spacing calculations */
     flex-shrink: 0;
     box-sizing: border-box;
 }
@@ -268,7 +257,6 @@ hr {
     border: 1px dashed #3b82f6;
 }
 
-/* Ensure the grid displays items clearly */
 #unified-train-list {
     flex: 1;
     overflow-y: auto;
@@ -279,7 +267,7 @@ hr {
     box-sizing: border-box;
 }
 
-/* Cyber Dashboard Typography Log Cards */
+/* Dashboard Log Cards */
 .train-card {
     background: #0d1526;
     border: 1px solid #162238;
@@ -292,7 +280,6 @@ hr {
     height: max-content;
 }
 
-/* Explicit columns allocation settings */
 .train-card.side-left, .train-card-spacer.side-left {
     grid-column: 1;
 }
@@ -301,7 +288,6 @@ hr {
     grid-column: 2;
 }
 
-/* Virtual Empty Spacer Card Styles */
 .train-card-spacer {
     width: 100%;
     height: 0px; 
@@ -320,11 +306,6 @@ hr {
     user-select: none;
     font-size: 13px;
     text-align: left;
-}
-
-.train-header strong {
-    font-size: 15px;
-    margin-right: 4px;
 }
 
 .train-sub-title {
@@ -357,7 +338,6 @@ hr {
     margin: 30px 0;
 }
 
-/* Red deletion strike-through styling */
 .scheduled-time-strike {
     color: #ef4444; 
     text-decoration: line-through; 
@@ -366,7 +346,7 @@ hr {
     opacity: 0.7;
 }
 
-/* --- Real-Time Delay Badges --- */
+/* Delay Indicators */
 .delay-badge {
     font-size: 11px;
     font-weight: bold;
@@ -401,10 +381,9 @@ hr {
     background-color: rgba(30, 41, 59, 0.7);
     color: #94a3b8;
     border: 1px dashed #475569;
-    box-shadow: none;
 }
 
-/* Geolocation Markers & Vectors Layout */
+/* Map Graphics styling */
 .county {
     fill: #3c455a;
     stroke: #522424;
@@ -469,7 +448,7 @@ hr {
     background: transparent;
 }
 
-/* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
+/* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
 @media screen and (max-width: 768px) {
     .header {
         height: auto; 
@@ -501,15 +480,21 @@ hr {
         height: auto;
     }
     
-    #info-panel > .info-panel-header-actions,
-    #info-panel > #station-details,
-    #info-panel > hr {
-        max-height: none;
+    #info-panel-meta-container {
+        height: auto !important;
+        max-height: none !important;
+        min-height: auto !important;
     }
     
     #unified-train-wrapper {
         height: auto !important;
         max-height: none !important;
         min-height: auto !important;
+        margin-top: 15px;
+    }
+
+    #unified-train-list {
+        display: flex !important;
+        flex-direction: column !important;
     }
 }
