@@ -450,16 +450,16 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                        ${timeDisplayHTML}
+                        ${timeDisplayHTML}<br>
                         <span style="color: ${neonColor}; font-weight: bold; margin-left: 4px;">${trainType} ${trainNumber}</span>
                     </div>
                     ${delayBadgeHTML}
                 </div>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details" style="border-left: 2px solid ${neonColor}">
+            <div class="train-details" style="border-left: 1px solid ${neonColor}">
                 ${startText} → ${endText} ${currentPositionHTML} <br>
-                <span style="color: #64748b; display: inline-block; margin-top: 4px;">備註：${noteText}</span>
+                <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
         `;
 

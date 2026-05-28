@@ -441,35 +441,4 @@ hr {
         padding: 12px !important;
     }
 
-    /* Change header contents wrapping behavior to force badge layout line break */
-    .train-header > div {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-    }
-
-    /* Reposition badge wrapper directly below train classification type elements */
-    .train-header .delay-badge {
-        margin-top: 6px !important;
-        align-self: flex-start !important;
-        display: inline-block !important;
-    }
-
-    /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
-    .train-card {
-        width: 100% !important;
-        box-sizing: border-box !important;
-        grid-column: auto !important; /* Reset desktop grid track assignments */
-    }
-    
-    .train-card-spacer {
-        display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
-    }
-    
-    #unified-train-list {
-        display: flex !important; /* Forces layout tracking map into standard vertical order flex blocks */
-        flex-direction: column !important;
-        max-height: none !important; 
-        padding: 10px !important;
-        gap: 12px !important;
-    }
 }
