@@ -310,12 +310,23 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             const departureMinutes = depStop.y;
             
             const trainNumber = train.number || "N/A";
-            const delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
+            
+            // Map live delay properties using the Train Number
+            let delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
+            
+            // If explicit delay missing but the train is dynamically marked as "已收班" via threshold,
+            // we treat it as no active delay for calculation purposes.
+            let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
+
+            // NEW: The time considered into sorting the list now includes the delayed minutes
+            const sortedSortingMinutes = departureMinutes + delayMinutesValue;
 
             const trainData = {
                 ...train,
                 calculatedDepMinutes: departureMinutes,
+                sortingMinutes: sortedSortingMinutes, // Sorting benchmark key field
                 formattedTime: convertMinutesToHHMM(departureMinutes),
+                formattedDelayedTime: convertMinutesToHHMM(sortedSortingMinutes),
                 delay: delay 
             };
 
@@ -341,7 +352,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
-    combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
+    // NEW: Chronological sort ordered by the real-time adjusted arrival/departure time
+    combinedSortedTrains.sort((a, b) => a.sortingMinutes - b.sortingMinutes);
 
     listContainer.innerHTML = ""; 
 
@@ -388,7 +400,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
         
         if (train.delay !== undefined) {
-            isActivelyInService = true; // Has explicit numerical delay metrics -> currently reporting tracking nodes
+            isActivelyInService = true;
             if (train.delay === 0) {
                 delayBadgeHTML = `<span class="delay-badge delay-ontime">準點</span>`;
             } else {
@@ -413,7 +425,19 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }
         }
 
-        // FIX Requirement 3: Extract current station location parameters if the status is active
+        // NEW: Time string layout compilation considering delay condition
+        let timeDisplayHTML = "";
+        if (train.delay !== undefined && train.delay > 0) {
+            // If delayed, output "Scheduled Time" with a red deletion strike-through followed by the new live time
+            timeDisplayHTML = `
+                <span style="color: #ef4444; text-decoration: line-through; text-decoration-color: #ef4444; margin-right: 6px; opacity: 0.7;">${train.formattedTime}</span>
+                <strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>
+            `;
+        } else {
+            // Standard layout format
+            timeDisplayHTML = `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
+        }
+
         let currentPositionHTML = "";
         if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
             currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
@@ -423,8 +447,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                        <strong style="color: ${neonColor}">${train.formattedTime}</strong> 
-                        <span style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</span>
+                        ${timeDisplayHTML}
+                        <span style="color: ${neonColor}; font-weight: bold; margin-left: 4px;">${trainType} ${trainNumber}</span>
                     </div>
                     ${delayBadgeHTML}
                 </div>
@@ -448,7 +472,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             listContainer.appendChild(spacerCard);
         }
 
-        if (!upcomingTrainDOMElement && train.calculatedDepMinutes >= currentMinutesMidnight) {
+        // Auto scrolling targeting tracking maps to the new live dynamic sorting values
+        if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
         }
     });
