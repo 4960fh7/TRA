@@ -12,12 +12,12 @@ body {
     padding: 20px 15px;
     position: relative;
     background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
-    border-bottom: 1px dashed #00f0ff;
+    border-bottom: 1px dashed #d0ffe6;
 }
 
 .header h1 {
     font-size: 2.2rem;
-    color: #00f0ff;
+    color: #d0ffe6;
     text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
     margin: 0 0 5px 0;
     letter-spacing: 2px;
@@ -42,8 +42,8 @@ body {
     font-size: 13px;
     font-family: inherit;
     background: #0b132b;
-    color: #00f0ff;
-    border: 1px solid #00f0ff;
+    color: #d0ffe6;
+    border: 1px solid #d0ffe6;
     border-radius: 2px;
     outline: none;
     box-sizing: border-box;
@@ -63,7 +63,7 @@ body {
     max-height: 200px;
     overflow-y: auto;
     background: #0a1120;
-    border: 1px solid #00f0ff;
+    border: 1px solid #d0ffe6;
     border-radius: 2px;
     z-index: 1000;
     box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35);
@@ -81,7 +81,7 @@ body {
 
 .suggestion-item:hover {
     background-color: #162238;
-    color: #00f0ff;
+    color: #d0ffe6;
 }
 
 /* App Layout Container Workspaces */
@@ -123,7 +123,7 @@ svg {
     box-sizing: border-box;
     overflow-y: auto;
     background-color: #080d1a;
-    border-left: 2px solid #00f0ff;
+    border-left: 2px solid #d0ffe6;
     text-align: left;
     transition: width 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.4s ease-in-out;
     padding: 0;
@@ -364,3 +364,7 @@ hr {
     z-index: 100;
     white-space: nowrap;
 }
+
+#info-panel::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar { height: 6px; width: 6px; }
+#info-panel::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
+#info-panel::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { background: transparent; }

@@ -21,13 +21,13 @@ let globalStationsData = [];
 
 // Sci-Fi Dynamic Color Palette Mapping
 const colorPalette = {
-    "普悠瑪": "#F12F2F", 
-    "太魯閣": "#F57C00", 
-    "新自強": "#7B1FA2", 
-    "自強": "#00994D", 
-    "莒光": "#FBC02D", 
-    "區間快": "#1A1AFF", 
-    "區間": "#00ffff" // High-contrast neon cyan for readability on dark backgrounds
+    "普悠瑪": "#FF5252",  // Lightened to a vibrant, high-visibility coral red
+    "太魯閣": "#FFA726",  // Shifted to a bright, glowing orange
+    "新自強": "#BA68C8",  // Changed from deep purple to a luminous lavender/magenta
+    "自強": "#49be51",    // Swapped forest green for a crisp, bright mint/emerald green
+    "莒光": "#FFEE58",    // Brightened to a vivid, high-contrast yellow
+    "區間快": "#6e4dff",  // Shifted from dark indigo to a vibrant neon purple/blue
+    "區間": "#00ffff"     // Kept cyan as it inherently boasts excellent contrast on dark backgrounds
 };
 
 // Zoom configuration behavior logic
@@ -186,7 +186,7 @@ function selectStationElement(circleDOM, d) {
         const projectedCoords = projection([coords.lon, coords.lat]);
         svg.transition()
             .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(4).translate(-projectedCoords[0], -projectedCoords[1]));
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(8).translate(-projectedCoords[0], -projectedCoords[1]));
     }
 }
 
@@ -195,8 +195,8 @@ async function showStationInfoPanel(code, name, address) {
 
     document.getElementById("station-details").innerHTML = `
         <h2>${name}</h2>
-        <p><strong>Station Code:</strong> ${code}</p>
-        <p><strong>Address:</strong> ${address}</p>
+        <p><strong>車站代碼：</strong> ${code}</p>
+        <p><strong>地　　址：</strong> ${address}</p>
     `;
 
     const unifiedListContainer = document.getElementById("unified-train-list");
@@ -310,8 +310,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details" style="border-left: 2px solid ${neonColor}">
-                <span style="color: #00f0ff">➔ ROUTE:</span> ${startText} → ${endText} <br>
-                <span style="color: #64748b">註：${noteText}</span>
+                ${startText} → ${endText} <br>
+                <span style="color: #64748b">${noteText}</span>
             </div>
         `;
 
