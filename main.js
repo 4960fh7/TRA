@@ -430,8 +430,9 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 
     const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
     const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
-    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行往 ${ccwTarget}`;
-    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行往 ${cwTarget}`;
+    const dir_break = window.innerWidth <= 768 ? "<br>" : " ";
+    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行${dir_break}往 ${ccwTarget}`;
+    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行${dir_break}往 ${cwTarget}`;
 
     const trainWrapper = document.getElementById("unified-train-wrapper");
     if (trainWrapper) {
@@ -637,7 +638,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             : "";
 
         card.innerHTML = `
-            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
+            <div class="train-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
                         ${timeDisplayHTML}<br>
@@ -647,7 +648,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 </div>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details" style="border-left: 1px solid ${neonColor}">
+            <div class="train-details">
                 ${startText} → ${endText} ${currentPositionHTML} <br>
                 <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
