@@ -443,7 +443,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         let currentPositionHTML = "";
         if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
-            currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
+            currentPositionHTML = `<br><span style="font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
         }
 
         card.innerHTML = `
@@ -451,7 +451,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
                         ${timeDisplayHTML}<br>
-                        <span style="color: ${neonColor}; font-weight: bold; margin-left: 4px;">${trainType} ${trainNumber}</span>
+                        <strong style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</strong>
                     </div>
                     ${delayBadgeHTML}
                 </div>
