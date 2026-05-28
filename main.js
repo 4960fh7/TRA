@@ -37,7 +37,7 @@ const colorPalette = {
     "區間": "#00ffff"     
 };
 
-// 宣告一個全域變數用來儲存力學模擬器
+// 全域力學模擬器變數
 let labelSimulation = null;
 
 // 縮放設定行為邏輯
@@ -54,7 +54,7 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.3 / k}px`);
 
-        // 當縮放比例大於 8 時顯示標籤，並在每次縮放時重新啟動排斥力學，重新計算不重疊的位置
+        // 當縮放比例大於 8 時顯示標籤
         if (k > 8.0) {
             mainGroup.selectAll(".station-label").style("opacity", 1);
             updateLabelForceSimulation(k);
@@ -66,47 +66,77 @@ const zoom = d3.zoom()
 
 svg.call(zoom);
 
-// 新增：專門用來計算與更新排斥標籤的力學模擬函式
+// 關鍵修復：專門用來計算、排斥重疊、且絕不壓到車站圓圈的力學模擬
 function updateLabelForceSimulation(k) {
     if (labelSimulation) labelSimulation.stop();
 
-    // 根據目前的縮放倍率調整字體大小與碰撞半徑
     const fontSize = Math.max(2.5, 9 / Math.sqrt(k));
     mainGroup.selectAll(".station-label").style("font-size", `${fontSize}px`);
 
-    // 初始化每個文字節點的物理屬性
+    // 動態計算目前視角下的車站圓圈半徑（對應基準的 r 屬性縮放邏輯）
+    const activeCircleRadius = 4 / Math.sqrt(k);
+    const standardCircleRadius = 3 / Math.sqrt(k);
+
     globalStationsData.forEach(d => {
         const coords = getCoords(d);
         if (coords) {
             const pos = projection([coords.lon, coords.lat]);
-            // fx, fy 是本來的錨點（車站位置）
             d.fx = pos[0];
             d.fy = pos[1];
-            // 如果還沒有做過物理定位，先設定初始 x, y
             if (d.x === undefined) d.x = pos[0];
-            if (d.y === undefined) d.y = pos[1];
+            
+            // 初始設定時，微調讓文字預設偏移在圓圈的上方（減去圓圈半徑再加安全距離）
+            if (d.y === undefined) {
+                const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
+                const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+                d.y = pos[1] - r - (3 / k); 
+            }
         }
     });
 
-    // 建立 D3 力學模擬
+    // 建立 D3 物理碰撞模擬系統
     labelSimulation = d3.forceSimulation(globalStationsData)
-        // 1. 強大排斥力（碰撞半徑）：長度估算大約是「字數 * 字體大小的一半」再加點安全距離
+        // 1. 標籤與標籤之間的排斥：根據字數寬度決定安全碰撞邊界，防止文字相撞
         .force("collide", d3.forceCollide(d => {
             const nameLen = getStationName(d).length;
-            return (nameLen * fontSize * 0.45) + (4 / k); 
+            return (nameLen * fontSize * 0.45) + (3 / k); 
         }).iterations(3))
-        // 2. 吸引力：限制文字不要飄太遠，盡可能拉回本來車站的 X, Y 附近
-        .force("x", d3.forceX(d => d.fx).strength(0.3))
-        .force("y", d3.forceY(d => d.fy).strength(0.3))
-        .alpha(0.5) // 動畫敏感度
+        // 2. 引力系統：溫和地把標籤維持在車站附近的軌道上
+        .force("x", d3.forceX(d => d.fx).strength(0.2))
+        .force("y", d3.forceY(d => d.fy).strength(0.2))
+        .alpha(0.4)
         .restart();
 
-    // 在物理系統運算的每一步（tick）即時更新畫面上的文字坐標
+    // 在物理系統運算的每一步（tick）即時校正坐標，強迫避開車站圓圈
     labelSimulation.on("tick", () => {
         mainGroup.selectAll(".station-label")
             .attr("x", d => d.x)
-            // 微微向上偏移一點點，避免完全重合在車站正中心
-            .attr("y", d => d.y - (2 / k));
+            .attr("y", d => {
+                // 計算當前文字物理中心 (d.x, d.y) 與 車站實際坐標 (d.fx, d.fy) 的直線距離
+                const dx = d.x - d.fx;
+                const dy = d.y - d.fy;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                // 判定該車站圓圈目前的實際防守半徑
+                const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
+                const currentRadius = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+                
+                // 設定「絕對禁區半徑」＝ 圓圈半徑 ＋ 字體高度的一半 ＋ 2像素的呼吸安全邊距
+                const forbiddenZone = currentRadius + (fontSize * 0.5) + (2 / k);
+
+                // 核心防壓圓圈機制：如果文字靠得太近，壓到了圓圈禁區
+                if (distance < forbiddenZone) {
+                    // 如果文字剛好在正中心（距離為0），手動給予一個向上彈開的初始向量
+                    if (distance === 0) {
+                        return d.fy - forbiddenZone;
+                    }
+                    // 否則，沿著原本的夾角方向，將文字推向禁區範圍線之外
+                    const ratio = forbiddenZone / distance;
+                    d.x = d.fx + dx * ratio; // 修正節點本身的物理 x
+                    d.y = d.fy + dy * ratio; // 修正節點本身的物理 y
+                }
+                return d.y;
+            });
     });
 }
 
@@ -219,7 +249,7 @@ function drawMap(twData, stationsData) {
             selectStationElement(this, d);
         });
 
-    // 繪製初始文字標籤（預設隱藏，坐標會由力學模擬動態接管計算）
+    // 繪製初始文字標籤
     mainGroup.selectAll(".station-label")
         .data(stationsData)
         .enter()
@@ -259,6 +289,9 @@ function selectStationElement(circleDOM, d) {
 
     showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget);
     
+    // 選取車站時觸發一次力學系統重新定位，確保文字順暢讓開
+    if (k > 8.0) updateLabelForceSimulation(k);
+
     const coords = getCoords(d);
     if (coords) {
         const projectedCoords = projection([coords.lon, coords.lat]);
@@ -273,20 +306,16 @@ function getLatestTDXUrl() {
     const month = String(now.getMonth() + 1).padStart(2, '0');
     const date = String(now.getDate()).padStart(2, '0');
     const hours = String(now.getHours()).padStart(2, '0');
-    
     const rawMinutes = now.getMinutes();
     const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
     const minutes = String(roundedMinutes).padStart(2, '0');
-    
     const datetimeStr = `${month}${date}${hours}${minutes}`;
-    const cacheBuster = now.getTime(); 
-    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${cacheBuster}`;
+    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${now.getTime()}`;
 }
 
 function scheduleNextAutoRefresh() {
     const now = new Date();
     const currentMinutes = now.getMinutes();
-    
     let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
     if (currentMinutes >= targetMinute) targetMinute += 5;
     
@@ -322,7 +351,6 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 
     const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
     const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
-    
     if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行往 ${ccwTarget}`;
     if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行往 ${cwTarget}`;
 
