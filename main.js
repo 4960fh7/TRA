@@ -302,8 +302,9 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
     const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
     
-    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行往 ${ccwTarget}`;
-    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行往 ${cwTarget}`;
+    const dir_break = window.innerWidth <= 768 ? "<br>" : " ";
+    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行${dir_break}往 ${ccwTarget}`;
+    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行${dir_break}往 ${cwTarget}`;
 
     const trainWrapper = document.getElementById("unified-train-wrapper");
     if (trainWrapper) {
@@ -421,7 +422,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     listContainer.innerHTML = ""; 
 
     let upcomingTrainDOMElement = null;
-    const isMobileViewport = window.innerWidth <= 768;
 
     combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
@@ -524,7 +524,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        
         if (isEven) {
             listContainer.appendChild(spacerCard);
             listContainer.appendChild(card);
