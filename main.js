@@ -259,6 +259,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
+    // Chronological Sort
     combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
 
     listContainer.innerHTML = ""; 
@@ -270,18 +271,25 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
         
-        // Odd -> Column 1 (Left), Even -> Column 2 (Right)
+        // Define Column Placements
         const trainNumberInt = parseInt(trainNumber, 10);
-        if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
+        const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
+
+        // Create the counterpart visual empty spacer node
+        const spacerCard = document.createElement("div");
+
+        if (isEven) {
             card.classList.add("side-right");
+            spacerCard.className = "train-card-spacer side-left";
         } else {
             card.classList.add("side-left");
+            spacerCard.className = "train-card-spacer side-right";
         }
 
-        // Apply Custom Theme Color Palette Configurations
+        // Apply Custom Sci-Fi Theme Color Palette Configs
         const neonColor = colorPalette[trainType] || "#64748b";
         card.style.borderLeftColor = neonColor;
-        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.15)`;
+        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.12)`;
 
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
@@ -311,8 +319,14 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // CRITICAL FIX: Append the card directly to the parent layout container
-        listContainer.appendChild(card);
+        // Append both items to the list container based on direction
+        if (isEven) {
+            listContainer.appendChild(spacerCard); // Left Blank
+            listContainer.appendChild(card);       // Right Train
+        } else {
+            listContainer.appendChild(card);       // Left Train
+            listContainer.appendChild(spacerCard); // Right Blank
+        }
     });
 }
 

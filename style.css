@@ -217,9 +217,7 @@ hr {
     border: 1px dashed #3b82f6;
 }
 
-/* CRITICAL STRUCTURAL FIX: 
-   Applying grid variables straight onto the primary container handles staggered line item distributions perfectly.
-*/
+/* Ensure the grid doesn't stack items implicitly */
 #unified-train-list {
     max-height: 520px;
     overflow-y: auto;
@@ -227,6 +225,7 @@ hr {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px 20px;
+    grid-auto-flow: row; /* Strict sequential row placement */
 }
 
 /* Cyber Dashboard Typography Log Cards */
@@ -239,6 +238,24 @@ hr {
     width: 100%;
     box-sizing: border-box;
     transition: transform 0.2s ease;
+}
+
+/* Explicit columns allocation settings */
+.train-card.side-left, .train-card-spacer.side-left {
+    grid-column: 1;
+}
+
+.train-card.side-right, .train-card-spacer.side-right {
+    grid-column: 2;
+}
+
+/* Virtual Empty Spacer Card Styles */
+.train-card-spacer {
+    width: 100%;
+    height: 0px; /* Collapses neatly when unexpanded */
+    visibility: hidden;
+    pointer-events: none;
+    box-sizing: border-box;
 }
 
 .train-card:hover {
