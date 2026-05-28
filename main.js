@@ -131,8 +131,12 @@ function drawMap(twData, stationsData) {
         })
         .on("mouseover", function(event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
-            const baseRadius = 4 / Math.sqrt(currentTransform.k);
-            d3.select(this).attr("r", baseRadius * 1.5);
+            const k = currentTransform.k;
+            // Get base size contextually
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
+            
+            d3.select(this).attr("r", currentBaseRadius * 1.5);
             
             const name = getStationName(d);
             tooltip.style("opacity", 1)
@@ -140,9 +144,13 @@ function drawMap(twData, stationsData) {
                    .style("left", (event.pageX + 10) + "px")
                    .style("top", (event.pageY - 10) + "px");
         })
-        .on("mouseout", function() {
+        .on("mouseout", function(event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
-            d3.select(this).attr("r", Math.max(1, 4 / Math.sqrt(currentTransform.k)));
+            const k = currentTransform.k;
+            // FIX Requirement 1: Explicitly match exact base layout calculations on exit
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            
+            d3.select(this).attr("r", Math.max(0.6, base / Math.sqrt(k)));
             tooltip.style("opacity", 0);
         })
         .on("click", function(event, d) {
@@ -169,13 +177,26 @@ function drawMap(twData, stationsData) {
 
 function selectStationElement(circleDOM, d) {
     if (activeStationSelection) {
-        d3.select(activeStationSelection).classed("active", false);
+        const oldSelection = activeStationSelection;
+        activeStationSelection = null;
+        
+        // Re-scale the previous selection circle back to normal size
+        const currentTransform = d3.zoomTransform(svg.node());
+        const k = currentTransform.k;
+        d3.select(oldSelection)
+          .classed("active", false)
+          .attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
     
     mainGroup.selectAll(".station").classed("connected", false);
 
     d3.select(circleDOM).classed("active", true);
     activeStationSelection = circleDOM;
+    
+    // Scale up the new active selection circle
+    const currentTransform = d3.zoomTransform(svg.node());
+    const k = currentTransform.k;
+    d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
 
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
     const stationName = getStationName(d);
@@ -209,6 +230,7 @@ function getLatestTDXUrl() {
 async function showStationInfoPanel(code, name, address) {
     document.getElementById("app-container").classList.add("split-mode");
 
+    // Clear old state tracking header structures or text
     document.getElementById("station-details").innerHTML = `
         <h2>${name}</h2>
         <p><strong>車站代碼：</strong> ${code}</p>
@@ -231,6 +253,28 @@ async function showStationInfoPanel(code, name, address) {
             })
         ]);
 
+        // FIX Requirement 2: Dynamically add or refresh the update timestamp UI tag component next to the close panel button
+        let updateBadge = document.getElementById("live-data-update-time-badge");
+        if (!updateBadge) {
+            updateBadge = document.createElement("div");
+            updateBadge.id = "live-data-update-time-badge";
+            // Match close-btn styling architecture but with a cyan thematic framing boundary
+            updateBadge.style.cssText = "float: right; margin-right: 10px; background: #162238; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 2px; font-size: 11px; font-weight: bold; text-transform: uppercase;";
+            const closeBtn = document.getElementById("close-panel-btn");
+            closeBtn.parentNode.insertBefore(updateBadge, closeBtn);
+        }
+
+        if (liveBoardData && liveBoardData.UpdateTime) {
+            // ISO structure: "2026-05-28T10:30:06+08:00" -> extract "10:30"
+            const rawTimeStr = liveBoardData.UpdateTime.split("T")[1] || "";
+            const formattedLiveTime = rawTimeStr.substring(0, 5) || "--:--";
+            updateBadge.innerHTML = `最後更新：${formattedLiveTime}`;
+            updateBadge.style.display = "block";
+        } else {
+            updateBadge.innerHTML = `最後更新：離線`;
+            updateBadge.style.display = "block";
+        }
+
         const delayMap = new Map();
         if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
             liveBoardData.TrainLiveBoards.forEach(board => {
@@ -238,7 +282,6 @@ async function showStationInfoPanel(code, name, address) {
             });
         }
 
-        // FIXED: liveBoardData is now passed through to renderUnifiedPassingTrains
         renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData);
     } catch (error) {
         console.error(error);
@@ -341,16 +384,17 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const noteText = infoObj.note || "無";
 
         let delayBadgeHTML = "";
+        let isActivelyInService = false;
+        const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
         
         if (train.delay !== undefined) {
+            isActivelyInService = true; // Has explicit numerical delay metrics -> currently reporting tracking nodes
             if (train.delay === 0) {
                 delayBadgeHTML = `<span class="delay-badge delay-ontime">準點</span>`;
             } else {
                 delayBadgeHTML = `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
             }
         } else {
-            const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
-            
             if (rawLiveBoardInfo) {
                 if (rawLiveBoardInfo.TrainStationStatus === 0) {
                     delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
@@ -358,6 +402,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
                 } else {
                     delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+                    isActivelyInService = true;
                 }
             } else {
                 if (currentMinutesMidnight > train.calculatedDepMinutes + 30) {
@@ -366,6 +411,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
                 }
             }
+        }
+
+        // FIX Requirement 3: Extract current station location parameters if the status is active
+        let currentPositionHTML = "";
+        if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
+            currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
         }
 
         card.innerHTML = `
@@ -380,8 +431,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details" style="border-left: 2px solid ${neonColor}">
-                ${startText} → ${endText} <br>
-                <span style="color: #64748b">${noteText}</span>
+                ${startText} → ${endText} ${currentPositionHTML} <br>
+                <span style="color: #64748b; display: inline-block; margin-top: 4px;">備註：${noteText}</span>
             </div>
         `;
 
@@ -502,9 +553,21 @@ function triggerSelectionByStationName(targetName) {
 
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
+    
+    // Hide the dynamic update time badge on panel close
+    const updateBadge = document.getElementById("live-data-update-time-badge");
+    if (updateBadge) updateBadge.style.display = "none";
+
     if (activeStationSelection) {
-        d3.select(activeStationSelection).classed("active", false);
+        const oldSelection = activeStationSelection;
         activeStationSelection = null;
+        
+        // Return circle size gracefully to standard base radius zoom scale config parameters on close
+        const currentTransform = d3.zoomTransform(svg.node());
+        const k = currentTransform.k;
+        d3.select(oldSelection)
+          .classed("active", false)
+          .attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
     mainGroup.selectAll(".station").classed("connected", false);
     
