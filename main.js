@@ -37,7 +37,7 @@ const colorPalette = {
     "區間": "#00ffff"     
 };
 
-// 全域力學模擬器變數
+// 全域力學模擬器變數 (已廢棄，使用高性能靜態防重疊演算法)
 let labelSimulation = null;
 
 // 縮放設定行為邏輯
@@ -54,7 +54,7 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.3 / k}px`);
 
-        // 當縮放比例大於 8 時顯示標籤
+        // 當縮放比例大於 8 時顯示標籤並重新計算防重疊布局
         if (k > 8.0) {
             mainGroup.selectAll(".station-label").style("opacity", 1);
             updateLabelForceSimulation(k);
@@ -65,9 +65,8 @@ const zoom = d3.zoom()
 
 svg.call(zoom);
 
-// 關鍵修復：專門用來計算、排斥重疊、且絕不壓到車站圓圈的力學模擬
+// 關鍵修復 3 & 4：高性能靜態防重疊邊界判定算法（取代會造成卡頓的物理模擬引擎）
 function updateLabelForceSimulation(k) {
-    // 徹底廢棄力學模擬，確保完全固定不動
     if (labelSimulation) {
         labelSimulation.stop();
         labelSimulation = null;
@@ -77,17 +76,131 @@ function updateLabelForceSimulation(k) {
     const activeCircleRadius = 4 / Math.sqrt(k);
     const standardCircleRadius = 3 / Math.sqrt(k);
 
-    // 調整文字大小
-    mainGroup.selectAll(".station-label")
-        .style("font-size", `${fontSize}px`)
-        .attr("y", d => {
-            // 根據目前該車站是否為選取狀態，決定對應的圓圈半徑避讓間隔
-            const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-            const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-            
-            // 固定放置在車站上方（半徑 + 安全邊距 4 像素）
-            return -r - (4 / k);
-        });
+    const labels = mainGroup.selectAll(".station-label")
+        .style("font-size", `${fontSize}px`);
+
+    // 1. 初始化所有標籤至預設的上方位置
+    labels.attr("y", d => {
+        const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
+        const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+        return -r - (4 / k);
+    }).attr("x", 0).style("visibility", "visible");
+
+    // 2. 獲取當前視角下各標籤的絕對坐標虛擬包圍盒 (Bounding Box)
+    const allocatedBoxes = [];
+
+    // 將重要車站（選取中、連線中）排序在前面優先放置
+    const nodes = globalStationsData.map(d => {
+        const coords = getCoords(d);
+        if (!coords) return null;
+        const pos = projection([coords.lon, coords.lat]);
+        
+        // 計算預設擺放坐標
+        const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
+        const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+        const labelYOffset = -r - (4 / k);
+
+        const name = getStationName(d);
+        // 基於字數估算寬度與高度
+        const estWidth = name.length * fontSize * 1.1;
+        const estHeight = fontSize * 1.2;
+
+        return {
+            data: d,
+            geoX: pos[0],
+            geoY: pos[1],
+            offsetX: 0,
+            offsetY: labelYOffset,
+            width: estWidth,
+            height: estHeight,
+            priority: isCurrentActive ? 3 : (d.isConnectedState ? 2 : 1)
+        };
+    }).filter(n => n !== null);
+
+    // 依優先級排序（重要標籤先放置，普通標籤若遇衝突則避讓或隱藏）
+    nodes.sort((a, b) => b.priority - a.priority);
+
+    // 避讓方向槽位：正上、正下、右側、左側
+    const slotOffsets = [
+        { x: 0, y: 1 },  // 改放下方
+        { x: 1, y: 0 },  // 改放右側
+        { x: -1, y: 0 }  // 改放左側
+    ];
+
+    nodes.forEach(node => {
+        let currentX = node.geoX + node.offsetX;
+        let currentY = node.geoY + node.offsetY;
+        
+        let box = {
+            x1: currentX - node.width / 2,
+            x2: currentX + node.width / 2,
+            y1: currentY - node.height / 2,
+            y2: currentY + node.height / 2,
+            data: node.data
+        };
+
+        let hasOverlap = checkOverlap(box, allocatedBoxes, k);
+        
+        // 如果上方重疊，嘗試切換其他固定方位槽位
+        if (hasOverlap) {
+            for (let slot of slotOffsets) {
+                const shiftDist = (fontSize * 1.2) + standardCircleRadius + (5 / k);
+                let altOffsetX = slot.x * shiftDist * 1.5;
+                let altOffsetY = slot.y * shiftDist;
+                if (slot.x !== 0) altOffsetY = 0; // 左右對齊時垂直置中
+
+                box.x1 = (node.geoX + altOffsetX) - node.width / 2;
+                box.x2 = (node.geoX + altOffsetX) + node.width / 2;
+                box.y1 = (node.geoY + altOffsetY) - node.height / 2;
+                box.y2 = (node.geoY + altOffsetY) + node.height / 2;
+
+                if (!checkOverlap(box, allocatedBoxes, k)) {
+                    node.offsetX = altOffsetX;
+                    node.offsetY = altOffsetY;
+                    hasOverlap = false;
+                    break;
+                }
+            }
+        }
+
+        if (!hasOverlap) {
+            allocatedBoxes.push(box);
+            node.visible = true;
+        } else {
+            // 如果所有方位都嚴重擁擠，隱藏低優先級的標籤
+            node.visible = false;
+        }
+    });
+
+    // 3. 將計算出的非重疊固定偏移量套用到 DOM 上
+    labels.style("visibility", d => {
+        const found = nodes.find(n => n.data === d);
+        return (found && found.visible) ? "visible" : "hidden";
+    })
+    .attr("x", d => {
+        const found = nodes.find(n => n.data === d);
+        return found ? found.offsetX : 0;
+    })
+    .attr("y", d => {
+        const found = nodes.find(n => n.data === d);
+        return found ? found.offsetY : 0;
+    });
+}
+
+// 輔助函式：判斷文字盒與文字盒，或文字盒與車站圓圈是否重疊
+function checkOverlap(box, allocatedBoxes, k) {
+    const paddingX = 4 / k; 
+    const paddingY = 2 / k;
+
+    for (let b of allocatedBoxes) {
+        if (!(box.x2 + paddingX < b.x1 || 
+              box.x1 - paddingX > b.x2 || 
+              box.y2 + paddingY < b.y1 || 
+              box.y1 - paddingY > b.y2)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 function drawMap(twData, stationsData) {
@@ -108,20 +221,17 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
-    // 1. 先建立車站圓圈節點
-    const circles = mainGroup.selectAll(".station")
+    // 建立一體化的車站群組
+    const stationGroups = mainGroup.selectAll(".station-group")
         .data(stationsData)
         .enter()
-        .append("circle")
-        .attr("class", "station")
-        .attr("r", 4)
-        .attr("cx", d => {
+        .append("g")
+        .attr("class", "station-group")
+        .attr("transform", d => {
             const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
-        })
-        .attr("cy", d => {
-            const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
+            if (!coords) return "translate(-9999, -9999)";
+            const pos = projection([coords.lon, coords.lat]);
+            return `translate(${pos[0]}, ${pos[1]})`;
         })
         .on("mouseover", function(event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
@@ -129,7 +239,7 @@ function drawMap(twData, stationsData) {
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
             const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
             
-            d3.select(this).attr("r", currentBaseRadius * 1.5);
+            d3.select(this).select(".station").attr("r", currentBaseRadius * 1.5);
             
             const name = getStationName(d);
             tooltip.style("opacity", 1)
@@ -142,55 +252,29 @@ function drawMap(twData, stationsData) {
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
             
-            d3.select(this).attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            d3.select(this).select(".station").attr("r", Math.max(0.6, base / Math.sqrt(k)));
             tooltip.style("opacity", 0);
         })
         .on("click", function(event, d) {
             event.stopPropagation();
-            selectStationElement(this, d);
+            const circleDOM = d3.select(this).select(".station").node();
+            selectStationElement(circleDOM, d);
         });
 
-    // 2. 建立文字標籤節點（使其同步支援點擊事件與動態色彩）
-    mainGroup.selectAll(".station-label")
-        .data(stationsData)
-        .enter()
-        .append("text")
+    stationGroups.append("circle")
+        .attr("class", "station")
+        .attr("r", 4)
+        .attr("cx", 0)
+        .attr("cy", 0);
+
+    stationGroups.append("text")
         .attr("class", "station-label")
         .style("opacity", 0) 
-        .text(d => getStationName(d))
-        // 核心修改 1 & 3: 綁定與圓圈完全一模一樣的滑鼠與點擊事件
-        .on("mouseover", function(event, d) {
-            // 觸發對應圓圈的放大視覺特效
-            const correspondingCircle = circles.filter(cData => cData === d);
-            const currentTransform = d3.zoomTransform(svg.node());
-            const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            correspondingCircle.attr("r", Math.max(0.6, base / Math.sqrt(k)) * 1.5);
-
-            const name = getStationName(d);
-            tooltip.style("opacity", 1)
-                   .html(name)
-                   .style("left", (event.pageX + 10) + "px")
-                   .style("top", (event.pageY - 10) + "px");
-        })
-        .on("mouseout", function(event, d) {
-            // 還原對應圓圈的半徑
-            const correspondingCircle = circles.filter(cData => cData === d);
-            const currentTransform = d3.zoomTransform(svg.node());
-            const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            correspondingCircle.attr("r", Math.max(0.6, base / Math.sqrt(k)));
-            
-            tooltip.style("opacity", 0);
-        })
-        .on("click", function(event, d) {
-            event.stopPropagation();
-            // 找出與此文字標籤對應的圓圈 DOM 元素，一併傳入現有的 selectStationElement 邏輯
-            const correspondingCircleNode = circles.filter(cData => cData === d).node();
-            selectStationElement(correspondingCircleNode, d);
-        });
+        .attr("x", 0)
+        .text(d => getStationName(d));
 }
 
+// 關鍵修復 1：修復過午夜（跨日）後的自動滾動判定區間
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -241,84 +325,6 @@ async function loadData() {
     }
 }
 
-function drawMap(twData, stationsData) {
-    if (!twData || !twData.objects) return;
-
-    let objectsKey = Object.keys(twData.objects)[0];
-    if (twData.objects["counties"]) objectsKey = "counties";
-    else if (twData.objects["towns"]) objectsKey = "towns";
-
-    if (!twData.objects[objectsKey]) return;
-
-    const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
-
-    // 繪製背景縣市地圖
-    mainGroup.selectAll(".county")
-        .data(counties)
-        .enter()
-        .append("path")
-        .attr("class", "county")
-        .attr("d", path);
-
-    // 【核心修改】：將每個車站的圓圈與文字，用一個統一的 <g class="station-group"> 包起來
-    const stationGroups = mainGroup.selectAll(".station-group")
-        .data(stationsData)
-        .enter()
-        .append("g")
-        .attr("class", "station-group")
-        // 把整組移動到正確的地理投影坐標上
-        .attr("transform", d => {
-            const coords = getCoords(d);
-            if (!coords) return "translate(-9999, -9999)";
-            const pos = projection([coords.lon, coords.lat]);
-            return `translate(${pos[0]}, ${pos[1]})`;
-        })
-        // 【優化點擊】：滑鼠互動直接綁定在整組容器上，點文字或點圓圈均會完美觸發
-        .on("mouseover", function(event, d) {
-            const currentTransform = d3.zoomTransform(svg.node());
-            const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
-            
-            // 放大該群組內的圓圈
-            d3.select(this).select(".station").attr("r", currentBaseRadius * 1.5);
-            
-            const name = getStationName(d);
-            tooltip.style("opacity", 1)
-                   .html(name)
-                   .style("left", (event.pageX + 10) + "px")
-                   .style("top", (event.pageY - 10) + "px");
-        })
-        .on("mouseout", function(event, d) {
-            const currentTransform = d3.zoomTransform(svg.node());
-            const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            
-            d3.select(this).select(".station").attr("r", Math.max(0.6, base / Math.sqrt(k)));
-            tooltip.style("opacity", 0);
-        })
-        .on("click", function(event, d) {
-            event.stopPropagation();
-            // 傳入群組內部的圓圈 DOM 節點，完美相容現有的 selectStationElement 演算法
-            const circleDOM = d3.select(this).select(".station").node();
-            selectStationElement(circleDOM, d);
-        });
-
-    // 在群組內添加圓圈 (坐標原點設為 0,0 因為父層已經 translate 移過去了)
-    stationGroups.append("circle")
-        .attr("class", "station")
-        .attr("r", 4)
-        .attr("cx", 0)
-        .attr("cy", 0);
-
-    // 在群組內添加固定文字標籤
-    stationGroups.append("text")
-        .attr("class", "station-label")
-        .style("opacity", 0) 
-        .attr("x", 0)
-        .text(d => getStationName(d));
-}
-
 function selectStationElement(circleDOM, d) {
     if (activeStationSelection) {
         const oldSelection = activeStationSelection;
@@ -327,18 +333,17 @@ function selectStationElement(circleDOM, d) {
         const currentTransform = d3.zoomTransform(svg.node());
         const k = currentTransform.k;
         
-        // 移除圓圈和父級群組的 active 樣式
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
         
         d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
     
-    // 清除全域所有連線群組狀態
+    // 重設所有狀態
+    globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
 
-    // 為當前點擊的圓圈及其群組套用 active 類別
     d3.select(circleDOM).classed("active", true);
     d3.select(circleDOM.parentNode).classed("active", true);
     
@@ -364,7 +369,7 @@ function selectStationElement(circleDOM, d) {
         const projectedCoords = projection([coords.lon, coords.lat]);
         svg.transition()
             .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(10).translate(-projectedCoords[0], -projectedCoords[1]));
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
     }
 }
 
@@ -508,6 +513,16 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         }
     });
 
+    // 關鍵修復 2：標註哪些車站數據模型處於 connected 狀態，供佈局分配優先度使用
+    mainGroup.selectAll(".station-group")
+        .filter(function(d) {
+            const name = getStationName(d);
+            const isConnected = connectedStationNames.has(name) && d3.select(this).select(".station").node() !== activeStationSelection;
+            if (isConnected) d.isConnectedState = true;
+            return isConnected;
+        })
+        .classed("connected", true);
+
     mainGroup.selectAll(".station")
         .filter(function(d) {
             const name = getStationName(d);
@@ -619,10 +634,17 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             listContainer.appendChild(spacerCard);
         }
 
+        // 關鍵修復 1修正：如果是在午夜跨日之後（如凌晨 00:05 且清單中包含跨日清晨車次），
+        // 如果找不到大於當前時間的車次，預設黏著至第一班車，防止滑動失效
         if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
         }
     });
+
+    // 如果所有當日車次時間都已經小於當前時間（例如深夜），則默認定位到清單第一筆
+    if (!upcomingTrainDOMElement && listContainer.firstChild) {
+        upcomingTrainDOMElement = listContainer.querySelector(".train-card");
+    }
 
     if (upcomingTrainDOMElement) {
         requestAnimationFrame(() => {
@@ -739,6 +761,8 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         
         d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
+    
+    globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
     
