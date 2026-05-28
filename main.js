@@ -73,7 +73,7 @@ function updateLabelForceSimulation(k) {
     const fontSize = Math.max(2.5, 9 / Math.sqrt(k));
     mainGroup.selectAll(".station-label").style("font-size", `${fontSize}px`);
 
-    // 動態計算目前視角下的車站圓圈半徑（對應基準的 r 屬性縮放邏輯）
+    // 動態計算目前視角下的車站圓圈半徑
     const activeCircleRadius = 4 / Math.sqrt(k);
     const standardCircleRadius = 3 / Math.sqrt(k);
 
@@ -81,11 +81,14 @@ function updateLabelForceSimulation(k) {
         const coords = getCoords(d);
         if (coords) {
             const pos = projection([coords.lon, coords.lat]);
-            d.fx = pos[0];
-            d.fy = pos[1];
-            if (d.x === undefined) d.x = pos[0];
             
-            // 初始設定時，微調讓文字預設偏移在圓圈的上方（減去圓圈半徑再加安全距離）
+            // 重要：不要使用 fx 和 fy，這會把節點完全鎖死，導致碰撞系統失效。
+            // 使用 targetX 和 targetY 作為引力目標。
+            d.targetX = pos[0];
+            d.targetY = pos[1];
+
+            // 如果是第一次執行，給予初始坐標
+            if (d.x === undefined) d.x = pos[0];
             if (d.y === undefined) {
                 const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
                 const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
@@ -96,44 +99,48 @@ function updateLabelForceSimulation(k) {
 
     // 建立 D3 物理碰撞模擬系統
     labelSimulation = d3.forceSimulation(globalStationsData)
-        // 1. 標籤與標籤之間的排斥：根據字數寬度決定安全碰撞邊界，防止文字相撞
+        // 1. 調整碰撞半徑：中文字是方塊，寬度大約等於 字數 * 字體大小。
+        // 改用稍微寬一點的碰撞半徑，防堵左右文字護城河重疊。
         .force("collide", d3.forceCollide(d => {
             const nameLen = getStationName(d).length;
-            return (nameLen * fontSize * 0.45) + (3 / k); 
-        }).iterations(3))
-        // 2. 引力系統：溫和地把標籤維持在車站附近的軌道上
-        .force("x", d3.forceX(d => d.fx).strength(0.2))
-        .force("y", d3.forceY(d => d.fy).strength(0.2))
-        .alpha(0.4)
+            const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
+            const currentRadius = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+            // 安全緩衝半徑 = (字串長度 * 字體半寬) + 圓圈半徑 + 微調安全值
+            return (nameLen * fontSize * 0.5) + currentRadius + (2 / k); 
+        }).iterations(4))
+        // 2. 引力系統：溫和地把標籤維持在車站原本坐標的附近
+        .force("x", d3.forceX(d => d.targetX).strength(0.4))
+        .force("y", d3.forceY(d => d.targetY).strength(0.4))
+        .alpha(0.5)
+        .alphaDecay(0.05) // 稍微放慢冷卻，讓字體有足夠的時間彈開
         .restart();
 
-    // 在物理系統運算的每一步（tick）即時校正坐標，強迫避開車站圓圈
+    // 在物理系統運算的每一步（tick）即時校正坐標與更新 DOM
     labelSimulation.on("tick", () => {
         mainGroup.selectAll(".station-label")
             .attr("x", d => d.x)
             .attr("y", d => {
-                // 計算當前文字物理中心 (d.x, d.y) 與 車站實際坐標 (d.fx, d.fy) 的直線距離
-                const dx = d.x - d.fx;
-                const dy = d.y - d.fy;
+                // 計算當前文字物理中心 (d.x, d.y) 與 車站實際目標坐標 (d.targetX, d.targetY) 的直線距離
+                const dx = d.x - d.targetX;
+                const dy = d.y - d.targetY;
                 const distance = Math.sqrt(dx * dx + dy * dy);
 
                 // 判定該車站圓圈目前的實際防守半徑
                 const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
                 const currentRadius = isCurrentActive ? activeCircleRadius : standardCircleRadius;
                 
-                // 設定「絕對禁區半徑」＝ 圓圈半徑 ＋ 字體高度的一半 ＋ 2像素的呼吸安全邊距
-                const forbiddenZone = currentRadius + (fontSize * 0.5) + (2 / k);
+                // 設定「絕對禁區半徑」＝ 圓圈半徑 ＋ 字體高度的一半 ＋ 安全邊距
+                const forbiddenZone = currentRadius + (fontSize * 0.6) + (2 / k);
 
                 // 核心防壓圓圈機制：如果文字靠得太近，壓到了圓圈禁區
                 if (distance < forbiddenZone) {
-                    // 如果文字剛好在正中心（距離為0），手動給予一個向上彈開的初始向量
                     if (distance === 0) {
-                        return d.fy - forbiddenZone;
+                        return d.targetY - forbiddenZone;
                     }
-                    // 否則，沿著原本的夾角方向，將文字推向禁區範圍線之外
+                    // 沿著原本的夾角方向，將文字推向圓圈禁區範圍線之外
                     const ratio = forbiddenZone / distance;
-                    d.x = d.fx + dx * ratio; // 修正節點本身的物理 x
-                    d.y = d.fy + dy * ratio; // 修正節點本身的物理 y
+                    d.x = d.targetX + dx * ratio; 
+                    d.y = d.targetY + dy * ratio; 
                 }
                 return d.y;
             });

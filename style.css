@@ -411,10 +411,9 @@ hr {
     fill: #00f0ff;
     pointer-events: none;
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
-    
-    /* 新增：將文字錨點與對齊設為中央，優化碰撞避讓計算的外觀效果 */
     text-anchor: middle;
     dominant-baseline: central;
+    letter-spacing: 0.5px; /* Keeps text slightly tighter horizontally */
 }
 
 .tooltip {
