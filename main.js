@@ -18,7 +18,8 @@ const mapUrl = "counties.json";
 
 let activeStationSelection = null;
 let globalStationsData = [];
-// Global state variables tracking currently selected active station details
+
+// Global tracking states to maintain focus during auto-refreshes
 let currentActiveStationCode = null;
 let currentActiveStationName = null;
 let currentActiveStationAddress = null;
@@ -34,108 +35,225 @@ const colorPalette = {
     "區間": "#00ffff"     
 };
 
+// Zoom configuration behavior logic
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
         
+        // Make station circles smaller as you zoom in (r reduces relative to sqrt(k))
         mainGroup.selectAll(".station")
             .attr("r", d => {
-                if (activeStationSelection === d3.select(`circle[id='st-${d.properties.code}']`).node()) {
-                    return Math.max(1.5, 6 / Math.sqrt(k));
-                }
-                return Math.max(0.6, 3 / Math.sqrt(k));
+                const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+                return Math.max(0.6, base / Math.sqrt(k));
             })
-            .style("stroke-width", `${0.5 / k}px`);
+            .style("stroke-width", `${0.3 / k}px`);
 
-        mainGroup.selectAll(".county")
-            .style("stroke-width", `${0.8 / k}px`);
-
+        // Increased threshold: station names only show when zoomed in a lot (k > 8.0 instead of 2.5)
         mainGroup.selectAll(".station-label")
-            .style("font-size", `${Math.max(2, 10 / k)}px`)
-            .attr("dy", `${Math.max(1.5, 4 / k)}px`);
+            .style("font-size", `${Math.max(2.5, 9 / Math.sqrt(k))}px`)
+            .attr("dx", Math.max(1.5, 5 / Math.sqrt(k)))
+            .attr("dy", Math.max(0.8, 2.5 / Math.sqrt(k)))
+            .style("opacity", k > 8.0 ? 1 : 0); 
     });
 
 svg.call(zoom);
 
+function getTodayDateString() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    return `${yyyy}${mm}${dd}`;
+}
+
+function convertMinutesToHHMM(totalMinutes) {
+    const absoluteMinutes = Math.floor(totalMinutes);
+    const hours = Math.floor(absoluteMinutes / 60) % 24;
+    const mins = absoluteMinutes % 60;
+    return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+}
+
+function getCoords(d) {
+    let lat, lon;
+    if (d.gps) {
+        const parts = d.gps.toString().trim().split(/[\s,]+/);
+        const nums = parts.map(Number).filter(n => !isNaN(n));
+        lat = nums.find(n => n > 21 && n < 26);
+        lon = nums.find(n => n > 119 && n < 123);
+    } 
+    else if (d['緯度'] && d['經度']) {
+        lat = parseFloat(d['緯度']);
+        lon = parseFloat(d['經度']);
+    }
+    return (lat && lon) ? { lat, lon } : null;
+}
+
+function getStationName(d) {
+    return d.stationName || d['車站中文名稱'] || d.name || "";
+}
+
 async function loadData() {
     try {
-        const topology = await d3.json(mapUrl);
-        const geojson = topojson.feature(topology, topology.objects.counties);
-
-        mainGroup.selectAll(".county")
-            .data(geojson.features)
-            .enter()
-            .append("path")
-            .attr("class", "county")
-            .attr("d", path);
-
-        const stationsText = await d3.text("stations_lite.txt");
-        globalStationsData = d3.csvParse(stationsText);
-
-        const validStations = globalStationsData.filter(d => d.lat && d.lng);
-
-        mainGroup.selectAll(".station")
-            .data(validStations)
-            .enter()
-            .append("circle")
-            .attr("class", "station")
-            .attr("id", d => `st-${d.code}`)
-            .attr("cx", d => projection([parseFloat(d.lng), parseFloat(d.lat)])[0])
-            .attr("cy", d => projection([parseFloat(d.lng), parseFloat(d.lat)])[1])
-            .attr("r", 3)
-            .on("mouseover", function(event, d) {
-                tooltip.style("opacity", 1)
-                    .html(`<strong>${d.name}車站</strong><br>代碼: ${d.code}`)
-                    .style("left", (event.pageX) + "px")
-                    .style("top", (event.pageY) + "px");
-                
-                if (this !== activeStationSelection) {
-                    d3.select(this).style("fill", "#ffffff");
-                }
-            })
-            .on("mousemove", function(event) {
-                tooltip.style("left", (event.pageX) + "px")
-                    .style("top", (event.pageY) + "px");
-            })
-            .on("mouseout", function(event, d) {
-                tooltip.style("opacity", 0);
-                if (this !== activeStationSelection) {
-                    d3.select(this).style("fill", "#00f0ff");
-                }
-            })
-            .on("click", function(event, d) {
-                selectStationElement(this, d);
-            });
-
-        mainGroup.selectAll(".station-label")
-            .data(validStations)
-            .enter()
-            .append("text")
-            .attr("class", "station-label")
-            .attr("x", d => projection([parseFloat(d.lng), parseFloat(d.lat)])[0])
-            .attr("y", d => projection([parseFloat(d.lng), parseFloat(d.lat)])[1])
-            .attr("dy", "4px")
-            .style("font-size", "10px")
-            .text(d => d.name);
-
-        initSearchFeature();
+        const twData = await d3.json(mapUrl);
+        try {
+            globalStationsData = await d3.json("stations.json");
+        } catch (e) {
+            console.warn("Stations data file loading failed!");
+        }
+        drawMap(twData, globalStationsData);
+        initSearchAutocomplete();
         
-        // REQUIREMENT FIX: Initialize the clock tracking alignment loops
+        // Initialize the background alignment loop countdown
         scheduleNextAutoRefresh();
-
-    } catch (error) {
-        console.error("Data tracking process failed:", error);
+    } catch (err) {
+        console.error("Error configuration mapping pipeline:", err);
     }
 }
 
-// REQUIREMENT FIX: Logic routing system execution targets to sync boundary updates
+function drawMap(twData, stationsData) {
+    if (!twData || !twData.objects) {
+        console.error("Invalid TopoJSON structure encountered inside target JSON geometry payload.");
+        return;
+    }
+
+    // SAFE BOUNDS FIX: Test multiple standard feature keys safely to resolve runtime layout errors
+    let objectsKey = Object.keys(twData.objects)[0];
+    if (twData.objects["counties"]) {
+        objectsKey = "counties";
+    } else if (twData.objects["towns"]) {
+        objectsKey = "towns";
+    }
+
+    if (!twData.objects[objectsKey]) {
+        console.error(`Could not locate key '${objectsKey}' inside your TopoJSON source payload mapping geometries.`);
+        return;
+    }
+
+    const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
+
+    mainGroup.selectAll(".county")
+        .data(counties)
+        .enter()
+        .append("path")
+        .attr("class", "county")
+        .attr("d", path);
+
+    mainGroup.selectAll(".station")
+        .data(stationsData)
+        .enter()
+        .append("circle")
+        .attr("class", "station")
+        .attr("r", 4)
+        .attr("cx", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+        })
+        .attr("cy", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
+        })
+        .on("mouseover", function(event, d) {
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
+            
+            d3.select(this).attr("r", currentBaseRadius * 1.5);
+            
+            const name = getStationName(d);
+            tooltip.style("opacity", 1)
+                   .html(name)
+                   .style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 10) + "px");
+        })
+        .on("mouseout", function(event, d) {
+            const currentTransform = d3.zoomTransform(svg.node());
+            const k = currentTransform.k;
+            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            
+            d3.select(this).attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            tooltip.style("opacity", 0);
+        })
+        .on("click", function(event, d) {
+            event.stopPropagation();
+            selectStationElement(this, d);
+        });
+
+    mainGroup.selectAll(".station-label")
+        .data(stationsData)
+        .enter()
+        .append("text")
+        .attr("class", "station-label")
+        .attr("x", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
+        })
+        .attr("y", d => {
+            const coords = getCoords(d);
+            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
+        })
+        .style("opacity", 0) 
+        .text(d => getStationName(d));
+}
+
+function selectStationElement(circleDOM, d) {
+    if (activeStationSelection) {
+        const oldSelection = activeStationSelection;
+        activeStationSelection = null;
+        
+        const currentTransform = d3.zoomTransform(svg.node());
+        const k = currentTransform.k;
+        d3.select(oldSelection)
+          .classed("active", false)
+          .attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
+    }
+    
+    mainGroup.selectAll(".station").classed("connected", false);
+
+    d3.select(circleDOM).classed("active", true);
+    activeStationSelection = circleDOM;
+    
+    const currentTransform = d3.zoomTransform(svg.node());
+    const k = currentTransform.k;
+    d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
+
+    const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
+    const stationName = getStationName(d);
+    const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
+
+    showStationInfoPanel(stationCode, stationName, stationAddrTw);
+    
+    const coords = getCoords(d);
+    if (coords) {
+        const projectedCoords = projection([coords.lon, coords.lat]);
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(8).translate(-projectedCoords[0], -projectedCoords[1]));
+    }
+}
+
+function getLatestTDXUrl() {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const date = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    
+    const rawMinutes = now.getMinutes();
+    const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
+    const minutes = String(roundedMinutes).padStart(2, '0');
+    
+    const datetimeStr = `${month}${date}${hours}${minutes}`;
+    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json`;
+}
+
+// Background auto-refresh countdown tracker logic
 function scheduleNextAutoRefresh() {
     const now = new Date();
     const currentMinutes = now.getMinutes();
     
-    // Calculate the target minute based on structural 5-minute boundaries offset by 1 minute
+    // Set matching boundaries on exact 5-minute ticks offsets (:01, :06, :11...)
     let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
     if (currentMinutes >= targetMinute) {
         targetMinute += 5;
@@ -146,61 +264,21 @@ function scheduleNextAutoRefresh() {
     targetTime.setSeconds(0);
     targetTime.setMilliseconds(0);
     
-    // If wrapping bounds crosses hours seamlessly standard date updates mutate
     const timeoutMs = targetTime.getTime() - now.getTime();
     
-    console.log(`Synchronization daemon active. Refresh queued in ${Math.round(timeoutMs / 1000)}s at execution target: ${targetTime.toTimeString()}`);
+    console.log(`Auto-refresh active. Next synchronization tick runs in ${Math.round(timeoutMs / 1000)}s.`);
     
     setTimeout(async () => {
-        console.log("Triggering 5-minute auto-refresh sequence updates...");
-        await refreshDataSilently();
-        // Recurse to line up subsequent execution intervals
-        scheduleNextAutoRefresh();
+        if (currentActiveStationCode) {
+            console.log(`Refreshing dataset metrics for station: ${currentActiveStationName}`);
+            await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress);
+        }
+        scheduleNextAutoRefresh(); // Loop execution context
     }, timeoutMs);
 }
 
-// Triggers content data reload operations without interrupting focus or active UI layouts
-async function refreshDataSilently() {
-    if (currentActiveStationCode) {
-        console.log(`Auto-updating data structures for active viewport: ${currentActiveStationName}`);
-        await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress);
-    }
-}
-
-function selectStationElement(nodeElement, dataObj) {
-    tooltip.style("opacity", 0);
-
-    if (activeStationSelection) {
-        d3.select(activeStationSelection)
-            .classed("active", false)
-            .attr("r", 3);
-    }
-
-    activeStationSelection = nodeElement;
-    d3.select(nodeElement)
-        .classed("active", true)
-        .attr("r", 6);
-
-    mainGroup.selectAll(".station").classed("connected", false);
-
-    const coords = projection([parseFloat(dataObj.lng), parseFloat(dataObj.lat)]);
-    
-    const k = 12; 
-    const x = coords[0];
-    const y = coords[1];
-
-    svg.transition()
-        .duration(750)
-        .call(
-            zoom.transform,
-            d3.zoomIdentity.translate(width / 2, height / 2).scale(k).translate(-x, -y)
-        );
-
-    showStationInfoPanel(dataObj.code, dataObj.name, dataObj.address);
-}
-
 async function showStationInfoPanel(code, name, address) {
-    // Preserve current tracking parameters to feed auto refresh routines later
+    // Retain state configurations for background update tasks
     currentActiveStationCode = code;
     currentActiveStationName = name;
     currentActiveStationAddress = address;
@@ -213,55 +291,58 @@ async function showStationInfoPanel(code, name, address) {
         <p><strong>地　　址：</strong> ${address}</p>
     `;
 
+    const trainWrapper = document.getElementById("unified-train-wrapper");
+    if (trainWrapper) {
+        trainWrapper.style.height = window.innerWidth <= 768 ? "calc(100vh - 320px)" : "75%";
+    }
+
     const unifiedListContainer = document.getElementById("unified-train-list");
     unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
 
-    try {
-        const scheduleUrl = `timetable/${code}.json`;
-        const timetableData = await d3.json(scheduleUrl);
+    const dateStr = getTodayDateString();
+    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
+    const liveBoardUrl = getLatestTDXUrl();
 
-        let liveBoardData = null;
-        let delayMap = new Map();
-        try {
-            const liveDataUrl = `https://m7w6m99g71.execute-api.ap-northeast-1.amazonaws.com/prod/liveBoard?stationId=${code}`;
-            liveBoardData = await d3.json(liveDataUrl);
-            
-            if (liveBoardData && liveBoardData.TrainLiveBoards) {
-                liveBoardData.TrainLiveBoards.forEach(board => {
-                    if (board.TrainNo) {
-                        delayMap.set(String(board.TrainNo), board.DelayTime);
-                    }
-                });
-            }
-        } catch (liveErr) {
-            console.warn("Live feedback link timed out. Defaulting to standard offline charts.", liveErr);
+    try {
+        const [scheduleData, liveBoardData] = await Promise.all([
+            d3.json(targetScheduleUrl),
+            d3.json(liveBoardUrl).catch(err => {
+                console.warn("Failed to fetch live board tracking snapshot:", err);
+                return null; 
+            })
+        ]);
+
+        let updateBadge = document.getElementById("live-data-update-time-badge");
+        if (!updateBadge) {
+            updateBadge = document.createElement("div");
+            updateBadge.id = "live-data-update-time-badge";
+            updateBadge.style.cssText = "float: right; margin-right: 10px; background: #162238; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 2px; font-size: 11px; font-weight: bold; text-transform: uppercase;";
+            const closeBtn = document.getElementById("close-panel-btn");
+            closeBtn.parentNode.insertBefore(updateBadge, closeBtn);
         }
 
-        renderUnifiedPassingTrains(timetableData, name, unifiedListContainer, delayMap, liveBoardData);
+        if (liveBoardData && liveBoardData.UpdateTime) {
+            const rawTimeStr = liveBoardData.UpdateTime.split("T")[1] || "";
+            const formattedLiveTime = rawTimeStr.substring(0, 5) || "--:--";
+            updateBadge.innerHTML = `最後更新：${formattedLiveTime}`;
+            updateBadge.style.display = "block";
+        } else {
+            updateBadge.innerHTML = `最後更新：離線`;
+            updateBadge.style.display = "block";
+        }
 
-    } catch (err) {
-        console.error("Failed loading data:", err);
-        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Error processing schedule records.</p>`;
+        const delayMap = new Map();
+        if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
+            liveBoardData.TrainLiveBoards.forEach(board => {
+                delayMap.set(String(board.TrainNo), board.DelayTime);
+            });
+        }
+
+        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData);
+    } catch (error) {
+        console.error(error);
+        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
-}
-
-function convertMinutesToHHMM(totalMinutes) {
-    const mins = totalMinutes % 1440; 
-    const hours = Math.floor(mins / 60);
-    const minutes = Math.floor(mins % 60);
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-}
-
-function hexToRgb(hex) {
-    hex = hex.replace('#', '');
-    if (hex.length === 3) {
-        hex = hex.split('').map(char => char + char).join('');
-    }
-    const bigint = parseInt(hex, 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return `${r}, ${g}, ${b}`;
 }
 
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
@@ -403,23 +484,23 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         let currentPositionHTML = "";
         if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
-            currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
+            currentPositionHTML = `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
         }
 
         card.innerHTML = `
             <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                        ${timeDisplayHTML}
-                        <span style="color: ${neonColor}; font-weight: bold; margin-left: 4px;">${trainType} ${trainNumber}</span>
+                        ${timeDisplayHTML}<br>
+                        <strong style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</strong>
                     </div>
                     ${delayBadgeHTML}
                 </div>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details" style="border-left: 2px solid ${neonColor}">
+            <div class="train-details" style="border-left: 1px solid ${neonColor}">
                 ${startText} → ${endText} ${currentPositionHTML} <br>
-                <span style="color: #64748b; display: inline-block; margin-top: 4px;">備註：${noteText}</span>
+                <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
         `;
 
@@ -456,47 +537,48 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     }
 }
 
-function getStationName(d) {
-    if (d.properties && d.properties.name) return d.properties.name;
-    if (d.name) return d.name;
-    return "";
+function hexToRgb(hex) {
+    let c = hex.substring(1);
+    if(c.length === 3) {
+        c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    }
+    const num = parseInt(c, 16);
+    return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-function initSearchFeature() {
+function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
 
-    if (!searchInput || !suggestionsDropdown) return;
-
     searchInput.addEventListener("input", function() {
-        const query = this.value.trim().toLowerCase();
+        const value = this.value.replace(/台/g, '臺').trim().toLowerCase();
         suggestionsDropdown.innerHTML = "";
 
-        if (!query) {
+        if (!value) {
             suggestionsDropdown.style.display = "none";
             return;
         }
 
-        const filtered = globalStationsData.filter(station => {
-            const nameMatch = station.name && station.name.toLowerCase().includes(query);
-            const codeMatch = station.code && station.code.includes(query);
-            return nameMatch || codeMatch;
+        const matches = globalStationsData.filter(station => {
+            const name = getStationName(station).toLowerCase();
+            return name.includes(value);
         });
 
-        if (filtered.length === 0) {
+        if (matches.length === 0) {
             suggestionsDropdown.style.display = "none";
             return;
         }
 
-        filtered.slice(0, 10).forEach(station => {
+        matches.forEach(station => {
+            const name = getStationName(station);
             const item = document.createElement("div");
             item.className = "suggestion-item";
-            item.innerHTML = `<strong>${station.name}</strong> <span style="font-size:11px; color:#64748b; float:right;">碼: ${station.code}</span>`;
+            item.textContent = name;
             
             item.addEventListener("click", () => {
-                searchInput.value = station.name;
+                searchInput.value = "";
                 suggestionsDropdown.style.display = "none";
-                triggerSelectionByStationName(station.name);
+                triggerSelectionByStationName(name);
             });
             suggestionsDropdown.appendChild(item);
         });
@@ -544,10 +626,13 @@ function triggerSelectionByStationName(targetName) {
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
     
-    // Clear global background tracking states
+    // Reset global state metrics tracking indicators
     currentActiveStationCode = null;
     currentActiveStationName = null;
     currentActiveStationAddress = null;
+
+    const updateBadge = document.getElementById("live-data-update-time-badge");
+    if (updateBadge) updateBadge.style.display = "none";
 
     if (activeStationSelection) {
         const oldSelection = activeStationSelection;
