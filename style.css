@@ -101,7 +101,7 @@ body {
     display: flex;
     position: relative;
     width: 100%;
-    height: 90vh; 
+    height: 90vh; /* Takes the remaining 90% space below the header */
     overflow: hidden;
     z-index: 1;
 }
@@ -113,7 +113,7 @@ body {
 }
 
 #info-panel {
-    width: 0%; 
+    width: 0%; /* Collapsed width state initially */
     height: 100%;
     background: #091120;
     border-left: none;
@@ -152,11 +152,11 @@ svg {
 /* Explicit Structural Height Distributions */
 #info-panel-meta-container {
     min-height: 140px; /* Ensures structural minimum spacing layout boundaries */
-    height: auto; /* FIXED: Allows content height to flow perfectly without overlapping or cutting text */
+    height: auto; /* Allows content height to flow perfectly without overlapping or cutting text */
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    overflow: visible; /* FIXED: Prevents content clipping drops */
+    overflow: visible; /* Prevents content clipping drops */
     box-sizing: border-box;
     flex-shrink: 0;
     padding-bottom: 10px;
@@ -214,7 +214,7 @@ hr {
     display: flex;
     flex-direction: column;
     width: 100%;
-    flex: 1; /* FIXED: Automatically scales to claim all remaining panel height elegantly */
+    flex: 1; /* Automatically scales to claim all remaining panel height elegantly */
     overflow: hidden;
     margin-top: 15px; 
     box-sizing: border-box;
@@ -259,7 +259,7 @@ hr {
     overflow-y: auto;
     padding-right: 6px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr 1fr; /* Retains 2-column configuration uniformly */
     gap: 16px 20px;
     box-sizing: border-box;
 }
@@ -464,7 +464,6 @@ hr {
         min-height: calc(100vh - 140px);
     }
 
-    /* Map tucks underneath or disappears gracefully depending on split layout status */
     #app-container.split-mode #map-container {
         display: none !important;
     }
@@ -491,11 +490,23 @@ hr {
         flex: 1;
     }
 
-    /* FIXED: Removed the flex override blocks so the layout maintains 2 symmetric columns on narrow profiles */
+    /* 確保手機版始終維持 2 欄 Grid 網格佈局 */
     #unified-train-list {
         display: grid !important; 
         grid-template-columns: 1fr 1fr !important; 
         gap: 12px 10px !important; 
+    }
+    
+    /* 修正關鍵處：徹底移除舊代碼中針對 .train-card-spacer 的 display: none 隱藏設定 */
+    .train-card-spacer {
+        display: block !important; /* 強制占位符在手機上保持生成區塊，配合 CSS Grid 完美對齊 */
+        height: 0px !important;    /* 保持隱形高度避免撐開多餘垂直間距 */
+        visibility: hidden !important;
+    }
+
+    .train-card {
+        width: 100% !important;
+        box-sizing: border-box;
     }
     
     .train-header {
