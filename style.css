@@ -84,26 +84,31 @@ body {
     color: #d0ffe6;
 }
 
-/* App Layout Container Workspaces */
 #app-container {
     display: flex;
-    width: 96%;
-    max-width: 1500px;
-    margin: 25px auto;
-    background: #0a1120;
-    border: 1px solid #162238;
-    border-radius: 4px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    position: relative;
+    width: 100%;
+    height: calc(100vh - 90px);
     overflow: hidden;
-    transition: all 0.4s ease-in-out;
 }
 
 #map-container {
+    flex: 1;
     width: 100%;
-    height: 780px;
-    position: relative;
-    background: #040810;
-    transition: width 0.4s ease-in-out;
+    height: 100%;
+    transition: all 0.3s ease-in-out;
+}
+
+#info-panel {
+    width: 0;
+    max-width: 450px;
+    height: 100%;
+    background: #091120;
+    border-left: 1px solid #1e293b;
+    overflow-y: auto;
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    flex-direction: column;
 }
 
 #map {
@@ -116,19 +121,6 @@ svg {
     height: 100%;
 }
 
-#info-panel {
-    width: 0%;
-    opacity: 0;
-    height: 780px;
-    box-sizing: border-box;
-    overflow-y: auto;
-    background-color: #080d1a;
-    border-left: 2px solid #d0ffe6;
-    text-align: left;
-    transition: width 0.4s ease-in-out, opacity 0.3s ease-in-out, padding 0.4s ease-in-out;
-    padding: 0;
-}
-
 #app-container.split-mode #map-container {
     width: 40%;
 }
@@ -137,6 +129,21 @@ svg {
     width: 60%;
     opacity: 1;
     padding: 24px;
+}
+
+#app-container.split-mode #map-container {
+    flex: 1;
+}
+
+#app-container.split-mode #info-panel {
+    width: 450px;
+}
+
+/* Wrapper alignment to accommodate floated or absolute badges neatly */
+.info-panel-header-actions {
+    padding: 10px 15px 0 15px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .close-btn {
@@ -403,6 +410,59 @@ hr {
     white-space: nowrap;
 }
 
-#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar { height: 6px; width: 6px; }
-#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
-#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { background: transparent; }
+#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar {
+    height: 6px; 
+    width: 6px; 
+}
+
+#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { 
+    background: #555; 
+    border-radius: 10px;
+}
+
+#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { 
+    background: transparent;
+}
+
+@media screen and (max-width: 768px) {
+    /* When a station is active on mobile, hide the map container completely */
+    #app-container.split-mode #map-container {
+        display: none !important;
+    }
+
+    /* Info panel expands to take over the whole screen real estate */
+    #app-container.split-mode #info-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-left: none;
+    }
+
+    /* Change header contents wrapping behavior to force badge layout line break */
+    .train-header > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+
+    /* Reposition badge wrapper directly below train classification type elements */
+    .train-header .delay-badge {
+        margin-top: 6px !important;
+        align-self: flex-start !important;
+        display: inline-block;
+    }
+
+    /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
+    .train-card {
+        width: 100% !important;
+        box-sizing: border-box;
+    }
+    
+    .train-card-spacer {
+        display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
+    }
+    
+    #unified-train-list {
+        display: flex;
+        flex-direction: column;
+        padding: 10px;
+    }
+}

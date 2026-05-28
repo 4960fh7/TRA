@@ -440,7 +440,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         let currentPositionHTML = "";
         if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
-            currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
+            currentPositionHTML = `<br><span style="font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
         }
 
         card.innerHTML = `
@@ -456,7 +456,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             </div>
             <div class="train-details" style="border-left: 2px solid ${neonColor}">
                 ${startText} → ${endText} ${currentPositionHTML} <br>
-                <span style="color: #64748b; display: inline-block; margin-top: 4px;">備註：${noteText}</span>
+                <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
         `;
 
