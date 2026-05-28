@@ -316,8 +316,8 @@ hr {
 
 /* Geolocation Markers & Vectors Layout */
 .county {
-    fill: #09101f;
-    stroke: #162238;
+    fill: #6a7792;
+    stroke: #c8bc61;
     stroke-width: 0.8px;
 }
 
@@ -365,6 +365,6 @@ hr {
     white-space: nowrap;
 }
 
-#info-panel::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar { height: 6px; width: 6px; }
-#info-panel::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
-#info-panel::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { background: transparent; }
+#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar { height: 6px; width: 6px; }
+#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { background: #555; border-radius: 10px; }
+#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { background: transparent; }

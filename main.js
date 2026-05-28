@@ -23,10 +23,10 @@ let globalStationsData = [];
 const colorPalette = {
     "普悠瑪": "#FF5252",  // Lightened to a vibrant, high-visibility coral red
     "太魯閣": "#FFA726",  // Shifted to a bright, glowing orange
-    "新自強": "#BA68C8",  // Changed from deep purple to a luminous lavender/magenta
-    "自強": "#49be51",    // Swapped forest green for a crisp, bright mint/emerald green
+    "新自強": "#ce6be0",  // Changed from deep purple to a luminous lavender/magenta
+    "自強": "#5ad362",    // Swapped forest green for a crisp, bright mint/emerald green
     "莒光": "#FFEE58",    // Brightened to a vivid, high-contrast yellow
-    "區間快": "#6e4dff",  // Shifted from dark indigo to a vibrant neon purple/blue
+    "區間快": "#5b7cfe",  // Shifted from dark indigo to a vibrant neon purple/blue
     "區間": "#00ffff"     // Kept cyan as it inherently boasts excellent contrast on dark backgrounds
 };
 
@@ -344,7 +344,7 @@ function initSearchAutocomplete() {
     const suggestionsDropdown = document.getElementById("search-suggestions");
 
     searchInput.addEventListener("input", function() {
-        const value = this.value.trim().toLowerCase();
+        const value = this.value.replace(/台/g, '臺').trim().toLowerCase();
         suggestionsDropdown.innerHTML = "";
 
         if (!value) {
