@@ -438,6 +438,7 @@ hr {
 .station-label {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
+    font: 9px;
     fill: #00f0ff;             /* 預設為基本青藍色 */
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
     text-anchor: middle;

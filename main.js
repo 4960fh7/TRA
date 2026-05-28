@@ -364,7 +364,7 @@ function selectStationElement(circleDOM, d) {
         const projectedCoords = projection([coords.lon, coords.lat]);
         svg.transition()
             .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(8).translate(-projectedCoords[0], -projectedCoords[1]));
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(10).translate(-projectedCoords[0], -projectedCoords[1]));
     }
 }
 
