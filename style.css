@@ -109,6 +109,7 @@ body {
     transition: all 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
+    box-sizing: border-box;
 }
 
 #map {
@@ -121,29 +122,23 @@ svg {
     height: 100%;
 }
 
-#app-container.split-mode #map-container {
-    width: 40%;
-}
-
-#app-container.split-mode #info-panel {
-    width: 60%;
-    opacity: 1;
-    padding: 24px;
-}
-
+/* FIXED: Wider screen settings to preserve column metrics without collapsing card widths */
 #app-container.split-mode #map-container {
     flex: 1;
 }
 
 #app-container.split-mode #info-panel {
     width: 450px;
+    min-width: 450px;
+    opacity: 1;
+    padding: 24px;
 }
 
 /* Wrapper alignment to accommodate floated or absolute badges neatly */
 .info-panel-header-actions {
-    padding: 10px 15px 0 15px;
     width: 100%;
     box-sizing: border-box;
+    margin-bottom: 10px;
 }
 
 .close-btn {
@@ -170,18 +165,21 @@ svg {
     margin: 0 0 10px 0;
     font-size: 1.8rem;
     text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+    text-align: left;
 }
 
 #station-details p {
     color: #94a3b8;
     font-size: 13px;
     margin: 4px 0;
+    text-align: left;
 }
 
 hr {
     border: 0;
     border-top: 1px dashed #162238;
     margin: 20px 0;
+    width: 100%;
 }
 
 /* Timetable Dashboard Containers */
@@ -189,6 +187,8 @@ hr {
     display: flex;
     flex-direction: column;
     width: 100%;
+    height: 100%;
+    overflow: hidden;
 }
 
 .sticky-direction-header {
@@ -224,15 +224,15 @@ hr {
     border: 1px dashed #3b82f6;
 }
 
-/* Ensure the grid doesn't stack items implicitly */
+/* Ensure the grid displays items clearly */
 #unified-train-list {
-    max-height: 520px;
+    flex: 1;
     overflow-y: auto;
     padding-right: 6px;
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 16px 20px;
-    grid-auto-flow: row; /* Strict sequential row placement */
+    box-sizing: border-box;
 }
 
 /* Cyber Dashboard Typography Log Cards */
@@ -245,6 +245,7 @@ hr {
     width: 100%;
     box-sizing: border-box;
     transition: transform 0.2s ease;
+    height: max-content;
 }
 
 /* Explicit columns allocation settings */
@@ -259,7 +260,7 @@ hr {
 /* Virtual Empty Spacer Card Styles */
 .train-card-spacer {
     width: 100%;
-    height: 0px; /* Collapses neatly when unexpanded */
+    height: 0px; 
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
@@ -267,15 +268,6 @@ hr {
 
 .train-card:hover {
     transform: translateY(-2px);
-}
-
-/* Explicit columns allocation settings for sibling cards */
-.train-card.side-left {
-    grid-column: 1;
-}
-
-.train-card.side-right {
-    grid-column: 2;
 }
 
 .train-header {
@@ -319,6 +311,15 @@ hr {
     font-size: 13px;
     text-align: center;
     margin: 30px 0;
+}
+
+/* Red deletion strike-through styling */
+.scheduled-time-strike {
+    color: #ef4444; 
+    text-decoration: line-through; 
+    text-decoration-color: #ef4444; 
+    margin-right: 6px; 
+    opacity: 0.7;
 }
 
 /* --- Real-Time Delay Badges --- */
@@ -424,45 +425,44 @@ hr {
     background: transparent;
 }
 
+/* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
 @media screen and (max-width: 768px) {
-    /* When a station is active on mobile, hide the map container completely */
     #app-container.split-mode #map-container {
         display: none !important;
     }
 
-    /* Info panel expands to take over the whole screen real estate */
     #app-container.split-mode #info-panel {
         width: 100% !important;
         max-width: 100% !important;
+        min-width: 100% !important;
         border-left: none;
+        padding: 16px !important;
     }
 
-    /* Change header contents wrapping behavior to force badge layout line break */
     .train-header > div {
         flex-direction: column !important;
         align-items: flex-start !important;
     }
 
-    /* Reposition badge wrapper directly below train classification type elements */
     .train-header .delay-badge {
         margin-top: 6px !important;
         align-self: flex-start !important;
         display: inline-block;
     }
 
-    /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
     .train-card {
         width: 100% !important;
-        box-sizing: border-box;
+        grid-column: auto !important; /* Resets column bounds tracking overrides */
     }
     
     .train-card-spacer {
-        display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
+        display: none !important; 
     }
     
     #unified-train-list {
-        display: flex;
-        flex-direction: column;
-        padding: 10px;
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 5px;
+        gap: 12px;
     }
 }

@@ -314,11 +314,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             // Map live delay properties using the Train Number
             let delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
             
-            // If explicit delay missing but the train is dynamically marked as "已收班" via threshold,
-            // we treat it as no active delay for calculation purposes.
+            // If explicit delay is missing, treat it as 0 for sorting calculation purposes.
             let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
 
-            // NEW: The time considered into sorting the list now includes the delayed minutes
+            // The time considered into sorting the list now includes the delayed minutes
             const sortedSortingMinutes = departureMinutes + delayMinutesValue;
 
             const trainData = {
@@ -352,12 +351,13 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
-    // NEW: Chronological sort ordered by the real-time adjusted arrival/departure time
+    // Chronological sort ordered by the real-time adjusted arrival/departure time
     combinedSortedTrains.sort((a, b) => a.sortingMinutes - b.sortingMinutes);
 
     listContainer.innerHTML = ""; 
 
     let upcomingTrainDOMElement = null;
+    const isMobileViewport = window.innerWidth <= 768;
 
     combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
@@ -425,22 +425,20 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }
         }
 
-        // NEW: Time string layout compilation considering delay condition
+        // Time display considering delays
         let timeDisplayHTML = "";
         if (train.delay !== undefined && train.delay > 0) {
-            // If delayed, output "Scheduled Time" with a red deletion strike-through followed by the new live time
             timeDisplayHTML = `
-                <span style="color: #ef4444; text-decoration: line-through; text-decoration-color: #ef4444; margin-right: 6px; opacity: 0.7;">${train.formattedTime}</span>
+                <span class="scheduled-time-strike">${train.formattedTime}</span>
                 <strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>
             `;
         } else {
-            // Standard layout format
             timeDisplayHTML = `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
         }
 
         let currentPositionHTML = "";
         if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
-            currentPositionHTML = `<br><span style="font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
+            currentPositionHTML = `<br><span style="color: #00f0ff; font-weight: bold; font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
         }
 
         card.innerHTML = `
@@ -456,7 +454,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             </div>
             <div class="train-details" style="border-left: 2px solid ${neonColor}">
                 ${startText} → ${endText} ${currentPositionHTML} <br>
-                <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
+                <span style="color: #64748b; display: inline-block; margin-top: 4px;">備註：${noteText}</span>
             </div>
         `;
 
@@ -464,15 +462,19 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        if (isEven) {
-            listContainer.appendChild(spacerCard);
+        // FIXED: Only inject empty grid structure elements on desktop screens to avoid invisible row blocking on mobile
+        if (isMobileViewport) {
             listContainer.appendChild(card);
         } else {
-            listContainer.appendChild(card);
-            listContainer.appendChild(spacerCard);
+            if (isEven) {
+                listContainer.appendChild(spacerCard);
+                listContainer.appendChild(card);
+            } else {
+                listContainer.appendChild(card);
+                listContainer.appendChild(spacerCard);
+            }
         }
 
-        // Auto scrolling targeting tracking maps to the new live dynamic sorting values
         if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
         }
