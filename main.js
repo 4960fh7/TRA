@@ -190,6 +190,24 @@ function selectStationElement(circleDOM, d) {
     }
 }
 
+// Helper to fetch and build the real-time TDX data target URL
+function getLatestTDXUrl() {
+    const now = new Date();
+    
+    // Extract local time segments
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const date = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    
+    // Round down minutes to the nearest multiple of 5
+    const rawMinutes = now.getMinutes();
+    const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
+    const minutes = String(roundedMinutes).padStart(2, '0');
+    
+    const datetimeStr = `${month}${date}${hours}${minutes}`;
+    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json`;
+}
+
 async function showStationInfoPanel(code, name, address) {
     document.getElementById("app-container").classList.add("split-mode");
 
@@ -200,18 +218,171 @@ async function showStationInfoPanel(code, name, address) {
     `;
 
     const unifiedListContainer = document.getElementById("unified-train-list");
-    unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules...</p>`;
+    unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
 
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
+    const liveBoardUrl = getLatestTDXUrl();
 
     try {
-        const scheduleData = await d3.json(targetScheduleUrl);
-        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer);
+        // Fetch both static diagram schedule and live board status files concurrently
+        const [scheduleData, liveBoardData] = await Promise.all([
+            d3.json(targetScheduleUrl),
+            d3.json(liveBoardUrl).catch(err => {
+                console.warn("Failed to fetch live board tracking snapshot:", err);
+                return null; // Graceful fallback if the specific 5-min tracking node isn't updated yet
+            })
+        ]);
+
+        // Construct a key-value Map for immediate train lookup O(1)
+        const delayMap = new Map();
+        if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
+            liveBoardData.TrainLiveBoards.forEach(board => {
+                delayMap.set(String(board.TrainNo), board.DelayTime);
+            });
+        }
+
+        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap);
     } catch (error) {
         console.error(error);
         unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
+}
+
+function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap) {
+    if (!Array.isArray(trainsList)) {
+        listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
+        return;
+    }
+
+    const connectedStationNames = new Set();
+    const combinedSortedTrains = [];
+
+    trainsList.forEach(train => {
+        const routeStops = train.data || [];
+        const matchingStops = routeStops.filter(stop => stop.x === targetStationName);
+        
+        if (matchingStops.length > 0) {
+            const depStop = matchingStops[matchingStops.length - 1];
+            const departureMinutes = depStop.y;
+            
+            // Map live delay using the Train Number
+            const trainNumber = train.number || "N/A";
+            const delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
+
+            const trainData = {
+                ...train,
+                calculatedDepMinutes: departureMinutes,
+                formattedTime: convertMinutesToHHMM(departureMinutes),
+                delay: delay // Assign delay (undefined, 0, or positive integer)
+            };
+
+            routeStops.forEach(stop => {
+                if (stop.x && stop.x !== targetStationName) {
+                    connectedStationNames.add(stop.x);
+                }
+            });
+
+            combinedSortedTrains.push(trainData);
+        }
+    });
+
+    mainGroup.selectAll(".station")
+        .filter(function(d) {
+            const name = getStationName(d);
+            return connectedStationNames.has(name) && this !== activeStationSelection;
+        })
+        .classed("connected", true);
+
+    if (combinedSortedTrains.length === 0) {
+        listContainer.innerHTML = `<p class="placeholder-text">No active schedules today.</p>`;
+        return;
+    }
+
+    // Chronological Sort
+    combinedSortedTrains.sort((a, b) => a.calculatedDepMinutes - b.calculatedDepMinutes);
+
+    listContainer.innerHTML = ""; 
+
+    combinedSortedTrains.forEach(train => {
+        const card = document.createElement("div");
+        card.className = "train-card";
+
+        const trainType = train.train || "N/A";
+        const trainNumber = train.number || "N/A";
+        
+        // Define Column Placements
+        const trainNumberInt = parseInt(trainNumber, 10);
+        const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
+
+        // Create the counterpart visual empty spacer node
+        const spacerCard = document.createElement("div");
+
+        if (isEven) {
+            card.classList.add("side-right");
+            spacerCard.className = "train-card-spacer side-left";
+        } else {
+            card.classList.add("side-left");
+            spacerCard.className = "train-card-spacer side-right";
+        }
+
+        // Apply Custom Sci-Fi Theme Color Palette Configs
+        const neonColor = colorPalette[trainType] || "#64748b";
+        card.style.borderLeftColor = neonColor;
+        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.12)`;
+
+        const infoObj = train.info || {};
+        const viaLine = infoObj.via || "-";
+        const rawEndStr = infoObj.end || "";
+        
+        const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
+        const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
+        const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
+
+        const startText = infoObj.start || "N/A";
+        const endText = rawEndStr || "N/A";
+        const noteText = infoObj.note || "無";
+
+        // Build Delay HTML Tag element dynamically
+        let delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+        if (train.delay !== undefined) {
+            if (train.delay === 0) {
+                delayBadgeHTML = `<span class="delay-badge delay-ontime">準點</span>`;
+            } else {
+                delayBadgeHTML = `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
+            }
+        }
+
+        card.innerHTML = `
+            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <div>
+                        <strong style="color: ${neonColor}">${train.formattedTime}</strong> 
+                        <span style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</span>
+                    </div>
+                    ${delayBadgeHTML}
+                </div>
+                <span class="train-sub-title">${routeSubtitleText}</span>
+            </div>
+            <div class="train-details" style="border-left: 2px solid ${neonColor}">
+                ${startText} → ${endText} <br>
+                <span style="color: #64748b">${noteText}</span>
+            </div>
+        `;
+
+        card.querySelector(".train-header").addEventListener("click", () => {
+            card.classList.toggle("expanded");
+        });
+
+        // Append items based on direction
+        if (isEven) {
+            listContainer.appendChild(spacerCard);
+            listContainer.appendChild(card);
+        } else {
+            listContainer.appendChild(card);
+            listContainer.appendChild(spacerCard);
+        }
+    });
 }
 
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer) {

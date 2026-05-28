@@ -314,10 +314,41 @@ hr {
     margin: 30px 0;
 }
 
+/* --- Real-Time Delay Badges --- */
+.delay-badge {
+    font-size: 11px;
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+.delay-badge.delay-ontime {
+    background-color: rgba(0, 255, 170, 0.15);
+    color: #00ffaa;
+    border: 1px solid #00ffaa;
+    box-shadow: 0 0 8px rgba(0, 255, 170, 0.2);
+}
+
+.delay-badge.delay-late {
+    background-color: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+    border: 1px solid #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.2);
+}
+
+.delay-badge.delay-unknown {
+    background-color: rgba(100, 116, 139, 0.15);
+    color: #94a3b8;
+    border: 1px solid #64748b;
+}
+
 /* Geolocation Markers & Vectors Layout */
 .county {
-    fill: #6a7792;
-    stroke: #c8bc61;
+    fill: #3c455a;
+    stroke: #522424;
     stroke-width: 0.8px;
 }
 
