@@ -19,12 +19,12 @@ const mapUrl = "counties.json";
 let activeStationSelection = null;
 let globalStationsData = [];
 
-// 全域追蹤狀態（用於 5 分鐘自動重新整理時保留當前面板內容）
+// 全域追蹤狀態
 let currentActiveStationCode = null;
 let currentActiveStationName = null;
 let currentActiveStationAddress = null;
-let currentActiveStationCW = null;   // 新增：追蹤當前順行方向描述
-let currentActiveStationCCW = null;  // 新增：追蹤當前逆行方向描述
+let currentActiveStationCW = null;   
+let currentActiveStationCCW = null;  
 
 // Sci-Fi 列車顏色調色盤
 const colorPalette = {
@@ -36,6 +36,9 @@ const colorPalette = {
     "區間快": "#5b7cfe",  
     "區間": "#00ffff"     
 };
+
+// 宣告一個全域變數用來儲存力學模擬器
+let labelSimulation = null;
 
 // 縮放設定行為邏輯
 const zoom = d3.zoom()
@@ -51,14 +54,61 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.3 / k}px`);
 
-        mainGroup.selectAll(".station-label")
-            .style("font-size", `${Math.max(2.5, 9 / Math.sqrt(k))}px`)
-            .attr("dx", Math.max(1.5, 5 / Math.sqrt(k)))
-            .attr("dy", Math.max(0.8, 2.5 / Math.sqrt(k)))
-            .style("opacity", k > 8.0 ? 1 : 0); 
+        // 當縮放比例大於 8 時顯示標籤，並在每次縮放時重新啟動排斥力學，重新計算不重疊的位置
+        if (k > 8.0) {
+            mainGroup.selectAll(".station-label").style("opacity", 1);
+            updateLabelForceSimulation(k);
+        } else {
+            mainGroup.selectAll(".station-label").style("opacity", 0);
+            if (labelSimulation) labelSimulation.stop();
+        }
     });
 
 svg.call(zoom);
+
+// 新增：專門用來計算與更新排斥標籤的力學模擬函式
+function updateLabelForceSimulation(k) {
+    if (labelSimulation) labelSimulation.stop();
+
+    // 根據目前的縮放倍率調整字體大小與碰撞半徑
+    const fontSize = Math.max(2.5, 9 / Math.sqrt(k));
+    mainGroup.selectAll(".station-label").style("font-size", `${fontSize}px`);
+
+    // 初始化每個文字節點的物理屬性
+    globalStationsData.forEach(d => {
+        const coords = getCoords(d);
+        if (coords) {
+            const pos = projection([coords.lon, coords.lat]);
+            // fx, fy 是本來的錨點（車站位置）
+            d.fx = pos[0];
+            d.fy = pos[1];
+            // 如果還沒有做過物理定位，先設定初始 x, y
+            if (d.x === undefined) d.x = pos[0];
+            if (d.y === undefined) d.y = pos[1];
+        }
+    });
+
+    // 建立 D3 力學模擬
+    labelSimulation = d3.forceSimulation(globalStationsData)
+        // 1. 強大排斥力（碰撞半徑）：長度估算大約是「字數 * 字體大小的一半」再加點安全距離
+        .force("collide", d3.forceCollide(d => {
+            const nameLen = getStationName(d).length;
+            return (nameLen * fontSize * 0.45) + (4 / k); 
+        }).iterations(3))
+        // 2. 吸引力：限制文字不要飄太遠，盡可能拉回本來車站的 X, Y 附近
+        .force("x", d3.forceX(d => d.fx).strength(0.3))
+        .force("y", d3.forceY(d => d.fy).strength(0.3))
+        .alpha(0.5) // 動畫敏感度
+        .restart();
+
+    // 在物理系統運算的每一步（tick）即時更新畫面上的文字坐標
+    labelSimulation.on("tick", () => {
+        mainGroup.selectAll(".station-label")
+            .attr("x", d => d.x)
+            // 微微向上偏移一點點，避免完全重合在車站正中心
+            .attr("y", d => d.y - (2 / k));
+    });
+}
 
 function getTodayDateString() {
     const today = new Date();
@@ -104,7 +154,6 @@ async function loadData() {
         }
         drawMap(twData, globalStationsData);
         initSearchAutocomplete();
-        
         scheduleNextAutoRefresh();
     } catch (err) {
         console.error("Error configuration mapping pipeline:", err);
@@ -112,22 +161,13 @@ async function loadData() {
 }
 
 function drawMap(twData, stationsData) {
-    if (!twData || !twData.objects) {
-        console.error("Invalid TopoJSON structure encountered inside target JSON geometry payload.");
-        return;
-    }
+    if (!twData || !twData.objects) return;
 
     let objectsKey = Object.keys(twData.objects)[0];
-    if (twData.objects["counties"]) {
-        objectsKey = "counties";
-    } else if (twData.objects["towns"]) {
-        objectsKey = "towns";
-    }
+    if (twData.objects["counties"]) objectsKey = "counties";
+    else if (twData.objects["towns"]) objectsKey = "towns";
 
-    if (!twData.objects[objectsKey]) {
-        console.error(`Could not locate key '${objectsKey}' inside your TopoJSON source payload mapping geometries.`);
-        return;
-    }
+    if (!twData.objects[objectsKey]) return;
 
     const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
 
@@ -179,19 +219,12 @@ function drawMap(twData, stationsData) {
             selectStationElement(this, d);
         });
 
+    // 繪製初始文字標籤（預設隱藏，坐標會由力學模擬動態接管計算）
     mainGroup.selectAll(".station-label")
         .data(stationsData)
         .enter()
         .append("text")
         .attr("class", "station-label")
-        .attr("x", d => {
-            const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[0] : -9999;
-        })
-        .attr("y", d => {
-            const coords = getCoords(d);
-            return coords ? projection([coords.lon, coords.lat])[1] : -9999;
-        })
         .style("opacity", 0) 
         .text(d => getStationName(d));
 }
@@ -221,11 +254,9 @@ function selectStationElement(circleDOM, d) {
     const stationName = getStationName(d);
     const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
     
-    // 獲取該車站對應的 CW 與 CCW 欄位文字（若無則顯示預設）
     const cwTarget = d.CW || "未知";
     const ccwTarget = d.CCW || "未知";
 
-    // 呼叫更新面板函式，將方向目標文字傳入
     showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget);
     
     const coords = getCoords(d);
@@ -248,8 +279,6 @@ function getLatestTDXUrl() {
     const minutes = String(roundedMinutes).padStart(2, '0');
     
     const datetimeStr = `${month}${date}${hours}${minutes}`;
-    
-    // 加上 Time Stamp 機制以防 CDN 404 快取未更新問題
     const cacheBuster = now.getTime(); 
     return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${cacheBuster}`;
 }
@@ -259,9 +288,7 @@ function scheduleNextAutoRefresh() {
     const currentMinutes = now.getMinutes();
     
     let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
-    if (currentMinutes >= targetMinute) {
-        targetMinute += 5;
-    }
+    if (currentMinutes >= targetMinute) targetMinute += 5;
     
     const targetTime = new Date(now);
     targetTime.setMinutes(targetMinute);
@@ -270,12 +297,8 @@ function scheduleNextAutoRefresh() {
     
     const timeoutMs = targetTime.getTime() - now.getTime();
     
-    console.log(`Auto-refresh active. Next synchronization tick runs in ${Math.round(timeoutMs / 1000)}s.`);
-    
     setTimeout(async () => {
         if (currentActiveStationCode) {
-            console.log(`Refreshing dataset metrics for station: ${currentActiveStationName}`);
-            // 自動更新時保留前次紀錄的方向
             await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress, currentActiveStationCW, currentActiveStationCCW);
         }
         scheduleNextAutoRefresh();
@@ -283,7 +306,6 @@ function scheduleNextAutoRefresh() {
 }
 
 async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
-    // 儲存當前選定狀態指標（包含方向資訊）
     currentActiveStationCode = code;
     currentActiveStationName = name;
     currentActiveStationAddress = address;
@@ -298,13 +320,11 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
         <p><strong>地　　址：</strong> ${address}</p>
     `;
 
-    // --- 修改處：動態將 CW 與 CCW 整合進方向導覽標頭文字內 ---
     const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
     const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
     
-    const dir_break = window.innerWidth <= 768 ? "<br>" : " ";
-    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行${dir_break}往 ${ccwTarget}`;
-    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行${dir_break}往 ${cwTarget}`;
+    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行往 ${ccwTarget}`;
+    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行往 ${cwTarget}`;
 
     const trainWrapper = document.getElementById("unified-train-wrapper");
     if (trainWrapper) {
@@ -315,18 +335,13 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
 
     const dateStr = getTodayDateString();
-    
-    // 加上 cache buster 以防時刻表可能發生的快取延遲
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json?t=${new Date().getTime()}`;
     const liveBoardUrl = getLatestTDXUrl();
 
     try {
         const [scheduleData, liveBoardData] = await Promise.all([
             d3.json(targetScheduleUrl),
-            d3.json(liveBoardUrl).catch(err => {
-                console.warn("Failed to fetch live board tracking snapshot:", err);
-                return null; 
-            })
+            d3.json(liveBoardUrl).catch(err => null)
         ]);
 
         let updateBadge = document.getElementById("live-data-update-time-badge");
@@ -363,14 +378,10 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 }
 
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
-    if (!Array.isArray(trainsList)) {
-        listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
-        return;
-    }
+    if (!Array.isArray(trainsList)) return;
 
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
-
     const now = new Date();
     const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
 
@@ -381,7 +392,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         if (matchingStops.length > 0) {
             const depStop = matchingStops[matchingStops.length - 1];
             const departureMinutes = depStop.y;
-            
             const trainNumber = train.number || "N/A";
             let delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
             let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
@@ -397,11 +407,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             };
 
             routeStops.forEach(stop => {
-                if (stop.x && stop.x !== targetStationName) {
-                    connectedStationNames.add(stop.x);
-                }
+                if (stop.x && stop.x !== targetStationName) connectedStationNames.add(stop.x);
             });
-
             combinedSortedTrains.push(trainData);
         }
     });
@@ -429,7 +436,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
-        
         const trainNumberInt = parseInt(trainNumber, 10);
         const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
         const spacerCard = document.createElement("div");
@@ -449,7 +455,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
         const rawEndStr = infoObj.end || "";
-        
         const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
         const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
         const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
@@ -464,44 +469,31 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         
         if (train.delay !== undefined) {
             isActivelyInService = true;
-            if (train.delay === 0) {
-                delayBadgeHTML = `<span class="delay-badge delay-ontime">準點</span>`;
-            } else {
-                delayBadgeHTML = `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
-            }
+            delayBadgeHTML = train.delay === 0 
+                ? `<span class="delay-badge delay-ontime">準點</span>` 
+                : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
         } else {
             if (rawLiveBoardInfo) {
-                if (rawLiveBoardInfo.TrainStationStatus === 0) {
-                    delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
-                } else if (rawLiveBoardInfo.TrainStationStatus === 2) {
-                    delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
-                } else {
+                if (rawLiveBoardInfo.TrainStationStatus === 0) delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+                else if (rawLiveBoardInfo.TrainStationStatus === 2) delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+                else {
                     delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
                     isActivelyInService = true;
                 }
             } else {
-                if (currentMinutesMidnight > train.calculatedDepMinutes + 30) {
-                    delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
-                } else {
-                    delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
-                }
+                delayBadgeHTML = (currentMinutesMidnight > train.calculatedDepMinutes + 30)
+                    ? `<span class="delay-badge delay-status">已收班</span>`
+                    : `<span class="delay-badge delay-status">未發車</span>`;
             }
         }
 
-        let timeDisplayHTML = "";
-        if (train.delay !== undefined && train.delay > 0) {
-            timeDisplayHTML = `
-                <span class="scheduled-time-strike">${train.formattedTime}</span>
-                <strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>
-            `;
-        } else {
-            timeDisplayHTML = `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
-        }
+        let timeDisplayHTML = (train.delay !== undefined && train.delay > 0)
+            ? `<span class="scheduled-time-strike">${train.formattedTime}</span><strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>`
+            : `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
 
-        let currentPositionHTML = "";
-        if (isActivelyInService && rawLiveBoardInfo && rawLiveBoardInfo.StationName && rawLiveBoardInfo.StationName.Zh_tw) {
-            currentPositionHTML = `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`;
-        }
+        let currentPositionHTML = (isActivelyInService && rawLiveBoardInfo?.StationName?.Zh_tw)
+            ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
+            : "";
 
         card.innerHTML = `
             <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonColor)}, 0.15)">
@@ -551,9 +543,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
 function hexToRgb(hex) {
     let c = hex.substring(1);
-    if(c.length === 3) {
-        c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
-    }
+    if(c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
     const num = parseInt(c, 16);
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
@@ -610,9 +600,7 @@ function initSearchAutocomplete() {
     });
 
     document.addEventListener("click", (e) => {
-        if (e.target !== searchInput) {
-            suggestionsDropdown.style.display = "none";
-        }
+        if (e.target !== searchInput) suggestionsDropdown.style.display = "none";
     });
 }
 
@@ -628,11 +616,8 @@ function triggerSelectionByStationName(targetName) {
         }
     });
 
-    if (matchedNode && matchedData) {
-        selectStationElement(matchedNode, matchedData);
-    } else {
-        alert("Station not found. Please clarify spelling entries.");
-    }
+    if (matchedNode && matchedData) selectStationElement(matchedNode, matchedData);
+    else alert("Station not found. Please clarify spelling entries.");
 }
 
 document.getElementById("close-panel-btn").addEventListener("click", () => {
