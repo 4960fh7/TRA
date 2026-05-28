@@ -19,12 +19,14 @@ const mapUrl = "counties.json";
 let activeStationSelection = null;
 let globalStationsData = [];
 
-// Global tracking states to maintain focus during auto-refreshes
+// 全域追蹤狀態（用於 5 分鐘自動重新整理時保留當前面板內容）
 let currentActiveStationCode = null;
 let currentActiveStationName = null;
 let currentActiveStationAddress = null;
+let currentActiveStationCW = null;   // 新增：追蹤當前順行方向描述
+let currentActiveStationCCW = null;  // 新增：追蹤當前逆行方向描述
 
-// Sci-Fi Dynamic Color Palette Mapping
+// Sci-Fi 列車顏色調色盤
 const colorPalette = {
     "普悠瑪": "#FF5252",  
     "太魯閣": "#FFA726",  
@@ -35,14 +37,13 @@ const colorPalette = {
     "區間": "#00ffff"     
 };
 
-// Zoom configuration behavior logic
+// 縮放設定行為邏輯
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
         
-        // Make station circles smaller as you zoom in (r reduces relative to sqrt(k))
         mainGroup.selectAll(".station")
             .attr("r", d => {
                 const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
@@ -50,7 +51,6 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.3 / k}px`);
 
-        // Increased threshold: station names only show when zoomed in a lot (k > 8.0 instead of 2.5)
         mainGroup.selectAll(".station-label")
             .style("font-size", `${Math.max(2.5, 9 / Math.sqrt(k))}px`)
             .attr("dx", Math.max(1.5, 5 / Math.sqrt(k)))
@@ -105,7 +105,6 @@ async function loadData() {
         drawMap(twData, globalStationsData);
         initSearchAutocomplete();
         
-        // Initialize the background alignment loop countdown
         scheduleNextAutoRefresh();
     } catch (err) {
         console.error("Error configuration mapping pipeline:", err);
@@ -118,7 +117,6 @@ function drawMap(twData, stationsData) {
         return;
     }
 
-    // SAFE BOUNDS FIX: Test multiple standard feature keys safely to resolve runtime layout errors
     let objectsKey = Object.keys(twData.objects)[0];
     if (twData.objects["counties"]) {
         objectsKey = "counties";
@@ -222,8 +220,13 @@ function selectStationElement(circleDOM, d) {
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
     const stationName = getStationName(d);
     const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
+    
+    // 獲取該車站對應的 CW 與 CCW 欄位文字（若無則顯示預設）
+    const cwTarget = d.CW || "未知";
+    const ccwTarget = d.CCW || "未知";
 
-    showStationInfoPanel(stationCode, stationName, stationAddrTw);
+    // 呼叫更新面板函式，將方向目標文字傳入
+    showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget);
     
     const coords = getCoords(d);
     if (coords) {
@@ -245,15 +248,16 @@ function getLatestTDXUrl() {
     const minutes = String(roundedMinutes).padStart(2, '0');
     
     const datetimeStr = `${month}${date}${hours}${minutes}`;
-    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json`;
+    
+    // 加上 Time Stamp 機制以防 CDN 404 快取未更新問題
+    const cacheBuster = now.getTime(); 
+    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${cacheBuster}`;
 }
 
-// Background auto-refresh countdown tracker logic
 function scheduleNextAutoRefresh() {
     const now = new Date();
     const currentMinutes = now.getMinutes();
     
-    // Set matching boundaries on exact 5-minute ticks offsets (:01, :06, :11...)
     let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
     if (currentMinutes >= targetMinute) {
         targetMinute += 5;
@@ -271,17 +275,20 @@ function scheduleNextAutoRefresh() {
     setTimeout(async () => {
         if (currentActiveStationCode) {
             console.log(`Refreshing dataset metrics for station: ${currentActiveStationName}`);
-            await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress);
+            // 自動更新時保留前次紀錄的方向
+            await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress, currentActiveStationCW, currentActiveStationCCW);
         }
-        scheduleNextAutoRefresh(); // Loop execution context
+        scheduleNextAutoRefresh();
     }, timeoutMs);
 }
 
-async function showStationInfoPanel(code, name, address) {
-    // Retain state configurations for background update tasks
+async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
+    // 儲存當前選定狀態指標（包含方向資訊）
     currentActiveStationCode = code;
     currentActiveStationName = name;
     currentActiveStationAddress = address;
+    currentActiveStationCW = cwTarget;
+    currentActiveStationCCW = ccwTarget;
 
     document.getElementById("app-container").classList.add("split-mode");
 
@@ -290,6 +297,13 @@ async function showStationInfoPanel(code, name, address) {
         <p><strong>車站代碼：</strong> ${code}</p>
         <p><strong>地　　址：</strong> ${address}</p>
     `;
+
+    // --- 修改處：動態將 CW 與 CCW 整合進方向導覽標頭文字內 ---
+    const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
+    const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
+    
+    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行往 ${ccwTarget}`;
+    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行往 ${cwTarget}`;
 
     const trainWrapper = document.getElementById("unified-train-wrapper");
     if (trainWrapper) {
@@ -300,7 +314,9 @@ async function showStationInfoPanel(code, name, address) {
     unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
 
     const dateStr = getTodayDateString();
-    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json`;
+    
+    // 加上 cache buster 以防時刻表可能發生的快取延遲
+    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json?t=${new Date().getTime()}`;
     const liveBoardUrl = getLatestTDXUrl();
 
     try {
@@ -626,10 +642,11 @@ function triggerSelectionByStationName(targetName) {
 document.getElementById("close-panel-btn").addEventListener("click", () => {
     document.getElementById("app-container").classList.remove("split-mode");
     
-    // Reset global state metrics tracking indicators
     currentActiveStationCode = null;
     currentActiveStationName = null;
     currentActiveStationAddress = null;
+    currentActiveStationCW = null;
+    currentActiveStationCCW = null;
 
     const updateBadge = document.getElementById("live-data-update-time-badge");
     if (updateBadge) updateBadge.style.display = "none";
