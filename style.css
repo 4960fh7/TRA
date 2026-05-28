@@ -427,42 +427,47 @@ hr {
 
 /* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
 @media screen and (max-width: 768px) {
+    /* When a station is active on mobile, hide the map container completely */
     #app-container.split-mode #map-container {
         display: none !important;
     }
 
+    /* Info panel expands to take over the whole screen real estate */
     #app-container.split-mode #info-panel {
         width: 100% !important;
         max-width: 100% !important;
-        min-width: 100% !important;
         border-left: none;
-        padding: 16px !important;
     }
 
+    /* Change header contents wrapping behavior to force badge layout line break */
     .train-header > div {
         flex-direction: column !important;
         align-items: flex-start !important;
     }
 
+    /* Reposition badge wrapper directly below train classification type elements */
     .train-header .delay-badge {
         margin-top: 6px !important;
         align-self: flex-start !important;
         display: inline-block;
     }
 
+    /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
     .train-card {
         width: 100% !important;
-        grid-column: auto !important; /* Resets column bounds tracking overrides */
+        box-sizing: border-box;
+        grid-column: auto !important; /* CRITICAL FIX: Reset desktop grid track assignments */
     }
     
     .train-card-spacer {
-        display: none !important; 
+        display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
     }
     
     #unified-train-list {
-        display: flex !important;
+        display: flex !important; /* CRITICAL FIX: Ensure the grid behavior is completely killed */
         flex-direction: column !important;
-        padding: 5px;
+        max-height: none !important; /* Expand to let standard scrolling physics take over on phone views */
+        padding: 10px;
         gap: 12px;
     }
 }
