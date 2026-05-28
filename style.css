@@ -464,6 +464,7 @@ hr {
         min-height: calc(100vh - 140px);
     }
 
+    /* 當手機版開啟面板時，完全隱藏地圖 */
     #app-container.split-mode #map-container {
         display: none !important;
     }
@@ -474,7 +475,7 @@ hr {
         min-width: 100% !important;
         border-left: none;
         padding: 16px !important;
-        height: calc(100vh - 140px); /* Explicit bounded constraint framework */
+        height: calc(100vh - 140px);
     }
     
     #info-panel-meta-container {
@@ -490,26 +491,44 @@ hr {
         flex: 1;
     }
 
-    /* 確保手機版始終維持 2 欄 Grid 網格佈局 */
+    /* 強制手機版的時間軸維持與桌機相同的雙欄 Grid 佈局 */
     #unified-train-list {
         display: grid !important; 
         grid-template-columns: 1fr 1fr !important; 
         gap: 12px 10px !important; 
+        max-height: none !important;
     }
-    
-    /* 修正關鍵處：徹底移除舊代碼中針對 .train-card-spacer 的 display: none 隱藏設定 */
+
+    /* 關鍵修復：確保占位符在手機 Grid 系統中正確卡位且不露痕跡 */
     .train-card-spacer {
-        display: block !important; /* 強制占位符在手機上保持生成區塊，配合 CSS Grid 完美對齊 */
-        height: 0px !important;    /* 保持隱形高度避免撐開多餘垂直間距 */
-        visibility: hidden !important;
+        display: block !important;       /* 確保 DOM 元素參與 Grid 排版布局 */
+        grid-column: auto !important;    /* 延續原本 JavaScript 賦予的 .side-left / .side-right 軌道分配 */
+        height: 0px !important;          /* 垂直高度歸零，使下一橫排的卡片能緊密貼合向上吸附 */
+        min-height: 0px !important;      /* 防止瀏覽器隱含的 min-content 撐開多餘空白 */
+        margin: 0 !important;
+        padding: 0 !important;
+        visibility: hidden !important;   /* 完全隱形 */
+        pointer-events: none !important; /* 防止干擾點擊事件 */
     }
 
     .train-card {
         width: 100% !important;
         box-sizing: border-box;
+        grid-column: auto !important;    /* 依據 JS 的 side-left/right 分流，不放大至滿版 */
     }
     
     .train-header {
-        padding: 8px; /* Tighter baseline spacing context adjustments for small viewports */
+        padding: 8px; 
+    }
+    
+    /* 調整手機版折疊面板內的文字，防擠壓變形 */
+    .train-header > div {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+    }
+
+    .train-header .delay-badge {
+        margin-top: 6px !important;
+        align-self: flex-start !important;
     }
 }

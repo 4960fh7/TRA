@@ -524,16 +524,13 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        if (isMobileViewport) {
+        
+        if (isEven) {
+            listContainer.appendChild(spacerCard);
             listContainer.appendChild(card);
         } else {
-            if (isEven) {
-                listContainer.appendChild(spacerCard);
-                listContainer.appendChild(card);
-            } else {
-                listContainer.appendChild(card);
-                listContainer.appendChild(spacerCard);
-            }
+            listContainer.appendChild(card);
+            listContainer.appendChild(spacerCard);
         }
 
         if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
