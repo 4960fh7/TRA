@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
     <title>Taiwan TRA Stations Map</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css"/>
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/topojson@3"></script>
 </head>
 <body>
     <div class="header">
-        <h1>臺鐵列車動態</h1>
+        <div class="header-title-group">
+            <h1>臺鐵列車動態</h1>
+        </div>
         <div class="search-container">
-            <input type="text" id="station-search-input" placeholder="搜尋車站（例：臺北、高雄）..." autocomplete="off">
+            <input type="text" id="station-search-input" placeholder="搜尋車站（例：臺北、高雄）..." autocomplete="off"/>
             <div id="search-suggestions" class="suggestions-dropdown"></div>
         </div>
     </div>
@@ -21,16 +23,17 @@
 
     <div id="app-container">
         <div id="map-container">
-            <div id="map"></div>
+            <div id=\"map\"></div>
         </div>
         
         <div id="info-panel">
-            <div class="info-panel-header-actions">
-                <div id="close-panel-btn" class="close-btn">&times; 關閉</div>
-                <p>  </p>
+            <div id="info-panel-meta-container">
+                <div class="info-panel-header-actions">
+                    <div id="close-panel-btn" class="close-btn">&times; 關閉</div>
+                </div>
+                <div id="station-details"></div>
+                <hr/>
             </div>
-            <div id="station-details"></div>
-            <hr>
             
             <div id="unified-train-wrapper">
                 <div class="sticky-direction-header">

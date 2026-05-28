@@ -5,42 +5,48 @@ body {
     padding: 0;
     background-color: #060a12; /* Deep space dark backdrop */
     color: #e2e8f0;
-    text-align: center;
 }
 
 .header {
     height: 10vh; /* Configured to explicitly occupy 10% of viewport height */
-    padding: 10px 15px; /* Tapered padding down to accommodate layout restrictions */
+    padding: 0 30px; 
     position: relative;
     background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
     border-bottom: 1px dashed #d0ffe6;
     box-sizing: border-box;
     display: flex;
+    justify-content: space-between; /* Pushes title to left and search to right */
+    align-items: center; /* Vertically centers the content */
+    text-align: left;
+    z-index: 1001; /* CRITICAL FIX: Ensure dropdown overlaps panel layers underneath */
+}
+
+.header-title-group {
+    display: flex;
     flex-direction: column;
-    justify-content: left;
-    align-items: left;
+    justify-content: center;
+    text-align: left;
 }
 
 .header h1 {
-    font-size: 1.8rem; /* Scaled slightly down to prevent clipping inside the 10vh row boundaries */
+    font-size: 1.8rem; 
     color: #d0ffe6;
     text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
     margin: 0;
     letter-spacing: 2px;
+    text-align: left; /* Explicitly forced left layout alignment */
 }
 
 .header p {
     color: #64748b;
     font-size: 11px;
     margin: 2px 0 0 0;
+    text-align: left;
 }
 
 /* Cybernetic Search Bar Component */
 .search-container {
-    position: absolute;
-    right: 30px;
-    top: 50%;
-    transform: translateY(-50%);
+    position: relative;
     width: 300px;
     margin: 0;
 }
@@ -66,26 +72,30 @@ body {
 
 .suggestions-dropdown {
     position: absolute;
-    top: 105%;
+    top: 100%;
     left: 0;
     right: 0;
-    max-height: 200px;
+    max-height: 220px;
     overflow-y: auto;
     background: #0a1120;
     border: 1px solid #d0ffe6;
     border-radius: 2px;
-    z-index: 1000;
+    z-index: 2000; /* Forces high priority above panel surfaces */
     box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35);
     text-align: left;
     display: none;
+    box-sizing: border-box;
 }
 
 .suggestion-item {
+    display: block; /* Ensure full structural box layout */
+    width: 100%;
     padding: 10px 14px;
     cursor: pointer;
     font-size: 13px;
     color: #94a3b8;
     border-bottom: 1px solid #162238;
+    box-sizing: border-box;
 }
 
 .suggestion-item:hover {
@@ -99,6 +109,7 @@ body {
     width: 100%;
     height: 85vh; /* Configured to explicitly occupy 85% of viewport height */
     overflow: hidden;
+    z-index: 1;
 }
 
 #map-container {
@@ -112,7 +123,7 @@ body {
     height: 100%;
     background: #091120;
     border-left: none;
-    overflow-y: auto;
+    overflow: hidden; /* Prevent global duplicate scroll bars */
     transition: all 0.3s ease-in-out;
     display: flex;
     flex-direction: column;
@@ -130,7 +141,7 @@ svg {
     height: 100%;
 }
 
-/* WIDE SCREEN BREAKPOINT OVERRIDES (When a station link maps layout live) */
+/* WIDE SCREEN BREAKPOINT OVERRIDES */
 #app-container.split-mode #map-container {
     width: 40%; /* Explicitly lock map bounds to 40% when split-mode active */
 }
@@ -144,11 +155,28 @@ svg {
     border-left: 1px solid #1e293b;
 }
 
+/* Structural sizing ratios for items nested within info panel */
+#info-panel > .info-panel-header-actions,
+#info-panel > #station-details,
+#info-panel > hr {
+    flex-shrink: 0;
+    max-height: 20%; /* Ensure general station meta takes no more than 20% height */
+}
+
+#info-panel-meta-container {
+    height: 20%;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
 /* Wrapper alignment to accommodate floated or absolute badges neatly */
 .info-panel-header-actions {
     width: 100%;
     box-sizing: border-box;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
 }
 
 .close-btn {
@@ -172,23 +200,23 @@ svg {
 
 #station-details h2 {
     color: #00f0ff;
-    margin: 0 0 10px 0;
-    font-size: 1.8rem;
+    margin: 0 0 5px 0;
+    font-size: 1.6rem;
     text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
     text-align: left;
 }
 
 #station-details p {
     color: #94a3b8;
-    font-size: 13px;
-    margin: 4px 0;
+    font-size: 12px;
+    margin: 2px 0;
     text-align: left;
 }
 
 hr {
     border: 0;
     border-top: 1px dashed #162238;
-    margin: 20px 0;
+    margin: 10px 0;
     width: 100%;
 }
 
@@ -197,8 +225,13 @@ hr {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    height: 75% !important; /* REQUIREMENT FIX: Explicitly forced 75% height allocations */
+    max-height: 75% !important;
+    min-height: 75% !important;
     overflow: hidden;
+    flex-grow: 0;
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .sticky-direction-header {
@@ -211,6 +244,7 @@ hr {
     z-index: 10;
     border-bottom: 1px solid #162238;
     margin-bottom: 16px;
+    flex-shrink: 0;
 }
 
 .dir-indicator {
@@ -438,35 +472,44 @@ hr {
 /* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
 @media screen and (max-width: 768px) {
     .header {
-        height: auto; /* Fallback to natural flow on mobile viewport heights */
+        height: auto; 
         padding: 15px 10px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
     }
 
     .search-container {
-        position: relative;
-        right: auto;
-        top: auto;
-        transform: none;
-        width: 320px;
-        margin: 10px auto 0 auto;
+        width: 100%;
     }
 
     #app-container {
-        height: auto; /* Allow components to cascade naturally */
+        height: auto; 
         min-height: calc(100vh - 140px);
     }
 
-    /* When a station is active on mobile, hide the map container completely */
     #app-container.split-mode #map-container {
         display: none !important;
     }
 
-    /* Info panel expands to take over the whole screen real estate */
     #app-container.split-mode #info-panel {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
         border-left: none;
         padding: 12px !important;
+        height: auto;
+    }
+    
+    #info-panel > .info-panel-header-actions,
+    #info-panel > #station-details,
+    #info-panel > hr {
+        max-height: none;
+    }
+    
+    #unified-train-wrapper {
+        height: auto !important;
+        max-height: none !important;
+        min-height: auto !important;
     }
 }
