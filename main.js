@@ -19,7 +19,7 @@ const mapUrl = "counties.json";
 let activeStationSelection = null;
 let globalStationsData = [];
 
-// 3. Sci-Fi Dynamic Color Theme Key Definitions Matrix
+// Sci-Fi Dynamic Color Palette Mapping
 const colorPalette = {
     "普悠瑪": "#F12F2F", 
     "太魯閣": "#F57C00", 
@@ -27,10 +27,10 @@ const colorPalette = {
     "自強": "#00994D", 
     "莒光": "#FBC02D", 
     "區間快": "#1A1AFF", 
-    "區間": "#00ffff" // Adjusted from black (#262626) to cyan (#00ffff) to make it legible on the dark UI theme
+    "區間": "#00ffff" // Cyber-cyan highlight for readability on dark backgrounds
 };
 
-// Zoom configuration behavior logic
+// Zoom behavior with responsive circle adjustments and label display triggers
 const zoom = d3.zoom()
     .scaleExtent([1, 40])
     .on("zoom", (event) => {
@@ -214,7 +214,6 @@ async function showStationInfoPanel(code, name, address) {
     }
 }
 
-// 1 & 3. Processes layout arrays applying distinct rows and color palette glow settings
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer) {
     if (!Array.isArray(trainsList)) {
         listContainer.innerHTML = `<p class="placeholder-text">Malformed structure.</p>`;
@@ -271,7 +270,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
         
-        // 1. Alternating Row Isolation System (Odd -> Column 1, Even -> Column 2)
+        // FIX 1: Staggered tracking. Force odd/even to column 1 or column 2 directly.
         const trainNumberInt = parseInt(trainNumber, 10);
         if (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0) {
             card.classList.add("side-right");
@@ -279,10 +278,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.add("side-left");
         }
 
-        // 3. Apply Custom Color Coding Mapping Palette Styles dynamically
-        const matchingNeonThemeColor = colorPalette[trainType] || "#64748b";
-        card.style.borderLeftColor = matchingNeonThemeColor;
-        card.style.boxShadow = `0 0 8px rgba(${hexToRgbChannels(matchingNeonThemeColor)}, 0.15)`;
+        // FIX 3: Assign custom cyberpunk hex coloring scheme
+        const neonAccentColor = colorPalette[trainType] || "#64748b";
+        card.style.borderLeftColor = neonAccentColor;
+        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonAccentColor)}, 0.15)`;
 
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
@@ -297,13 +296,14 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const noteText = infoObj.note || "無";
 
         card.innerHTML = `
-            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgbChannels(matchingNeonThemeColor)}, 0.2)">
-                <strong style="color: ${matchingNeonThemeColor}">${train.formattedTime}</strong> 
-                <span style="color: ${matchingNeonThemeColor}; font-weight: bold; margin-left:2px;">${trainType} ${trainNumber}</span>
+            <div class="train-header" style="border-bottom: 1px dashed rgba(${hexToRgb(neonAccentColor)}, 0.15)">
+                <strong style="color: ${neonAccentColor}">${train.formattedTime}</strong> 
+                <span style="color: ${neonAccentColor}; font-weight: bold;">${trainType} ${trainNumber}</span>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details">
-                ${startText} → ${endText} <br>註：${noteText}
+            <div class="train-details" style="border-left: 2px solid ${neonAccentColor}">
+                <span style="color: #00f0ff">➔ ROUTE:</span> ${startText} → ${endText} <br>
+                <span style="color: #64748b">註：${noteText}</span>
             </div>
         `;
 
@@ -311,12 +311,13 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
+        // FIX 1: Append directly into the master grid container instead of individual wrapper divs
         listContainer.appendChild(card);
     });
 }
 
-// 3. Helper Utility function to format hexadecimal values into raw RGB channels for glow effects
-function hexToRgbChannels(hex) {
+// Helper parsing hex strings to RGB channels
+function hexToRgb(hex) {
     let c = hex.substring(1);
     if(c.length === 3) {
         c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
@@ -355,7 +356,7 @@ function initSearchAutocomplete() {
             item.textContent = name;
             
             item.addEventListener("click", () => {
-                // 2. FIXED: Clears search bar box value cleanly upon selection
+                // FIX 2: Clear search text string upon selection
                 searchInput.value = "";
                 suggestionsDropdown.style.display = "none";
                 triggerSelectionByStationName(name);
@@ -370,7 +371,7 @@ function initSearchAutocomplete() {
         if (e.key === "Enter") {
             const val = this.value.trim();
             if (val) {
-                // 2. FIXED: Clears search bar box value cleanly upon striking Enter key
+                // FIX 2: Clear search input field cleanly upon Enter strike
                 this.value = "";
                 triggerSelectionByStationName(val);
                 suggestionsDropdown.style.display = "none";
