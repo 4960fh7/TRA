@@ -230,7 +230,8 @@ hr {
     overflow-y: auto;
     padding-right: 6px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    /* Auto-fit columns dynamically based on space. Falls back to a clean single column on mobile */
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 16px 20px;
     box-sizing: border-box;
 }
@@ -246,6 +247,10 @@ hr {
     box-sizing: border-box;
     transition: transform 0.2s ease;
     height: max-content;
+}
+
+.train-card:hover {
+    transform: translateY(-2px);
 }
 
 /* Explicit columns allocation settings */
@@ -264,10 +269,6 @@ hr {
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
-}
-
-.train-card:hover {
-    transform: translateY(-2px);
 }
 
 .train-header {
@@ -305,7 +306,7 @@ hr {
 }
 
 .placeholder-text {
-    grid-column: 1 / span 2;
+    grid-column: 1 / -1;
     color: #64748b;
     font-style: italic;
     font-size: 13px;
@@ -322,7 +323,6 @@ hr {
     opacity: 0.7;
 }
 
-/* --- Real-Time Delay Badges --- */
 .delay-badge {
     font-size: 11px;
     font-weight: bold;
@@ -427,58 +427,37 @@ hr {
 
 /* --- Responsive Layout Media Query Overrides (Narrow Screens / Mobile) --- */
 @media screen and (max-width: 768px) {
-    /* Adjust overall container for screens with fixed headers */
-    #app-container {
-        height: calc(100vh - 120px) !important;
-    }
-
-    /* When a station is active on mobile, hide the map container completely */
     #app-container.split-mode #map-container {
         display: none !important;
     }
 
-    /* Info panel expands to take over the whole screen real estate */
     #app-container.split-mode #info-panel {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
         border-left: none;
-        padding: 12px !important;
-        height: 100% !important;
-        overflow-y: auto !important;
+        padding: 16px !important;
     }
 
-    /* Fix the timetable list container to scroll correctly inside the panel */
-    #unified-train-list {
-        display: flex !important;
-        flex-direction: column !important;
-        padding: 4px !important;
-        gap: 12px !important;
-        overflow-y: auto !important;
-        height: auto !important;
-    }
-
-    /* Change header contents wrapping behavior to force badge layout line break */
     .train-header > div {
         flex-direction: column !important;
         align-items: flex-start !important;
     }
 
-    /* Reposition badge wrapper directly below train classification type elements */
     .train-header .delay-badge {
         margin-top: 6px !important;
         align-self: flex-start !important;
         display: inline-block !important;
     }
 
-    /* Extra padding adjustments for cleaner readability on narrow handheld viewports */
     .train-card {
         width: 100% !important;
-        box-sizing: border-box !important;
-        grid-column: auto !important; /* Reset desktop grid tracks */
     }
     
-    .train-card-spacer {
-        display: none !important; /* Hide symmetric grid balancing spacers on single column lines */
+    #unified-train-list {
+        display: flex !important;
+        flex-direction: column !important;
+        padding: 5px;
+        gap: 12px;
     }
 }

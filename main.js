@@ -315,20 +315,14 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             const departureMinutes = depStop.y;
             
             const trainNumber = train.number || "N/A";
-            
-            // Map live delay properties using the Train Number
             let delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
-            
-            // If explicit delay is missing, treat it as 0 for sorting calculation purposes.
             let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
-
-            // The time considered into sorting the list now includes the delayed minutes
             const sortedSortingMinutes = departureMinutes + delayMinutesValue;
 
             const trainData = {
                 ...train,
                 calculatedDepMinutes: departureMinutes,
-                sortingMinutes: sortedSortingMinutes, // Sorting benchmark key field
+                sortingMinutes: sortedSortingMinutes, 
                 formattedTime: convertMinutesToHHMM(departureMinutes),
                 formattedDelayedTime: convertMinutesToHHMM(sortedSortingMinutes),
                 delay: delay 
@@ -356,13 +350,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         return;
     }
 
-    // Chronological sort ordered by the real-time adjusted arrival/departure time
     combinedSortedTrains.sort((a, b) => a.sortingMinutes - b.sortingMinutes);
-
     listContainer.innerHTML = ""; 
 
     let upcomingTrainDOMElement = null;
-    const isMobileViewport = window.innerWidth <= 768;
 
     combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
@@ -370,28 +361,14 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
-        
-        const trainNumberInt = parseInt(trainNumber, 10);
-        const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
-
-        const spacerCard = document.createElement("div");
-
-        if (isEven) {
-            card.classList.add("side-right");
-            spacerCard.className = "train-card-spacer side-left";
-        } else {
-            card.classList.add("side-left");
-            spacerCard.className = "train-card-spacer side-right";
-        }
-
         const neonColor = colorPalette[trainType] || "#64748b";
+        
         card.style.borderLeftColor = neonColor;
         card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.12)`;
 
         const infoObj = train.info || {};
         const viaLine = infoObj.via || "-";
         const rawEndStr = infoObj.end || "";
-        
         const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
         const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
         const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
@@ -430,7 +407,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }
         }
 
-        // Time display considering delays
         let timeDisplayHTML = "";
         if (train.delay !== undefined && train.delay > 0) {
             timeDisplayHTML = `
@@ -467,18 +443,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             card.classList.toggle("expanded");
         });
 
-        // FIXED: Only inject empty grid structure elements on desktop screens to avoid invisible row blocking on mobile
-        if (isMobileViewport) {
-            listContainer.appendChild(card);
-        } else {
-            if (isEven) {
-                listContainer.appendChild(spacerCard);
-                listContainer.appendChild(card);
-            } else {
-                listContainer.appendChild(card);
-                listContainer.appendChild(spacerCard);
-            }
-        }
+        listContainer.appendChild(card);
 
         if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
