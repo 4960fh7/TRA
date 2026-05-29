@@ -109,7 +109,7 @@ body {
 #map-container {
     width: 100%; /* Default width when info panel is hidden */
     height: 100%;
-    transition: width 0.3s ease-in-out;
+    transition: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #info-panel {
@@ -119,17 +119,21 @@ body {
     height: 90vh;
     background-color: #0a1120;
     border-left: 2px solid #00f0ff;
-    
-    /* 關鍵修復 1：改為 border-box，讓 30px 的內距向內計算，不壓縮子元件 100% 的寬度基準 */
     box-sizing: border-box !important;
     padding: 24px; 
-    
     display: flex;
     flex-direction: column;
-    position: relative;
+    
+    /* 關鍵修改 1：設定固定定位並往右推移出螢幕 100% 寬度（預設完全隱藏） */
+    position: fixed;
+    top: 10vh;
+    right: -40%; /* 寬度多少，預設就往右退多少 */
+    
     z-index: 1000;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
-    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    
+    /* 關鍵修改 2：加入 CSS 轉場，使其開關時有精美的科技感滑動動畫 */
+    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #map {
@@ -148,6 +152,7 @@ svg {
 }
 
 #app-container.split-mode #info-panel {
+    right: 0 !important;
     width: 60%; /* Expand timetable info panel space cleanly to 60% */
     max-width: 60%;
     min-width: 60%;
@@ -505,6 +510,7 @@ svg {
     }
 
     #app-container.split-mode #info-panel {
+        right: 0 !important;
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
@@ -562,5 +568,18 @@ svg {
     .train-header .delay-badge {
         margin-top: 6px !important;
         align-self: flex-start !important;
+    }
+
+    #info-panel {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        border-left: none;
+        padding: 16px !important;
+        height: calc(100vh - 140px);
+        
+        /* 手機板寬度改為 100%，預設推向下方或更右側 */
+        right: -100% !important;
+        top: 14vh;
     }
 }
