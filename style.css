@@ -179,7 +179,7 @@ svg {
 }
 
 .info-panel-header-actions {
-    width: 35% !important;
+    width: 35%;
     max-width: 35% !important;
     display: flex !important;
     justify-content: flex-end !important; /* 讓內部的關閉按鈕靠最右側對齊 */
@@ -206,7 +206,7 @@ svg {
 }
 
 #station-details {
-    width: 60% !important;
+    width: 60%;
     max-width: 60% !important;
     box-sizing: border-box !important;
 }
@@ -584,10 +584,11 @@ svg {
     }
 
     #station-details {
-        width: 40% !important;
+        width: 30% !important;
     }
 
     #info-panel-header-actions {
-        width: 55% !important;
+        width: 65% !important;
+        max-width: 65% !important;
     }
 }
