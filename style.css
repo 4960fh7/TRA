@@ -163,7 +163,7 @@ svg {
 }
 
 .info-panel-header-actions {
-    width: 100%;
+    width: 35%;
     box-sizing: border-box;
     margin-bottom: 5px;
 }
@@ -185,6 +185,10 @@ svg {
     background: #ef4444;
     color: #fff;
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+#station-details {
+    width: 60%;
 }
 
 #station-details h2 {

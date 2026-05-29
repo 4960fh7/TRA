@@ -440,7 +440,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     }
 
     const unifiedListContainer = document.getElementById("unified-train-list");
-    unifiedListContainer.innerHTML = `<p class="placeholder-text">Loading schedules & real-time delays...</p>`;
+    unifiedListContainer.innerHTML = `<p class="placeholder-text">載入列車動態中...</p>`;
 
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json?t=${new Date().getTime()}`;
