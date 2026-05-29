@@ -152,6 +152,7 @@ svg {
 /* Explicit Structural Height Distributions */
 #info-panel-meta-container {
     min-height: 140px; /* Ensures structural minimum spacing layout boundaries */
+    width: 100%;
     height: auto; /* Allows content height to flow perfectly without overlapping or cutting text */
     display: flex;
     flex-direction: row;
