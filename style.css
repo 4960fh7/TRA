@@ -154,8 +154,9 @@ svg {
     min-height: 140px; /* Ensures structural minimum spacing layout boundaries */
     height: auto; /* Allows content height to flow perfectly without overlapping or cutting text */
     display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
     overflow: visible; /* Prevents content clipping drops */
     box-sizing: border-box;
     flex-shrink: 0;
@@ -164,6 +165,8 @@ svg {
 
 .info-panel-header-actions {
     width: 35%;
+    display: flex;
+    justify-content: flex-end; /* 讓內部的關閉按鈕緊貼在最右側 */
     box-sizing: border-box;
     margin-bottom: 5px;
 }
@@ -189,11 +192,13 @@ svg {
 
 #station-details {
     width: 60%;
+    box-sizing: border-box;
 }
 
 #station-details h2 {
     color: #00f0ff;
-    margin: 0 0 5px 0;
+    margin-top: 0;
+    margin-bottom: 5px;
     font-size: 1.6rem;
     text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
     text-align: left;
