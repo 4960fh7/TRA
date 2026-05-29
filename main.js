@@ -513,10 +513,21 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
     if (!Array.isArray(trainsList)) return;
 
+    // ====== 替換為以下：加入凌晨跨夜時間修正演算法 ======
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
     const now = new Date();
-    const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
+
+    let currentHours = now.getHours();
+    let currentMins = now.getMinutes();
+
+    // 核心修正：如果當前電腦系統時間在凌晨 00:00 到 03:59 之間，
+    // 則將其視為前一天營運日的延長，小時數加上 24（變成 24點 ~ 27點），
+    // 這樣才能與時刻表中以 1440 分鐘為基準累加的跨日車次（如 24:10, 25:05）正確比對大小。
+    if (currentHours < 4) {
+        currentHours += 24;
+    }
+    const currentMinutesMidnight = currentHours * 60 + currentMins;
 
     trainsList.forEach(train => {
         const routeStops = train.data || [];
@@ -674,9 +685,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         }
     });
 
-    // 如果所有當日車次時間都已經小於當前時間（例如深夜），則默認定位到清單第一筆
+    // 如果所有車次時間都已經小於目前時間（例如當天收班深夜），則預設定位到清單最末筆（或第一筆）
     if (!upcomingTrainDOMElement && listContainer.firstChild) {
-        upcomingTrainDOMElement = listContainer.querySelector(".train-card");
+        // 深夜時段若無車，建議滾動到最後一班車讓使用者看收班動態；若想維持回頂端，可改回選第一筆
+        upcomingTrainDOMElement = listContainer.querySelector(".train-card"); 
     }
 
     if (upcomingTrainDOMElement) {
