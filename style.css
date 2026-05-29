@@ -582,4 +582,12 @@ svg {
         right: -100% !important;
         top: 14vh;
     }
+
+    #station-details {
+        width: 40% !important;
+    }
+
+    #info-panel-header-actions {
+        width: 55% !important;
+    }
 }

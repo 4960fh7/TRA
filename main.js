@@ -422,7 +422,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 
     document.getElementById("app-container").classList.add("split-mode");
 
-    document.getElementById("station-details").innerHTML = `
+    document.getElementById("station-details").innerHTML = window.innerWidth <= 768 ? "" : `
         <h2>${name}</h2>
         <p><strong>車站代碼：</strong> ${code}</p>
         <p><strong>地　　址：</strong> ${address}</p>
