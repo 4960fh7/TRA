@@ -232,6 +232,7 @@ svg {
     width: 100%;
     flex: 1; /* Automatically scales to claim all remaining panel height elegantly */
     overflow: hidden;
+    margin-top: 1px; 
     box-sizing: border-box;
 }
 
