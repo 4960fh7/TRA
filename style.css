@@ -151,25 +151,27 @@ svg {
 
 /* Explicit Structural Height Distributions */
 #info-panel-meta-container {
-    min-height: 140px; /* Ensures structural minimum spacing layout boundaries */
-    width: 100%;
-    height: auto; /* Allows content height to flow perfectly without overlapping or cutting text */
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    overflow: visible; /* Prevents content clipping drops */
-    box-sizing: border-box;
-    flex-shrink: 0;
-    padding-bottom: 10px;
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    
+    /* 核心修改：強制容器佔滿側邊欄 100% 的水平可用寬度 */
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    
+    /* 防止內距 (Padding) 將容器撐寬破壞佈局 */
+    box-sizing: border-box !important;
+    margin: 0 0 10px 0 !important;
 }
 
 .info-panel-header-actions {
-    width: 35%;
-    display: flex;
-    justify-content: flex-end; /* 讓內部的關閉按鈕緊貼在最右側 */
-    box-sizing: border-box;
-    margin-bottom: 5px;
+    width: 35% !important;
+    max-width: 35% !important;
+    display: flex !important;
+    justify-content: flex-end !important; /* 讓內部的關閉按鈕靠最右側對齊 */
+    box-sizing: border-box !important;
 }
 
 .close-btn {
@@ -192,17 +194,14 @@ svg {
 }
 
 #station-details {
-    width: 60%;
-    box-sizing: border-box;
+    width: 60% !important;
+    max-width: 60% !important;
+    box-sizing: border-box !important;
 }
 
 #station-details h2 {
-    color: #00f0ff;
-    margin-top: 0;
-    margin-bottom: 5px;
-    font-size: 1.6rem;
-    text-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
-    text-align: left;
+    margin: 0 0 4px 0 !important;
+    padding: 0 !important;
 }
 
 #station-details p {
