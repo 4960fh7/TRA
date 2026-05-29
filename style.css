@@ -484,20 +484,8 @@ svg {
 
 /* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
 @media screen and (max-width: 768px) {
-    .header {
-        height: auto; 
-        padding: 15px 10px;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-
     .tooltip {
         display: none;
-    }
-
-    .search-container {
-        width: 100%;
     }
 
     #app-container {
