@@ -481,6 +481,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
             updateBadge.id = "live-data-update-time-badge";
             updateBadge.style.cssText = "float: right; margin-right: 10px; background: #162238; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 2px; font-size: 11px; font-weight: bold; text-transform: uppercase;";
             const closeBtn = document.getElementById("close-panel-btn");
+            closeBtn.innerHTML = window.innerWidth <= 768 ? `&times;` : `&times; 關閉`;
             closeBtn.parentNode.insertBefore(updateBadge, closeBtn);
         }
 
