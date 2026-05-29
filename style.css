@@ -113,16 +113,23 @@ body {
 }
 
 #info-panel {
-    width: 0%; /* Collapsed width state initially */
-    height: 100%;
-    background: #091120;
-    border-left: none;
-    overflow: hidden; 
-    transition: all 0.3s ease-in-out;
+    width: 40%;
+    max-width: 40%;
+    min-width: 350px;
+    height: 90vh;
+    background-color: #0a1120;
+    border-left: 2px solid #00f0ff;
+    
+    /* 關鍵修復 1：改為 border-box，讓 30px 的內距向內計算，不壓縮子元件 100% 的寬度基準 */
+    box-sizing: border-box !important;
+    padding: 24px; 
+    
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
-    opacity: 0;
+    position: relative;
+    z-index: 1000;
+    box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #map {
@@ -211,11 +218,11 @@ svg {
     text-align: left;
 }
 
-hr {
-    border: 0;
-    border-top: 1px dashed #162238;
-    margin: auto 0 0 0; /* Align perfectly to bottom boundaries */
-    width: 100%;
+#info-panel hr {
+    width: 100% !important;
+    border: none;
+    border-top: 1px dashed rgba(0, 240, 255, 0.3) !important;
+    margin: 4px 0 16px 0 !important;
 }
 
 /* Timetable Dashboard Containers */
