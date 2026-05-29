@@ -488,6 +488,10 @@ svg {
         display: none;
     }
 
+    .search-container {
+        width: 200px;
+    }
+
     #app-container {
         height: auto; 
         min-height: calc(100vh - 140px);
