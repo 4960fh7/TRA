@@ -6,7 +6,7 @@
 }
 
 body {
-    font-family: 'GlowSansSCCom-Compressed', 'Courier New', Courier, monospace, sans-serif;
+    font-family: 'Courier New', Courier, monospace, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #060a12; /* Deep space dark backdrop */
@@ -490,6 +490,14 @@ svg {
 
 /* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
 @media screen and (max-width: 768px) {
+    body {
+        font-family: 'GlowSansSCCom-Compressed', 'Courier New', Courier, monospace, sans-serif;
+    }
+
+    #map {
+        font-family: 'GlowSansSCCom-Compressed', 'Courier New', Courier, monospace, sans-serif;
+    }
+
     .tooltip {
         display: none;
     }
