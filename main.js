@@ -506,7 +506,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
         renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData);
     } catch (error) {
         console.error(error);
-        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
+        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">網站整修中，目前無法載入...</p>`;
     }
 }
 
