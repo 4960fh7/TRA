@@ -1,6 +1,12 @@
 /* --- Sci-Fi / Cyberpunk UI Redesign Theme --- */
+@font-face {
+    font-family: 'GlowSansSCCom-Compressed';
+    src: url('GlowSansSC-Compressed-Regular.otf') format('opentype');
+    font-weight: normal; font-style: normal;
+}
+
 body {
-    font-family: 'Courier New', Courier, monospace, sans-serif;
+    font-family: 'GlowSansSCCom-Compressed', 'Courier New', Courier, monospace, sans-serif;
     margin: 0;
     padding: 0;
     background-color: #060a12; /* Deep space dark backdrop */
@@ -493,8 +499,7 @@ svg {
     }
 
     #app-container {
-        height: auto; 
-        min-height: calc(100vh - 140px);
+        height: calc(100vh - 140px);
     }
 
     #app-container.split-mode #map-container {
