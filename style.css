@@ -560,6 +560,10 @@ svg {
         box-sizing: border-box;
         grid-column: auto !important;    
     }
+
+    .train-card:hover {
+        transform: none;
+    }
     
     .train-header {
         padding: 8px; 
