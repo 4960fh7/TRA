@@ -650,9 +650,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             : "";
 
         // 提取該列車所有停靠的車站名稱，並以 " → " 串接
-        const stopsListHTML = (train.data || [])
+        const stopsListHTML = (trainType === "區間") ? `${startText.replace(/[0-9]/g, "")} 到 ${endText.replace(/[0-9]/g, "")} 中途各站皆停` : (train.data || [])
             .map(stop => stop.x)
             .filter(Boolean)
+            .filter((station, index, arr) => {
+                return index === 0 || station !== arr[index - 1];
+            })
             .join(" → ");
 
         card.innerHTML = `
