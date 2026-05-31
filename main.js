@@ -649,6 +649,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
             : "";
 
+        // 提取該列車所有停靠的車站名稱，並以 " → " 串接
+        const stopsListHTML = (train.data || [])
+            .map(stop => stop.x)
+            .filter(Boolean)
+            .join(" → ");
+
         card.innerHTML = `
             <div class="train-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -661,7 +667,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details">
-                ${startText} → ${endText} ${currentPositionHTML} <br>
+                ${startText} → ${endText} ${currentPositionHTML}
+                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px; word-break: break-all; line-height: 1.4;">
+                    停靠站：${stopsListHTML}
+                </div>
                 <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
         `;
@@ -710,6 +719,7 @@ function hexToRgb(hex) {
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
+// 搜尋自動完成功能
 function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
