@@ -443,7 +443,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     unifiedListContainer.innerHTML = `<p class="placeholder-text">載入列車動態中...</p>`;
 
     const dateStr = getTodayDateString();
-    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Diagram/main/data/${dateStr}.json?t=${new Date().getTime()}`;
+    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data/${dateStr}.json?t=${new Date().getTime()}`;
 
     // =======================================================
     // 核心穩定度修改：自動容錯迴圈 (嘗試讀取最新、5分鐘前、10分鐘前檔案)
@@ -506,7 +506,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
         renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData);
     } catch (error) {
         console.error(error);
-        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">網站整修中，目前無法載入...</p>`;
+        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">Could not load logs.</p>`;
     }
 }
 
@@ -649,15 +649,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
             : "";
 
-        // 提取該列車所有停靠的車站名稱，並以 " → " 串接
-        const stopsListHTML = (trainType === "區間") ? `${startText.replace(/[0-9]/g, "")} 到 ${endText.replace(/[0-9]/g, "")} 中途各站皆停` : (train.data || [])
-            .map(stop => stop.x)
-            .filter(Boolean)
-            .filter((station, index, arr) => {
-                return index === 0 || station !== arr[index - 1];
-            })
-            .join(" → ");
-
         card.innerHTML = `
             <div class="train-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -670,10 +661,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details">
-                ${startText} → ${endText} ${currentPositionHTML}
-                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px; word-break: break-all; line-height: 1.4;">
-                    停靠站：${stopsListHTML}
-                </div>
+                ${startText} → ${endText} ${currentPositionHTML} <br>
                 <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
             </div>
         `;
@@ -722,7 +710,6 @@ function hexToRgb(hex) {
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-// 搜尋自動完成功能
 function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
