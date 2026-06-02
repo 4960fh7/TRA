@@ -650,13 +650,20 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             : "";
 
         // 提取該列車所有停靠的車站名稱，並以 " → " 串接
-        const stopsListHTML = (trainType === "區間") ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停` : (train.data || [])
-            .map(stop => stop.x)
-            .filter(Boolean)
-            .filter((station, index, arr) => {
-                return index === 0 || station !== arr[index - 1];
-            })
-            .join(" → ");
+    const stopStations = (train.data || []).map(stop => stop.x).filter(Boolean);
+
+    const stopsListHTML =
+        (trainType === "區間" &&
+        stopStations.includes("豐田") &&
+        !stopStations.includes("林榮新光"))
+            ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停（林榮新光除外）`
+            : (trainType === "區間")
+                ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停`
+                : stopStations
+                    .filter((station, index, arr) => {
+                        return index === 0 || station !== arr[index - 1];
+                    })
+                    .join(" → ");
 
         card.innerHTML = `
             <div class="train-header">
