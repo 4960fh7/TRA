@@ -771,7 +771,7 @@ function initSearchAutocomplete() {
 
     searchInput.addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
-            const val = this.value.trim();
+            const val = this.value.trim().replace(/台/g, '臺');
             if (val) {
                 this.value = "";
                 triggerSelectionByStationName(val);
