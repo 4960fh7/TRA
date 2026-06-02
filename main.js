@@ -443,7 +443,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     unifiedListContainer.innerHTML = `<p class="placeholder-text">載入列車動態中...</p>`;
 
     const dateStr = getTodayDateString();
-    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data/${dateStr}.json?t=${new Date().getTime()}`;
+    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
 
     // =======================================================
     // 核心穩定度修改：自動容錯迴圈 (嘗試讀取最新、5分鐘前、10分鐘前檔案)
@@ -650,20 +650,18 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             : "";
 
         // 提取該列車所有停靠的車站名稱，並以 " → " 串接
-    const stopStations = (train.data || []).map(stop => stop.x).filter(Boolean);
+        const stopStations = (train.data || []).map(stop => stop.x).filter(Boolean);
 
-    const stopsListHTML =
-        (trainType === "區間" &&
-        stopStations.includes("豐田") &&
-        !stopStations.includes("林榮新光"))
-            ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停（林榮新光除外）`
-            : (trainType === "區間")
-                ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停`
-                : stopStations
-                    .filter((station, index, arr) => {
-                        return index === 0 || station !== arr[index - 1];
-                    })
-                    .join(" → ");
+        const stopsListHTML =
+            (trainType === "區間" && stopStations.includes("豐田") && !stopStations.includes("林榮新光"))
+                ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停（林榮新光除外）`
+                : (trainType === "區間")
+                    ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停`
+                    : stopStations
+                        .filter((station, index, arr) => {
+                            return index === 0 || station !== arr[index - 1];
+                        })
+                        .join(" → ");
 
         card.innerHTML = `
             <div class="train-header">
