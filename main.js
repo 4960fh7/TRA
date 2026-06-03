@@ -511,6 +511,24 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     }
 }
 
+function getTrainTypeName(train, number) {
+        const trainMapping = {
+            6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號', 
+            6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號', 
+            6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
+            5898: '藍皮解憂', 5899: '藍皮解憂',
+            6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
+            6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
+            1: '環島之星', 2: '環島之星',
+            6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+        };
+        const numKey = Number(number);
+        if (trainMapping[numKey]) {
+            return `${trainMapping[numKey]} ${numKey}`;
+        }
+        return `${train} ${numKey}`;
+    }
+
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
     if (!Array.isArray(trainsList)) return;
 
@@ -669,7 +687,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
                         ${timeDisplayHTML}<br>
-                        <strong style="color: ${neonColor}; font-weight: bold;">${trainType} ${trainNumber}</strong>
+                        <strong style="color: ${neonColor}; font-weight: bold;">${getTrainTypeName(trainType, trainNumber)}</strong>
                     </div>
                     ${delayBadgeHTML}
                 </div>
