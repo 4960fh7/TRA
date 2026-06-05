@@ -726,8 +726,8 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
                     delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
                 }
-                if (delayedString !== "") delayedString = delayedString + "<br>";
-                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span><strong style="color: ${neonColor}">${delayedString}</strong>`;
+                const delayedBreak = (delayedString === "") ? "" : "<br>";
+                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span>${delayedBreak}<strong style="color: ${neonColor}">${delayedString}</strong>`;
             } else {
                 finalTimeHTML = `<strong>${scheduledString}</strong>`;
             }
