@@ -324,7 +324,7 @@ async function loadData() {
     }
 }
 
-function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null) {
+function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, searchInjectedDelay = undefined) {
     if (activeStationSelection === circleDOM && !targetTrainNumberToExpand) {
         document.getElementById("close-panel-btn").click();
         return;
@@ -363,7 +363,7 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null) {
     const cwTarget = d.CW || "未知";
     const ccwTarget = d.CCW || "未知";
 
-    showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget, targetTrainNumberToExpand);
+    showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget, targetTrainNumberToExpand, searchInjectedDelay);
     
     if (k > 8.0) updateLabelForceSimulation(k);
 
@@ -414,14 +414,13 @@ function scheduleNextAutoRefresh() {
     }, timeoutMs);
 }
 
-async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, targetTrainNumberToExpand = null) {
+async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, targetTrainNumberToExpand = null, searchInjectedDelay = undefined) {
     currentActiveStationCode = code;
     currentActiveStationName = name;
     currentActiveStationAddress = address;
     currentActiveStationCW = cwTarget;
     currentActiveStationCCW = ccwTarget;
 
-    // 依據原始螢幕判定或指定條件，動態配置初始顯示面板模式
     const appContainer = document.getElementById("app-container");
     if (targetTrainNumberToExpand && window.innerWidth <= 768) {
         appContainer.classList.remove("multi-split-mode");
@@ -501,6 +500,11 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, ta
             });
         }
 
+        // If the query was triggered via a global search item, enforce synchronization mapping overrides
+        if (targetTrainNumberToExpand && searchInjectedDelay !== undefined) {
+            delayMap.set(String(targetTrainNumberToExpand), searchInjectedDelay);
+        }
+
         renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData, targetTrainNumberToExpand);
     } catch (error) {
         console.error(error);
@@ -559,7 +563,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 sortingMinutes: sortedSortingMinutes, 
                 formattedTime: convertMinutesToHHMM(departureMinutes),
                 formattedDelayedTime: convertMinutesToHHMM(sortedSortingMinutes),
-                delay: delay 
+                delay: delayMinutesValue 
             };
 
             routeStops.forEach(stop => {
@@ -599,7 +603,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
         card.className = "train-card";
-        // 增加屬性方便做停靠站反向搜尋定位
         card.setAttribute("data-train-number", String(train.number));
 
         const trainType = train.train || "N/A";
@@ -712,9 +715,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         }
     });
 
-    // 處理反向選取或預設時間定位滾動
     if (explicitTargetCardDOMElement) {
-        // 預先設定佈局模式，確保滾動高度計算準確
         const appContainer = document.getElementById("app-container");
         if (window.innerWidth > 768) {
             appContainer.classList.add("multi-split-mode");
@@ -722,25 +723,21 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         requestAnimationFrame(() => {
             setTimeout(() => {
-                // 模擬點擊車次標頭，觸發完整的展開及排程面板顯示邏輯
                 const headerEl = explicitTargetCardDOMElement.querySelector(".train-header");
                 if (headerEl) {
-                    // 先移除非目標車次的展開狀態
                     listContainer.querySelectorAll(".train-card").forEach(c => {
                         if (c !== explicitTargetCardDOMElement) c.classList.remove("expanded");
                     });
                     
-                    // 根據目前設備版面狀態，決定是否需要展開
                     if (window.innerWidth > 768) {
                         explicitTargetCardDOMElement.classList.add("expanded");
-                        const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
+                        const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
                             renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
                         }
                     } else {
-                        // 手機版：搜尋車次時直接點擊打開停靠站面板，不重複展開卡片
-                        const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
+                        const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
                             appContainer.classList.add("multi-split-mode");
@@ -749,7 +746,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     }
                 }
 
-                // 執行平滑滾動到目標車次卡片
                 listContainer.scrollTo({
                     top: explicitTargetCardDOMElement.offsetTop - listContainer.offsetTop - 10,
                     behavior: 'smooth'
@@ -835,7 +831,6 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
         const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 6px; font-weight: bold;` : "";
         const activeClassAttr = isCurrentStation ? `class="current-selected-stop-row"` : "";
 
-        // 將整個停靠站的外層 div 設為可點擊，並加入滑鼠懸停樣式
         return `
             <div ${activeClassAttr} 
                  class="schedule-stop-item-row"
@@ -848,14 +843,12 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
         `;
     }).join("");
 
-    // 綁定停靠站點擊反向尋站事件
     stopsContainer.querySelectorAll(".schedule-stop-item-row").forEach(row => {
         row.addEventListener("click", (e) => {
             const clickedName = row.getAttribute("data-station-click-name");
             const currentTrainNum = row.getAttribute("data-associated-train");
             if (!clickedName) return;
 
-            // 在 D3 中查找對應車站節點
             const d3Circles = mainGroup.selectAll(".station");
             let matchedData = null;
             let matchedNode = null;
@@ -869,14 +862,12 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
 
             if (matchedNode && matchedData) {
                 if (window.innerWidth <= 768) {
-                    // 行動裝置：關閉 schedule panel，開啟 info panel 並滾動至指定車次
                     const appContainer = document.getElementById("app-container");
                     appContainer.classList.remove("multi-split-mode");
                     appContainer.classList.add("split-mode");
                     document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
                 }
-                // 觸發切換到新車站，並傳遞目前正在檢視的車次編號以便追蹤滾動
-                selectStationElement(matchedNode, matchedData, currentTrainNum);
+                selectStationElement(matchedNode, matchedData, currentTrainNum, delayMinutesValue);
             }
         });
     });
@@ -914,20 +905,17 @@ function initUnifiedSearchAutocomplete() {
             return;
         }
 
-        // 1. Find Station Matches
         const stationMatches = globalStationsData.filter(station => {
             const name = getStationName(station).toLowerCase();
             return name.includes(normalizedValue);
         });
 
-        // 2. Find Train Matches & Sort by Train Number Numerically
         let trainMatches = [];
         if (globalScheduleData) {
             trainMatches = globalScheduleData.filter(t => 
                 String(t.number).includes(normalizedValue)
             );
             
-            // Sort all matched trains numerically by train number
             trainMatches.sort((a, b) => {
                 return parseInt(a.number, 10) - parseInt(b.number, 10);
             });
@@ -938,7 +926,6 @@ function initUnifiedSearchAutocomplete() {
             return;
         }
 
-        // Render Station Category if matches exist
         if (stationMatches.length > 0) {
             const catTitle = document.createElement("div");
             catTitle.className = "suggestion-category-title";
@@ -960,7 +947,6 @@ function initUnifiedSearchAutocomplete() {
             });
         }
 
-        // Render Train Category if matches exist (showing all matching results)
         if (trainMatches.length > 0) {
             const catTitle = document.createElement("div");
             catTitle.className = "suggestion-category-title";
@@ -994,7 +980,6 @@ function initUnifiedSearchAutocomplete() {
             const val = this.value.trim().replace(/台/g, '臺');
             if (!val) return;
 
-            // If entry is completely numeric, prioritize train number tracking
             if (/^\d+$/.test(val)) {
                 triggerSelectionByTrainNumber(val);
             } else {
@@ -1029,7 +1014,6 @@ function triggerSelectionByStationName(targetName) {
     }
 }
 
-// Target routing logic based on your three timeline requirements
 async function triggerSelectionByTrainNumber(trainNumber) {
     if (!globalScheduleData || globalScheduleData.length === 0) {
         alert("班次資料尚在準備中，請稍候再試。");
@@ -1045,7 +1029,6 @@ async function triggerSelectionByTrainNumber(trainNumber) {
     const rawStops = matchedTrain.data || [];
     if (rawStops.length === 0) return;
 
-    // Compile consecutive arrival/departure points into distinct chronological nodes
     const groupedStops = [];
     rawStops.forEach(entry => {
         if (!entry.x) return;
@@ -1062,7 +1045,6 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     if (groupedStops.length === 0) return;
 
-    // Fetch real-time logs to pull live status delays
     let delayMinutesValue = 0;
     try {
         let liveBoardData = null;
@@ -1076,19 +1058,15 @@ async function triggerSelectionByTrainNumber(trainNumber) {
             const liveInfo = liveBoardData.TrainLiveBoards.find(b => String(b.TrainNo) === String(trainNumber));
             if (liveInfo && liveInfo.DelayTime !== undefined && !isNaN(liveInfo.DelayTime)) {
                 delayMinutesValue = parseInt(liveInfo.DelayTime, 10);
-                // 修正關鍵：將延誤時間同步寫入物件，供後續的 schedule panel 渲染器讀取
-                matchedTrain.delay = delayMinutesValue; 
-            } else {
-                matchedTrain.delay = 0; // 若有即時資訊但未延誤，設為準點
             }
-        } else {
-            matchedTrain.delay = 0; // 查無即時資訊時設為預設值
         }
     } catch(e) {
         console.warn("Live board fetch failure during train routing selection", e);
     }
 
-    // Capture absolute minutes since midnight
+    // Explicitly bind the delay to the matchedTrain object before calling UI triggers
+    matchedTrain.delay = delayMinutesValue;
+
     const now = new Date();
     let currentHours = now.getHours();
     if (currentHours < 4) currentHours += 24; 
@@ -1099,24 +1077,17 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     let targetStationName = "";
 
-    // Condition A: Train service hasn't started today
     if (currentMinutesMidnight < (firstStop.arrMinutes + delayMinutesValue)) {
         targetStationName = firstStop.stationName;
-    }
-    // Condition B: Train completed today's service route 
-    else if (currentMinutesMidnight > (lastStop.depMinutes + delayMinutesValue)) {
+    } else if (currentMinutesMidnight > (lastStop.depMinutes + delayMinutesValue)) {
         targetStationName = lastStop.stationName;
-    }
-    // Condition C: Train is active / en route
-    else {
-        // Find the first upcoming station stop row where departure time + delay is greater than now
+    } else {
         const nextUpcomingStop = groupedStops.find(stop => 
             (stop.depMinutes + delayMinutesValue) >= currentMinutesMidnight
         );
         targetStationName = nextUpcomingStop ? nextUpcomingStop.stationName : lastStop.stationName;
     }
 
-    // Fire map updates to select the computed target station and filter down to expand this train card
     if (targetStationName) {
         if (targetStationName === "臺北_環島") targetStationName = "臺北";
         const d3Circles = mainGroup.selectAll(".station");
@@ -1131,7 +1102,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
         });
 
         if (matchedDOMNode && matchedNodeData) {
-            selectStationElement(matchedDOMNode, matchedNodeData, String(matchedTrain.number));
+            selectStationElement(matchedDOMNode, matchedNodeData, String(matchedTrain.number), delayMinutesValue);
         } else {
             alert(`找不到對應的車站節點: ${targetStationName}`);
         }
