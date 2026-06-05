@@ -714,22 +714,48 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
     // 處理反向選取或預設時間定位滾動
     if (explicitTargetCardDOMElement) {
-        setTimeout(() => {
-            if (window.innerWidth > 768) {
-                // PC 版：點擊停靠站後，除了滾動到該車次外，還要展開（觸發點擊）該車次
-                explicitTargetCardDOMElement.classList.add("expanded");
-                document.getElementById("app-container").classList.add("multi-split-mode");
-                const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
-                if (matchedTrainObj) {
-                    const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
-                    renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
+        // 預先設定佈局模式，確保滾動高度計算準確
+        const appContainer = document.getElementById("app-container");
+        if (window.innerWidth > 768) {
+            appContainer.classList.add("multi-split-mode");
+        }
+
+        requestAnimationFrame(() => {
+            setTimeout(() => {
+                // 模擬點擊車次標頭，觸發完整的展開及排程面板顯示邏輯
+                const headerEl = explicitTargetCardDOMElement.querySelector(".train-header");
+                if (headerEl) {
+                    // 先移除非目標車次的展開狀態
+                    listContainer.querySelectorAll(".train-card").forEach(c => {
+                        if (c !== explicitTargetCardDOMElement) c.classList.remove("expanded");
+                    });
+                    
+                    // 根據目前設備版面狀態，決定是否需要展開
+                    if (window.innerWidth > 768) {
+                        explicitTargetCardDOMElement.classList.add("expanded");
+                        const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
+                        if (matchedTrainObj) {
+                            const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
+                        }
+                    } else {
+                        // 手機版：搜尋車次時直接點擊打開停靠站面板，不重複展開卡片
+                        const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
+                        if (matchedTrainObj) {
+                            const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
+                            appContainer.classList.add("multi-split-mode");
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
+                        }
+                    }
                 }
-            }
-            listContainer.scrollTo({
-                top: explicitTargetCardDOMElement.offsetTop - listContainer.offsetTop - 10,
-                behavior: 'smooth'
-            });
-        }, 120);
+
+                // 執行平滑滾動到目標車次卡片
+                listContainer.scrollTo({
+                    top: explicitTargetCardDOMElement.offsetTop - listContainer.offsetTop - 10,
+                    behavior: 'smooth'
+                });
+            }, 150);
+        });
     } else {
         if (!upcomingTrainDOMElement && listContainer.firstChild) {
             upcomingTrainDOMElement = listContainer.querySelector(".train-card"); 
@@ -942,7 +968,7 @@ function initUnifiedSearchAutocomplete() {
 
                 const item = document.createElement("div");
                 item.className = "suggestion-item";
-                item.innerHTML = `<span style="color:#00f0ff; font-weight:bold;">${trainNum}</span> <span style="font-size:12px; color:#a1a1aa;">(${trainType}: ${startNode}→${endNode})</span>`;
+                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType,trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode} → ${endNode})</span>`;
                 
                 item.addEventListener("click", () => {
                     searchInput.value = "";
@@ -1091,7 +1117,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
         });
 
         if (matchedDOMNode && matchedNodeData) {
-            selectStationElement(matchedDOMNode, matchedNodeData, trainNumber);
+            selectStationElement(matchedDOMNode, matchedNodeData, String(matchedTrain.number));
         } else {
             alert(`找不到對應的車站節點: ${targetStationName}`);
         }
