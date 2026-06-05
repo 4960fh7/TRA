@@ -714,7 +714,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }
 
             // Estimate delay formatting based on overall train delay mapping
-            let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
+            let delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
             let finalTimeHTML = "";
 
             if (delayMinutesValue > 0) {
