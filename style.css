@@ -144,7 +144,7 @@ body {
     flex-direction: column;
     position: fixed;
     top: 10vh;
-    right: -100%;
+    right: -20%;
     z-index: 1001;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
     transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -546,7 +546,7 @@ svg {
     flex-direction: column;
     position: fixed;
     top: 10vh;
-    right: -25%; /* Completely tucked away by default */
+    right: -100%; /* Completely tucked away by default */
     z-index: 1001;
     box-shadow: -5px 0 25px rgba(0, 0, 0, 0.85);
     transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -819,16 +819,33 @@ svg {
         max-width: 65% !important;
     }
 
-    #app-container.multi-split-mode #map-container,
-    #app-container.multi-split-mode #info-panel {
-        display: none !important;
-    }
-    #app-container.multi-split-mode #schedule-panel {
-        right: 0 !important;
+    /* Target the schedule panel on mobile viewports */
+    #schedule-panel {
         width: 100% !important;
         max-width: 100% !important;
         min-width: 100% !important;
+        border-left: none;
+        padding: 16px !important;
         height: calc(100vh - 140px);
         top: 14vh;
+        z-index: 2000; /* Ensure it stacks completely above the station list panel */
+        
+        /* Hide off-screen by default */
+        right: -100% !important;
+        transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* Slide the schedule panel in from the right when multi-split-mode is active */
+    #app-container.multi-split-mode #schedule-panel {
+        right: 0 !important;
+    }
+
+    /* Prevent the map or info panel from altering width/shifting on mobile when schedule opens */
+    #app-container.multi-split-mode #map-container {
+        width: 100% !important;
+    }
+    #app-container.multi-split-mode #info-panel {
+        right: 0 !important;
+        width: 100% !important;
     }
 }
