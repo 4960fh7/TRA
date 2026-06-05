@@ -779,7 +779,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
     const trainNumber = train.number || "N/A";
     const infoObj = train.info || {};
 
-    document.getElementById("schedule-train-title").innerText = `${getTrainTypeName(trainType, trainNumber)}`;
+    document.getElementById("schedule-train-title").innerText = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
     document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
     const stopsContainer = document.getElementById("schedule-stops-container");
@@ -1105,6 +1105,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     // Fire map updates to select the computed target station and filter down to expand this train card
     if (targetStationName) {
+        if (targetStationName === "臺北_環島") targetStationName = "臺北";
         const d3Circles = mainGroup.selectAll(".station");
         let matchedNodeData = null;
         let matchedDOMNode = null;
