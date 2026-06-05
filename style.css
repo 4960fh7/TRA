@@ -706,6 +706,14 @@ svg {
     background: #111a2e !important;
 }
 
+.schedule-stop-item-row:hover {
+    background: rgba(0, 240, 255, 0.08) !important;
+}
+
+.schedule-stop-item-row:hover .stop-name-text {
+    color: #00f0ff !important;
+}
+
 /* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
 @media screen and (max-width: 768px) {
     body {
