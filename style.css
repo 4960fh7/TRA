@@ -120,25 +120,71 @@ body {
 
 #info-panel {
     width: 40%;
-    max-width: 40%;
-    min-width: 350px;
     height: 90vh;
     background-color: #0a1120;
-    box-sizing: border-box !important;
-    padding: 24px; 
+    box-sizing: border-box;
+    padding: 24px;
     display: flex;
     flex-direction: column;
-    
-    /* 關鍵修改 1：設定固定定位並往右推移出螢幕 100% 寬度（預設完全隱藏） */
     position: fixed;
     top: 10vh;
-    right: -40%; /* 寬度多少，預設就往右退多少 */
-    
+    right: -40%;
     z-index: 1000;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
-    
-    /* 關鍵修改 2：加入 CSS 轉場，使其開關時有精美的科技感滑動動畫 */
+    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#schedule-panel {
+    width: 20%;
+    height: 90vh;
+    background-color: #050a12;
+    box-sizing: border-box;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 10vh;
+    right: -20%;
+    z-index: 1001;
+    box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
     transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 40% / 40% / 20% Layout Rules when both panels are open */
+#app-container.multi-split-mode #map-container {
+    width: 40%;
+}
+
+#app-container.multi-split-mode #info-panel {
+    right: 20% !important;
+    width: 40%;
+}
+
+#app-container.multi-split-mode #schedule-panel {
+    right: 0 !important;
+}
+
+/* Schedule Stop Row Styles */
+#schedule-stops-container {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.schedule-stop-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+    font-size: 13px;
+    transition: background 0.2s;
+}
+
+.schedule-stop-row.active-stop {
+    background: rgba(0, 255, 255, 0.08);
 }
 
 #map {

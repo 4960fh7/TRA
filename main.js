@@ -427,7 +427,7 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     currentActiveStationCW = cwTarget;
     currentActiveStationCCW = ccwTarget;
 
-    // Remove multi-split configuration if active to avoid jumping animations
+    // Reset schedule state when looking at a new station
     document.getElementById("app-container").classList.remove("multi-split-mode");
     document.getElementById("app-container").classList.add("split-mode");
 
@@ -768,20 +768,19 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
         // Handle auto-scroll to current station when schedule details expand
         card.querySelector(".train-header").addEventListener("click", () => {
-            card.classList.toggle("expanded");
-            
-            if (card.classList.contains("expanded")) {
-                const scrollContainer = card.querySelector(".stops-scroll-container");
-                const targetRow = card.querySelector(".current-selected-stop-row");
-                if (scrollContainer && targetRow) {
-                    // Smoothly scroll the stops list down to the matched station row
-                    setTimeout(() => {
-                        scrollContainer.scrollTo({
-                            top: targetRow.offsetTop - scrollContainer.offsetTop - 10,
-                            behavior: 'smooth'
-                        });
-                    }, 50);
-                }
+            const appContainer = document.getElementById("app-container");
+            const isCurrentlyActive = card.classList.contains("expanded");
+
+            // Remove expanded indicator on other cards
+            listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+
+            if (isCurrentlyActive) {
+                // If clicked again, hide the side panel
+                appContainer.classList.remove("multi-split-mode");
+            } else {
+                card.classList.add("expanded");
+                appContainer.classList.add("multi-split-mode");
+                renderSchedulePanelContent(train, targetStationName, neonColor);
             }
         });
 
@@ -819,44 +818,95 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 }
 
 // NEW: Displays specific station stop arrays along a train's path inside the secondary right-most sidebar panel
-function showTrainSchedulePanel(train) {
-    const appContainer = document.getElementById("app-container");
-    appContainer.classList.remove("split-mode");
-    appContainer.classList.add("multi-split-mode");
-
+function renderSchedulePanelContent(train, targetStationName, neonColor) {
     const trainType = train.train || "N/A";
     const trainNumber = train.number || "N/A";
     const infoObj = train.info || {};
 
     document.getElementById("schedule-train-title").innerText = `${getTrainTypeName(trainType, trainNumber)}`;
-    document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} 始發 → ${infoObj.end || "N/A"}`;
+    document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
-    const listContainer = document.getElementById("stops-timeline-list");
-    listContainer.innerHTML = "";
+    const stopsContainer = document.getElementById("schedule-stops-container");
+    stopsContainer.innerHTML = "";
 
-    const routeStops = train.data || [];
-    routeStops.forEach((stop, index) => {
-        const item = document.createElement("div");
-        item.className = "timeline-stop-item";
-        if(stop.x === currentActiveStationName) {
-            item.classList.add("highlighted-stop");
+    const rawStops = train.data || [];
+    const groupedStops = [];
+
+    // Group adjacent arrival/departure times for each station
+    for (let i = 0; i < rawStops.length; i++) {
+        const entry = rawStops[i];
+        if (!entry.x) continue;
+
+        if (groupedStops.length > 0 && groupedStops[groupedStops.length - 1].stationName === entry.x) {
+            groupedStops[groupedStops.length - 1].depMinutes = entry.y;
+        } else {
+            groupedStops.push({
+                stationName: entry.x,
+                arrMinutes: entry.y,
+                depMinutes: null
+            });
+        }
+    }
+
+    const delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
+
+    groupedStops.forEach(stop => {
+        const row = document.createElement("div");
+        row.className = "schedule-stop-row";
+        
+        const isCurrentStation = stop.stationName === targetStationName;
+        if (isCurrentStation) {
+            row.classList.add("active-stop");
+            row.style.borderLeft = `3px solid ${neonColor}`;
         }
 
-        const formattedTime = convertMinutesToHHMM(stop.y);
-        
-        item.innerHTML = `
-            <div class="stop-marker-group">
-                <div class="stop-line-connector ${index === 0 ? 'first-stop' : ''} ${index === routeStops.length - 1 ? 'last-stop' : ''}"></div>
-                <div class="stop-dot"></div>
-            </div>
-            <div class="stop-info-content">
-                <span class="stop-station-name">${stop.x}</span>
-                <span class="stop-arrival-time">${formattedTime}</span>
-            </div>
+        // Format raw scheduled timestamp strings
+        let scheduledString = "";
+        if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+            scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
+        } else {
+            const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+            scheduledString = convertMinutesToHHMM(singleTime);
+        }
+
+        // Apply style system logic identical to info panel's timeDisplayHTML
+        let timeDisplayHTML = "";
+        if (delayMinutesValue > 0) {
+            let delayedString = "";
+            if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+                delayedString = `${convertMinutesToHHMM(stop.arrMinutes + delayMinutesValue)} / ${convertMinutesToHHMM(stop.depMinutes + delayMinutesValue)}`;
+            } else {
+                const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+                delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
+            }
+            timeDisplayHTML = `<span class="scheduled-time-strike" style="font-size: 11px; margin-right: 4px;">${scheduledString}</span><strong style="color: ${neonColor}">${delayedString}</strong>`;
+        } else {
+            timeDisplayHTML = `<strong style="color: #e2e8f0">${scheduledString}</strong>`;
+        }
+
+        row.innerHTML = `
+            <span style="${isCurrentStation ? 'color:' + neonColor + '; font-weight: bold;' : ''}">${stop.stationName}</span>
+            <div>${timeDisplayHTML}</div>
         `;
-        listContainer.appendChild(item);
+        stopsContainer.appendChild(row);
     });
+
+    // Auto scroll to current station row inside the schedule-panel
+    const targetRow = stopsContainer.querySelector(".active-stop");
+    if (targetRow) {
+        setTimeout(() => {
+            stopsContainer.scrollTo({
+                top: targetRow.offsetTop - stopsContainer.offsetTop - 20,
+                behavior: "smooth"
+            });
+        }, 60);
+    }
 }
+
+document.getElementById("close-schedule-btn").addEventListener("click", () => {
+    document.getElementById("app-container").classList.remove("multi-split-mode");
+    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+});
 
 function hexToRgb(hex) {
     let c = hex.substring(1);
@@ -950,6 +1000,7 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
     const appContainer = document.getElementById("app-container");
     appContainer.classList.remove("split-mode");
     appContainer.classList.remove("multi-split-mode");
+    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
     
     currentActiveStationCode = null;
     currentActiveStationName = null;
