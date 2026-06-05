@@ -1076,7 +1076,13 @@ async function triggerSelectionByTrainNumber(trainNumber) {
             const liveInfo = liveBoardData.TrainLiveBoards.find(b => String(b.TrainNo) === String(trainNumber));
             if (liveInfo && liveInfo.DelayTime !== undefined && !isNaN(liveInfo.DelayTime)) {
                 delayMinutesValue = parseInt(liveInfo.DelayTime, 10);
+                // 修正關鍵：將延誤時間同步寫入物件，供後續的 schedule panel 渲染器讀取
+                matchedTrain.delay = delayMinutesValue; 
+            } else {
+                matchedTrain.delay = 0; // 若有即時資訊但未延誤，設為準點
             }
+        } else {
+            matchedTrain.delay = 0; // 查無即時資訊時設為預設值
         }
     } catch(e) {
         console.warn("Live board fetch failure during train routing selection", e);
