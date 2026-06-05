@@ -712,6 +712,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
                 scheduledString = convertMinutesToHHMM(singleTime);
             }
+            const stringColor = isTargetStation ? 'style="color: ${neonColor}"' : "";
 
             // Estimate delay formatting based on overall train delay mapping
             let delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
@@ -726,10 +727,9 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
                     delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
                 }
-                const delayedBreak = (delayedString === "") ? "" : "<br>";
-                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span>${delayedBreak}<strong style="color: ${neonColor}">${delayedString}</strong>`;
+                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span><strong ${stringColor}><br>${delayedString}</strong>`;
             } else {
-                finalTimeHTML = `<strong>${scheduledString}</strong>`;
+                finalTimeHTML = `<strong ${stringColor}>${scheduledString}</strong>`;
             }
 
             // Highlight the current active station row to make it clear where the user is looking
