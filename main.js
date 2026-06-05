@@ -66,7 +66,7 @@ const zoom = d3.zoom()
 
 svg.call(zoom);
 
-// 關鍵修復 3 & 4：高性能靜態防重疊邊界判定算法（取代會造成卡頓的物理模擬引擎）
+// 高性能靜態防重疊邊界判定算法
 function updateLabelForceSimulation(k) {
     if (labelSimulation) {
         labelSimulation.stop();
@@ -80,29 +80,24 @@ function updateLabelForceSimulation(k) {
     const labels = mainGroup.selectAll(".station-label")
         .style("font-size", `${fontSize}px`);
 
-    // 1. 初始化所有標籤至預設的上方位置
     labels.attr("y", d => {
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
         const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
         return -r - (4 / k);
     }).attr("x", 0).style("visibility", "visible");
 
-    // 2. 獲取當前視角下各標籤的絕對坐標虛擬包圍盒 (Bounding Box)
     const allocatedBoxes = [];
 
-    // 將重要車站（選取中、連線中）排序在前面優先放置
     const nodes = globalStationsData.map(d => {
         const coords = getCoords(d);
         if (!coords) return null;
         const pos = projection([coords.lon, coords.lat]);
         
-        // 計算預設擺放坐標
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
         const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
         const labelYOffset = -r - (4 / k);
 
         const name = getStationName(d);
-        // 基於字數估算寬度與高度
         const estWidth = name.length * fontSize * 1.1;
         const estHeight = fontSize * 1.2;
 
@@ -118,14 +113,12 @@ function updateLabelForceSimulation(k) {
         };
     }).filter(n => n !== null);
 
-    // 依優先級排序（重要標籤先放置，普通標籤若遇衝突則避讓或隱藏）
     nodes.sort((a, b) => b.priority - a.priority);
 
-    // 避讓方向槽位：正上、正下、右側、左側
     const slotOffsets = [
-        { x: 0, y: 1 },  // 改放下方
-        { x: 1, y: 0 },  // 改放右側
-        { x: -1, y: 0 }  // 改放左側
+        { x: 0, y: 1 },  
+        { x: 1, y: 0 },  
+        { x: -1, y: 0 }  
     ];
 
     nodes.forEach(node => {
@@ -142,13 +135,12 @@ function updateLabelForceSimulation(k) {
 
         let hasOverlap = checkOverlap(box, allocatedBoxes, k);
         
-        // 如果上方重疊，嘗試切換其他固定方位槽位
         if (hasOverlap) {
             for (let slot of slotOffsets) {
                 const shiftDist = (fontSize * 1.2) + standardCircleRadius + (5 / k);
                 let altOffsetX = slot.x * shiftDist * 1.5;
                 let altOffsetY = slot.y * shiftDist;
-                if (slot.x !== 0) altOffsetY = 0; // 左右對齊時垂直置中
+                if (slot.x !== 0) altOffsetY = 0; 
 
                 box.x1 = (node.geoX + altOffsetX) - node.width / 2;
                 box.x2 = (node.geoX + altOffsetX) + node.width / 2;
@@ -168,12 +160,10 @@ function updateLabelForceSimulation(k) {
             allocatedBoxes.push(box);
             node.visible = true;
         } else {
-            // 如果所有方位都嚴重擁擠，隱藏低優先級的標籤
             node.visible = false;
         }
     });
 
-    // 3. 將計算出的非重疊固定偏移量套用到 DOM 上
     labels.style("visibility", d => {
         const found = nodes.find(n => n.data === d);
         return (found && found.visible) ? "visible" : "hidden";
@@ -188,7 +178,6 @@ function updateLabelForceSimulation(k) {
     });
 }
 
-// 輔助函式：判斷文字盒與文字盒，或文字盒與車站圓圈是否重疊
 function checkOverlap(box, allocatedBoxes, k) {
     const paddingX = 4 / k; 
     const paddingY = 2 / k;
@@ -222,7 +211,6 @@ function drawMap(twData, stationsData) {
         .attr("class", "county")
         .attr("d", path);
 
-    // 建立一體化的車站群組
     const stationGroups = mainGroup.selectAll(".station-group")
         .data(stationsData)
         .enter()
@@ -275,7 +263,6 @@ function drawMap(twData, stationsData) {
         .text(d => getStationName(d));
 }
 
-// 關鍵修復 1：修復過午夜（跨日）後的自動滾動判定區間
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -327,7 +314,6 @@ async function loadData() {
 }
 
 function selectStationElement(circleDOM, d) {
-    // If the clicked station is already selected, close the panel and return
     if (activeStationSelection === circleDOM) {
         document.getElementById("close-panel-btn").click();
         return;
@@ -346,7 +332,6 @@ function selectStationElement(circleDOM, d) {
         d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
     
-    // 重設所有狀態
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
@@ -380,10 +365,8 @@ function selectStationElement(circleDOM, d) {
     }
 }
 
-// 核心優化：允許傳入偏移量（分鐘），以便在遇到 404 時向過去時間回溯尋找可用檔案
 function getLatestTDXUrl(minuteOffset = 0) {
     const now = new Date();
-    // 如果有傳入偏移量，將時間減去對應的分鐘數
     if (minuteOffset > 0) {
         now.setMinutes(now.getMinutes() - minuteOffset);
     }
@@ -427,7 +410,6 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     currentActiveStationCW = cwTarget;
     currentActiveStationCCW = ccwTarget;
 
-    // Reset schedule state when looking at a new station
     document.getElementById("app-container").classList.remove("multi-split-mode");
     document.getElementById("app-container").classList.add("split-mode");
 
@@ -454,21 +436,16 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     const dateStr = getTodayDateString();
     const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
 
-    // =======================================================
-    // 核心穩定度修改：自動容錯迴圈 (嘗試讀取最新、5分鐘前、10分鐘前檔案)
-    // =======================================================
     let liveBoardData = null;
     let attempts = 0;
-    const maxAttempts = 3; // 最多往前找 3 個週期（即 15 分鐘前）
+    const maxAttempts = 3; 
 
     while (attempts < maxAttempts) {
-        // 第一次嘗試 offset = 0 (最新), 第二次 offset = 5 (5分鐘前), 第三次 offset = 10 (10分鐘前)
         let currentOffset = attempts * 5; 
         let liveBoardUrl = getLatestTDXUrl(currentOffset);
 
         try {
             liveBoardData = await d3.json(liveBoardUrl);
-            // 如果成功抓到資料，直接跳出迴圈
             if (liveBoardData) {
                 console.log(`Successfully fetched real-time logs with offset -${currentOffset}m`);
                 break;
@@ -478,10 +455,8 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
             attempts++;
         }
     }
-    // =======================================================
 
     try {
-        // 載入固定排班表數據（此處不再因即時資料 404 而被阻斷中斷）
         const scheduleData = await d3.json(targetScheduleUrl);
 
         let updateBadge = document.getElementById("live-data-update-time-badge");
@@ -500,7 +475,6 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
             updateBadge.innerHTML = `最後更新：${formattedLiveTime}`;
             updateBadge.style.display = "block";
         } else {
-            // 如果嘗試 3 次都 404，呈現離線模式，但不崩潰，依然正常渲染基礎時刻表
             updateBadge.innerHTML = `最後更新：離線`;
             updateBadge.style.display = "block";
         }
@@ -520,27 +494,26 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
 }
 
 function getTrainTypeName(train, number) {
-        const trainMapping = {
-            6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號', 
-            6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號', 
-            6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
-            5898: '藍皮解憂', 5899: '藍皮解憂',
-            6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
-            6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
-            1: '環島之星', 2: '環島之星',
-            6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
-        };
-        const numKey = Number(number);
-        if (trainMapping[numKey]) {
-            return `${trainMapping[numKey]} ${numKey}`;
-        }
-        return `${train} ${numKey}`;
+    const trainMapping = {
+        6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號', 
+        6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號', 
+        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
+        5898: '藍皮解憂', 5899: '藍皮解憂',
+        6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
+        6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
+        1: '環島之星', 2: '環島之星',
+        6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+    };
+    const numKey = Number(number);
+    if (trainMapping[numKey]) {
+        return `${trainMapping[numKey]} ${numKey}`;
     }
+    return `${train} ${numKey}`;
+}
 
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData) {
     if (!Array.isArray(trainsList)) return;
 
-    // ====== 替換為以下：加入凌晨跨夜時間修正演算法 ======
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
     const now = new Date();
@@ -548,9 +521,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     let currentHours = now.getHours();
     let currentMins = now.getMinutes();
 
-    // 核心修正：如果當前電腦系統時間在凌晨 00:00 到 03:59 之間，
-    // 則將其視為前一天營運日的延長，小時數加上 24（變成 24點 ~ 27點），
-    // 這樣才能與時刻表中以 1440 分鐘為基準累加的跨日車次（如 24:10, 25:05）正確比對大小。
     if (currentHours < 4) {
         currentHours += 24;
     }
@@ -584,7 +554,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         }
     });
 
-    // 關鍵修復 2：標註哪些車站數據模型處於 connected 狀態，供佈局分配優先度使用
     mainGroup.selectAll(".station-group")
         .filter(function(d) {
             const name = getStationName(d);
@@ -676,74 +645,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
             : "";
 
-        // --- 3, 4, & 5: Enhanced Stop List Parsing, Delays, and Layout Generation ---
-        const rawStops = train.data || [];
-        const groupedStops = [];
-
-        // Group the raw sequential entries into unique station objects with arr/dep properties
-        for (let i = 0; i < rawStops.length; i++) {
-            const currentRaw = rawStops[i];
-            if (!currentRaw.x) continue;
-
-            // Check if we already started grouping this station consecutively
-            if (groupedStops.length > 0 && groupedStops[groupedStops.length - 1].stationName === currentRaw.x) {
-                // The second consecutive entry for a station represents its Departure time
-                groupedStops[groupedStops.length - 1].depMinutes = currentRaw.y;
-            } else {
-                // The first entry represents either the Arrival time or a single-entry terminal stop
-                groupedStops.push({
-                    stationName: currentRaw.x,
-                    arrMinutes: currentRaw.y,
-                    depMinutes: null
-                });
-            }
-        }
-
-        // Generate HTML list for all stops
-        const stopsListHTML = groupedStops.map(stop => {
-            const isTargetStation = stop.stationName === targetStationName;
-            
-            // Format Scheduled Times
-            let scheduledString = "";
-            if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
-                scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
-            } else {
-                // If arrival matches departure or one is missing (terminal stations)
-                const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
-                scheduledString = convertMinutesToHHMM(singleTime);
-            }
-            const stringColor = isTargetStation ? 'style="color: ${neonColor}"' : "";
-
-            // Estimate delay formatting based on overall train delay mapping
-            let delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
-            let finalTimeHTML = "";
-
-            if (delayMinutesValue > 0) {
-                // Create your similar timeDisplayHTML markup if the train is delayed
-                let delayedString = "";
-                if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
-                    delayedString = `${convertMinutesToHHMM(stop.arrMinutes + delayMinutesValue)} / ${convertMinutesToHHMM(stop.depMinutes + delayMinutesValue)}`;
-                } else {
-                    const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
-                    delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
-                }
-                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span><strong ${stringColor}><br>${delayedString}</strong>`;
-            } else {
-                finalTimeHTML = `<strong ${stringColor}>${scheduledString}</strong>`;
-            }
-
-            // Highlight the current active station row to make it clear where the user is looking
-            const highlightStyle = isTargetStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 4px; font-weight: bold;` : "";
-            const activeClassAttr = isTargetStation ? `class="current-selected-stop-row"` : "";
-
-            return `
-                <div ${activeClassAttr} style="display: flex; justify-content: space-between; margin-bottom: 3px; ${highlightStyle}">
-                    <span>${stop.stationName}</span>
-                    <span>${finalTimeHTML}</span>
-                </div>
-            `;
-        }).join("");
-
         card.innerHTML = `
             <div class="train-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
@@ -761,16 +662,13 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             </div>
         `;
 
-        // Handle auto-scroll to current station when schedule details expand
         card.querySelector(".train-header").addEventListener("click", () => {
             const appContainer = document.getElementById("app-container");
             const isCurrentlyActive = card.classList.contains("expanded");
 
-            // Remove expanded indicator on other cards
             listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
 
             if (isCurrentlyActive) {
-                // If clicked again, hide the side panel
                 appContainer.classList.remove("multi-split-mode");
             } else {
                 card.classList.add("expanded");
@@ -787,16 +685,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             listContainer.appendChild(spacerCard);
         }
 
-        // 關鍵修復 1修正：如果是在午夜跨日之後（如凌晨 00:05 且清單中包含跨日清晨車次），
-        // 如果找不到大於當前時間的車次，預設黏著至第一班車，防止滑動失效
         if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
             upcomingTrainDOMElement = card;
         }
     });
 
-    // 如果所有車次時間都已經小於目前時間（例如當天收班深夜），則預設定位到清單最末筆（或第一筆）
     if (!upcomingTrainDOMElement && listContainer.firstChild) {
-        // 深夜時段若無車，建議滾動到最後一班車讓使用者看收班動態；若想維持回頂端，可改回選第一筆
         upcomingTrainDOMElement = listContainer.querySelector(".train-card"); 
     }
 
@@ -812,7 +706,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     }
 }
 
-// NEW: Displays specific station stop arrays along a train's path inside the secondary right-most sidebar panel
 function renderSchedulePanelContent(train, targetStationName, neonColor) {
     const trainType = train.train || "N/A";
     const trainNumber = train.number || "N/A";
@@ -821,13 +714,12 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
     document.getElementById("schedule-train-title").innerText = `${getTrainTypeName(trainType, trainNumber)}`;
     document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
-    const stopsContainer = document.getElementById("schedule-stops-container");
+    const stopsContainer = document.getElementById("stops-timeline-list");
     stopsContainer.innerHTML = "";
 
     const rawStops = train.data || [];
     const groupedStops = [];
 
-    // Group adjacent arrival/departure times for each station
     for (let i = 0; i < rawStops.length; i++) {
         const entry = rawStops[i];
         if (!entry.x) continue;
@@ -845,17 +737,9 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
 
     const delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
 
-    groupedStops.forEach(stop => {
-        const row = document.createElement("div");
-        row.className = "schedule-stop-row";
-        
+    stopsContainer.innerHTML = groupedStops.map(stop => {
         const isCurrentStation = stop.stationName === targetStationName;
-        if (isCurrentStation) {
-            row.classList.add("active-stop");
-            row.style.borderLeft = `3px solid ${neonColor}`;
-        }
-
-        // Format raw scheduled timestamp strings
+        
         let scheduledString = "";
         if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
             scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
@@ -864,7 +748,8 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
             scheduledString = convertMinutesToHHMM(singleTime);
         }
 
-        // Apply style system logic identical to info panel's timeDisplayHTML
+        const stringColor = isCurrentStation ? `style="color: ${neonColor}"` : "";
+
         let timeDisplayHTML = "";
         if (delayMinutesValue > 0) {
             let delayedString = "";
@@ -874,20 +759,23 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
                 const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
                 delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
             }
-            timeDisplayHTML = `<span class="scheduled-time-strike" style="font-size: 11px; margin-right: 4px;">${scheduledString}</span><strong style="color: ${neonColor}">${delayedString}</strong>`;
+            timeDisplayHTML = `<span class="scheduled-time-strike" style="font-size: 10px; margin-right: 6px;">${scheduledString}</span><strong ${stringColor}>${delayedString}</strong>`;
         } else {
-            timeDisplayHTML = `<strong style="color: #e2e8f0">${scheduledString}</strong>`;
+            timeDisplayHTML = `<strong ${stringColor}>${scheduledString}</strong>`;
         }
 
-        row.innerHTML = `
-            <span style="${isCurrentStation ? 'color:' + neonColor + '; font-weight: bold;' : ''}">${stop.stationName}</span>
-            <div>${timeDisplayHTML}</div>
-        `;
-        stopsContainer.appendChild(row);
-    });
+        const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 6px; font-weight: bold;` : "";
+        const activeClassAttr = isCurrentStation ? `class="current-selected-stop-row"` : "";
 
-    // Auto scroll to current station row inside the schedule-panel
-    const targetRow = stopsContainer.querySelector(".active-stop");
+        return `
+            <div ${activeClassAttr} style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; margin-bottom: 3px; ${highlightStyle}">
+                <span>${stop.stationName}</span>
+                <span>${timeDisplayHTML}</span>
+            </div>
+        `;
+    }).join("");
+
+    const targetRow = stopsContainer.querySelector(".current-selected-stop-row");
     if (targetRow) {
         setTimeout(() => {
             stopsContainer.scrollTo({
@@ -898,11 +786,6 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
     }
 }
 
-document.getElementById("close-schedule-btn").addEventListener("click", () => {
-    document.getElementById("app-container").classList.remove("multi-split-mode");
-    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
-});
-
 function hexToRgb(hex) {
     let c = hex.substring(1);
     if(c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
@@ -910,7 +793,6 @@ function hexToRgb(hex) {
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-// 搜尋自動完成功能
 function initSearchAutocomplete() {
     const searchInput = document.getElementById("station-search-input");
     const suggestionsDropdown = document.getElementById("search-suggestions");
@@ -983,7 +865,6 @@ function triggerSelectionByStationName(targetName) {
     else alert("Station not found. Please clarify spelling entries.");
 }
 
-// NEW: Close listener for the third panel
 document.getElementById("close-schedule-btn").addEventListener("click", () => {
     const appContainer = document.getElementById("app-container");
     appContainer.classList.remove("multi-split-mode");
