@@ -315,10 +315,9 @@ async function loadData() {
         } catch(e) {
             console.warn("Global daily schedules pre-cache failure", e);
         }
-
+        
         drawMap(twData, globalStationsData);
-        initSearchAutocomplete();
-        initTrainSearchAutocomplete(); // Initialize train number search bindings
+        initUnifiedSearchAutocomplete(); // Launch unified combined search engine
         scheduleNextAutoRefresh();
     } catch (err) {
         console.error("Error configuration mapping pipeline:", err);
@@ -867,42 +866,92 @@ function hexToRgb(hex) {
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
 
-function initSearchAutocomplete() {
-    const searchInput = document.getElementById("station-search-input");
-    const suggestionsDropdown = document.getElementById("search-suggestions");
+// Unified Search Autocomplete for Stations and Trains
+function initUnifiedSearchAutocomplete() {
+    const searchInput = document.getElementById("unified-search-input");
+    const suggestionsDropdown = document.getElementById("unified-suggestions");
 
     searchInput.addEventListener("input", function() {
-        const value = this.value.replace(/台/g, '臺').trim().toLowerCase();
+        const rawValue = this.value.trim();
+        const normalizedValue = rawValue.replace(/台/g, '臺').toLowerCase();
         suggestionsDropdown.innerHTML = "";
 
-        if (!value) {
+        if (!rawValue) {
             suggestionsDropdown.style.display = "none";
             return;
         }
 
-        const matches = globalStationsData.filter(station => {
+        // 1. Find Station Matches
+        const stationMatches = globalStationsData.filter(station => {
             const name = getStationName(station).toLowerCase();
-            return name.includes(value);
+            return name.includes(normalizedValue);
         });
 
-        if (matches.length === 0) {
+        // 2. Find Train Matches & Sort by Train Number Numerically
+        let trainMatches = [];
+        if (globalScheduleData) {
+            trainMatches = globalScheduleData.filter(t => 
+                String(t.number).includes(normalizedValue)
+            );
+            
+            // Sort all matched trains numerically by train number
+            trainMatches.sort((a, b) => {
+                return parseInt(a.number, 10) - parseInt(b.number, 10);
+            });
+        }
+
+        if (stationMatches.length === 0 && trainMatches.length === 0) {
             suggestionsDropdown.style.display = "none";
             return;
         }
 
-        matches.forEach(station => {
-            const name = getStationName(station);
-            const item = document.createElement("div");
-            item.className = "suggestion-item";
-            item.textContent = name;
-            
-            item.addEventListener("click", () => {
-                searchInput.value = "";
-                suggestionsDropdown.style.display = "none";
-                triggerSelectionByStationName(name);
+        // Render Station Category if matches exist
+        if (stationMatches.length > 0) {
+            const catTitle = document.createElement("div");
+            catTitle.className = "suggestion-category-title";
+            catTitle.innerText = "車站站名";
+            suggestionsDropdown.appendChild(catTitle);
+
+            stationMatches.forEach(station => {
+                const name = getStationName(station);
+                const item = document.createElement("div");
+                item.className = "suggestion-item";
+                item.textContent = name;
+                
+                item.addEventListener("click", () => {
+                    searchInput.value = "";
+                    suggestionsDropdown.style.display = "none";
+                    triggerSelectionByStationName(name);
+                });
+                suggestionsDropdown.appendChild(item);
             });
-            suggestionsDropdown.appendChild(item);
-        });
+        }
+
+        // Render Train Category if matches exist (showing all matching results)
+        if (trainMatches.length > 0) {
+            const catTitle = document.createElement("div");
+            catTitle.className = "suggestion-category-title";
+            catTitle.innerText = "車次班次";
+            suggestionsDropdown.appendChild(catTitle);
+
+            trainMatches.forEach(train => {
+                const trainType = train.train || "";
+                const trainNum = train.number || "";
+                const startNode = train.info?.start || "";
+                const endNode = train.info?.end || "";
+
+                const item = document.createElement("div");
+                item.className = "suggestion-item";
+                item.innerHTML = `<span style="color:#00f0ff; font-weight:bold;">${trainNum}</span> <span style="font-size:12px; color:#a1a1aa;">(${trainType}: ${startNode}→${endNode})</span>`;
+                
+                item.addEventListener("click", () => {
+                    searchInput.value = "";
+                    suggestionsDropdown.style.display = "none";
+                    triggerSelectionByTrainNumber(trainNum);
+                });
+                suggestionsDropdown.appendChild(item);
+            });
+        }
 
         suggestionsDropdown.style.display = "block";
     });
@@ -910,11 +959,16 @@ function initSearchAutocomplete() {
     searchInput.addEventListener("keydown", function(e) {
         if (e.key === "Enter") {
             const val = this.value.trim().replace(/台/g, '臺');
-            if (val) {
-                this.value = "";
+            if (!val) return;
+
+            // If entry is completely numeric, prioritize train number tracking
+            if (/^\d+$/.test(val)) {
+                triggerSelectionByTrainNumber(val);
+            } else {
                 triggerSelectionByStationName(val);
-                suggestionsDropdown.style.display = "none";
             }
+            this.value = "";
+            suggestionsDropdown.style.display = "none";
         }
     });
 
@@ -935,69 +989,11 @@ function triggerSelectionByStationName(targetName) {
         }
     });
 
-    if (matchedNode && matchedData) selectStationElement(matchedNode, matchedData);
-    else alert("Station not found. Please clarify spelling entries.");
-}
-
-// Complete Train Search Autocomplete System
-function initTrainSearchAutocomplete() {
-    const trainInput = document.getElementById("train-search-input");
-    const trainSuggestions = document.getElementById("train-search-suggestions");
-
-    trainInput.addEventListener("input", function() {
-        const value = this.value.trim();
-        trainSuggestions.innerHTML = "";
-
-        if (!value || !globalScheduleData) {
-            trainSuggestions.style.display = "none";
-            return;
-        }
-
-        // Filter schedules matching the input digits
-        const matches = globalScheduleData.filter(t => 
-            String(t.number).includes(value)
-        ).slice(0, 10); // Clamp to maximum 10 suggestions
-
-        if (matches.length === 0) {
-            trainSuggestions.style.display = "none";
-            return;
-        }
-
-        matches.forEach(train => {
-            const trainType = train.train || "";
-            const trainNum = train.number || "";
-            const startNode = train.info?.start || "";
-            const endNode = train.info?.end || "";
-
-            const item = document.createElement("div");
-            item.className = "suggestion-item";
-            item.innerHTML = `<span style="color:#00f0ff; font-weight:bold;">${trainNum}</span> <span style="font-size:12px; color:#a1a1aa;">(${trainType}: ${startNode}→${endNode})</span>`;
-            
-            item.addEventListener("click", () => {
-                trainInput.value = "";
-                trainSuggestions.style.display = "none";
-                triggerSelectionByTrainNumber(trainNum);
-            });
-            trainSuggestions.appendChild(item);
-        });
-
-        trainSuggestions.style.display = "block";
-    });
-
-    trainInput.addEventListener("keydown", function(e) {
-        if (e.key === "Enter") {
-            const val = this.value.trim();
-            if (val) {
-                this.value = "";
-                triggerSelectionByTrainNumber(val);
-                trainSuggestions.style.display = "none";
-            }
-        }
-    });
-
-    document.addEventListener("click", (e) => {
-        if (e.target !== trainInput) trainSuggestions.style.display = "none";
-    });
+    if (matchedNode && matchedData) {
+        selectStationElement(matchedNode, matchedData);
+    } else {
+        alert("找不到此車站，請檢查名稱是否拼寫正確。");
+    }
 }
 
 // Target routing logic based on your three timeline requirements
