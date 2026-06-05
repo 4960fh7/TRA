@@ -259,7 +259,7 @@ function drawMap(twData, stationsData) {
 
     stationGroups.append("text")
         .attr("class", "station-label")
-        .style("opacity", 0)
+        .style("opacity", 0) 
         .attr("x", 0)
         .text(d => getStationName(d));
 }
@@ -286,302 +286,435 @@ function getCoords(d) {
         const nums = parts.map(Number).filter(n => !isNaN(n));
         lat = nums.find(n => n > 21 && n < 26);
         lon = nums.find(n => n > 119 && n < 123);
-    } else if (d['緯度'] && d['經度']) {
+    } 
+    else if (d['緯度'] && d['經度']) {
         lat = parseFloat(d['緯度']);
         lon = parseFloat(d['經度']);
-    } else {
-        const keys = Object.keys(d);
-        const latKey = keys.find(k => k.includes("緯度"));
-        const lonKey = keys.find(k => k.includes("經度"));
-        if (latKey && lonKey) {
-            lat = parseFloat(d[latKey]);
-            lon = parseFloat(d[lonKey]);
-        }
     }
-    if (lat && lon) return { lat, lon };
-    return null;
+    return (lat && lon) ? { lat, lon } : null;
 }
 
 function getStationName(d) {
-    return d.stationName || d['車站名稱'] || d['站名'] || d.name || "未知車站";
+    return d.stationName || d['車站中文名稱'] || d.name || "";
 }
 
-function getStationCode(d) {
-    return d.stationID || d['車站代碼'] || d.code || "";
+async function loadData() {
+    try {
+        const twData = await d3.json(mapUrl);
+        try {
+            globalStationsData = await d3.json("stations.json");
+        } catch (e) {
+            console.warn("Stations data file loading failed!");
+        }
+        
+        // Cache the daily schedule file globally to handle standalone train search actions
+        const dateStr = getTodayDateString();
+        const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
+        try {
+            globalScheduleData = await d3.json(targetScheduleUrl);
+        } catch(e) {
+            console.warn("Global daily schedules pre-cache failure", e);
+        }
+        
+        drawMap(twData, globalStationsData);
+        initUnifiedSearchAutocomplete(); // Launch unified combined search engine
+        scheduleNextAutoRefresh();
+    } catch (err) {
+        console.error("Error configuration mapping pipeline:", err);
+    }
 }
 
-function getLatestTDXUrl(offsetMinutes = 0) {
-    const targetTime = new Date(new Date().getTime() - (offsetMinutes * 60 * 1000));
-    const yyyy = targetTime.getFullYear();
-    const mm = String(targetTime.getMonth() + 1).padStart(2, '0');
-    const dd = String(targetTime.getDate()).padStart(2, '0');
-    const hh = String(targetTime.getHours()).padStart(2, '0');
-    
-    let baseMins = Math.floor(targetTime.getMinutes() / 5) * 5;
-    const nn = String(baseMins).padStart(2, '0');
-    
-    return `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/live_data/${yyyy}${mm}${dd}_${hh}${nn}.json`;
-}
+function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null) {
+    if (activeStationSelection === circleDOM && !targetTrainNumberToExpand) {
+        document.getElementById("close-panel-btn").click();
+        return;
+    }
 
-async function selectStationElement(circleDOM, nodeData, targetTrainNumberToExpand = null) {
     if (activeStationSelection) {
-        d3.select(activeStationSelection).classed("active", false);
-        d3.select(activeStationSelection.parentNode).classed("active", false);
+        const oldSelection = activeStationSelection;
+        activeStationSelection = null;
+        
+        const currentTransform = d3.zoomTransform(svg.node());
+        const k = currentTransform.k;
+        
+        d3.select(oldSelection).classed("active", false);
+        d3.select(oldSelection.parentNode).classed("active", false);
+        
+        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
-
-    activeStationSelection = circleDOM;
-    d3.select(circleDOM).classed("active", true);
-    d3.select(circleDOM.parentNode).classed("active", true);
-
-    currentActiveStationName = getStationName(nodeData);
-    currentActiveStationCode = getStationCode(nodeData);
-    currentActiveStationAddress = nodeData['地址'] || nodeData.address || "無提供地址欄位資料";
     
-    currentActiveStationCW = Array.isArray(nodeData.cw) ? nodeData.cw : [];
-    currentActiveStationCCW = Array.isArray(nodeData.ccw) ? nodeData.ccw : [];
-
-    const coords = getCoords(nodeData);
-    if (coords) {
-        const pos = projection([coords.lon, coords.lat]);
-        svg.transition()
-            .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2 - pos[0] * 5, height / 2 - pos[1] * 5).scale(5));
-    }
-
-    const appContainer = document.getElementById("app-container");
-    appContainer.classList.add("split-mode");
-
-    const currentTransform = d3.zoomTransform(svg.node());
-    const k = currentTransform.k;
-    d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
-
-    document.getElementById("station-details").innerHTML = `
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <div style="font-size: 16px; font-weight: bold; color: #00f0ff; font-family:'GlowSansSCCom-Compressed', sans-serif;">
-                ${currentActiveStationName} <span style="font-size:11px; color:#4ade80; border:1px solid #4ade80; padding:1px 4px; margin-left:6px; border-radius:2px;">STATION</span>
-            </div>
-            <div style="font-size: 10px; color: #a1a1aa; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width:240px;">
-                ID: ${currentActiveStationCode} | ${currentActiveStationAddress}
-            </div>
-        </div>
-    `;
-
-    document.getElementById("unified-train-list").innerHTML = `<p class="placeholder-text">🔍 正在向太空基地調度中心同步聯絡實時動態軌道資料...</p>`;
-    
-    // 清除舊線段高亮狀態
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
 
-    // 收集所有相關聯接車站
-    const primaryConnectedNames = new Set();
-    if (currentActiveStationCW) currentActiveStationCW.forEach(n => primaryConnectedNames.add(n));
-    if (currentActiveStationCCW) currentActiveStationCCW.forEach(n => primaryConnectedNames.add(n));
+    d3.select(circleDOM).classed("active", true);
+    d3.select(circleDOM.parentNode).classed("active", true);
+    
+    activeStationSelection = circleDOM;
+    
+    const currentTransform = d3.zoomTransform(svg.node());
+    const k = currentTransform.k;
+    d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
 
-    globalStationsData.forEach(node => {
-        const checkName = getStationName(node);
-        if (primaryConnectedNames.has(checkName)) {
-            node.isConnectedState = true;
-        }
-    });
+    const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
+    const stationName = getStationName(d);
+    const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
+    
+    const cwTarget = d.CW || "未知";
+    const ccwTarget = d.CCW || "未知";
 
-    mainGroup.selectAll(".station-group").filter(d => d.isConnectedState)
-        .classed("connected", true)
-        .select(".station").classed("connected", true);
+    showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget, targetTrainNumberToExpand);
+    
+    if (k > 8.0) updateLabelForceSimulation(k);
 
-    if (k > 8.0) {
-        updateLabelForceSimulation(k);
+    const coords = getCoords(d);
+    if (coords) {
+        const projectedCoords = projection([coords.lon, coords.lat]);
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
     }
-
-    // 執行即時排程撈取
-    await fetchLiveBoardData(targetTrainNumberToExpand);
 }
 
-async function fetchLiveBoardData(targetTrainNumberToExpand = null) {
-    let fetchedData = null;
-    let successfulOffset = 0;
-
-    for (let attempts = 0; attempts < 4; attempts++) {
-        const checkUrl = getLatestTDXUrl(attempts * 5);
-        try {
-            fetchedData = await d3.json(checkUrl);
-            if (fetchedData && Array.isArray(fetchedData.TrainLiveBoards) && fetchedData.TrainLiveBoards.length > 0) {
-                successfulOffset = attempts * 5;
-                break;
-            }
-        } catch (e) {
-            console.warn(`Attempt at -${attempts * 5} mins failed to load standard TDX asset.`);
-        }
-    }
-
-    if (!fetchedData || !Array.isArray(fetchedData.TrainLiveBoards)) {
-        document.getElementById("unified-train-list").innerHTML = `<p class="placeholder-text" style="color:#ef4444;">❌ 無法獲取台鐵實時數據。請檢查網路或稍後再試。</p>`;
-        return;
-    }
-
-    const tdxList = fetchedData.TrainLiveBoards;
+function getLatestTDXUrl(minuteOffset = 0) {
     const now = new Date();
-    const updateTimeStr = convertMinutesToHHMM(now.getHours() * 60 + now.getMinutes());
-    
-    const metaContainer = document.getElementById("info-panel-meta-container");
-    let badge = document.getElementById("live-data-update-time-badge");
-    if (!badge) {
-        badge = document.createElement("div");
-        badge.id = "live-data-update-time-badge";
-        badge.className = "live-update-badge";
-        metaContainer.appendChild(badge);
+    if (minuteOffset > 0) {
+        now.setMinutes(now.getMinutes() - minuteOffset);
     }
-    badge.style.display = "block";
-    badge.innerText = `LIVE -${successfulOffset}m SYNCED: ${updateTimeStr}`;
 
-    const delayMap = {};
-    tdxList.forEach(item => {
-        if (item.TrainNo) {
-            delayMap[String(item.TrainNo)] = {
-                delayTime: item.DelayTime || 0,
-                currentStationName: item.StationName?.Zh_tw || ""
-            };
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const date = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const rawMinutes = now.getMinutes();
+    const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
+    const minutes = String(roundedMinutes).padStart(2, '0');
+    
+    const datetimeStr = `${month}${date}${hours}${minutes}`;
+    return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${now.getTime()}`;
+}
+
+function scheduleNextAutoRefresh() {
+    const now = new Date();
+    const currentMinutes = now.getMinutes();
+    let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
+    if (currentMinutes >= targetMinute) targetMinute += 5;
+    
+    const targetTime = new Date(now);
+    targetTime.setMinutes(targetMinute);
+    targetTime.setSeconds(0);
+    targetTime.setMilliseconds(0);
+    
+    const timeoutMs = targetTime.getTime() - now.getTime();
+    
+    setTimeout(async () => {
+        if (currentActiveStationCode) {
+            await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress, currentActiveStationCW, currentActiveStationCCW);
         }
-    });
+        scheduleNextAutoRefresh();
+    }, timeoutMs);
+}
+
+async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, targetTrainNumberToExpand = null) {
+    currentActiveStationCode = code;
+    currentActiveStationName = name;
+    currentActiveStationAddress = address;
+    currentActiveStationCW = cwTarget;
+    currentActiveStationCCW = ccwTarget;
+
+    // 依據原始螢幕判定或指定條件，動態配置初始顯示面板模式
+    const appContainer = document.getElementById("app-container");
+    if (targetTrainNumberToExpand && window.innerWidth <= 768) {
+        appContainer.classList.remove("multi-split-mode");
+    }
+    appContainer.classList.add("split-mode");
+
+    document.getElementById("station-details").innerHTML = window.innerWidth <= 768 ? `<h2>${name}</h2>` : `
+        <h2>${name}</h2>
+        <p><strong>車站代碼：</strong> ${code}</p>
+        <p><strong>地  址：</strong> ${address}</p>
+    `;
+
+    const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
+    const cwIndicatorElement = document.querySelector(".dir-indicator.cw-ind");
+    const dir_break = window.innerWidth <= 768 ? "<br>" : " ";
+    if (ccwIndicatorElement) ccwIndicatorElement.innerHTML = `逆行${dir_break}往 ${ccwTarget}`;
+    if (cwIndicatorElement) cwIndicatorElement.innerHTML = `順行${dir_break}往 ${cwTarget}`;
+
+    const trainWrapper = document.getElementById("unified-train-wrapper");
+    if (trainWrapper) {
+        trainWrapper.style.height = window.innerWidth <= 768 ? "calc(100vh - 320px)" : "75%";
+    }
+
+    const unifiedListContainer = document.getElementById("unified-train-list");
+    unifiedListContainer.innerHTML = `<p class="placeholder-text">載入列車動態中...</p>`;
 
     const dateStr = getTodayDateString();
-    const scheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
+    const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
+
+    let liveBoardData = null;
+    let attempts = 0;
+    const maxAttempts = 3; 
+
+    while (attempts < maxAttempts) {
+        let currentOffset = attempts * 5; 
+        let liveBoardUrl = getLatestTDXUrl(currentOffset);
+
+        try {
+            liveBoardData = await d3.json(liveBoardUrl);
+            if (liveBoardData) {
+                console.log(`Successfully fetched real-time logs with offset -${currentOffset}m`);
+                break;
+            }
+        } catch (err) {
+            console.warn(`Data file not found (404) for offset -${currentOffset}m. Retrying older packet...`);
+            attempts++;
+        }
+    }
 
     try {
-        const fullDaySchedule = await d3.json(scheduleUrl);
-        globalScheduleData = fullDaySchedule; // 全域更新快取防爆
-        renderUnifiedPassingTrains(fullDaySchedule, delayMap, targetTrainNumberToExpand);
-    } catch (err) {
-        document.getElementById("unified-train-list").innerHTML = `<p class="placeholder-text" style="color:#ef4444;">❌ 讀取當日靜態班次時刻表失敗 (${dateStr}.json)</p>`;
+        const scheduleData = await d3.json(targetScheduleUrl);
+
+        let updateBadge = document.getElementById("live-data-update-time-badge");
+        if (!updateBadge) {
+            updateBadge = document.createElement("div");
+            updateBadge.id = "live-data-update-time-badge";
+            updateBadge.style.cssText = "float: right; margin-right: 10px; background: #162238; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 2px; font-size: 11px; font-weight: bold; text-transform: uppercase;";
+            const closeBtn = document.getElementById("close-panel-btn");
+            closeBtn.innerHTML = window.innerWidth <= 768 ? `&times;` : `&times; 關閉`;
+            closeBtn.parentNode.insertBefore(updateBadge, closeBtn);
+        }
+
+        if (liveBoardData && liveBoardData.UpdateTime) {
+            const rawTimeStr = liveBoardData.UpdateTime.split("T")[1] || "";
+            const formattedLiveTime = rawTimeStr.substring(0, 5) || "--:--";
+            updateBadge.innerHTML = `最後更新：${formattedLiveTime}`;
+            updateBadge.style.display = "block";
+        } else {
+            updateBadge.innerHTML = `最後更新：離線`;
+            updateBadge.style.display = "block";
+        }
+
+        const delayMap = new Map();
+        if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
+            liveBoardData.TrainLiveBoards.forEach(board => {
+                delayMap.set(String(board.TrainNo), board.DelayTime);
+            });
+        }
+
+        renderUnifiedPassingTrains(scheduleData, name, unifiedListContainer, delayMap, liveBoardData, targetTrainNumberToExpand);
+    } catch (error) {
+        console.error(error);
+        unifiedListContainer.innerHTML = `<p class="placeholder-text" style="color:#ef4444;">網站整修中，目前無法載入...</p>`;
     }
 }
 
-function renderUnifiedPassingTrains(fullSchedule, delayMap, targetTrainNumberToExpand = null) {
-    const listContainer = document.getElementById("unified-train-list");
-    listContainer.innerHTML = "";
+function getTrainTypeName(train, number) {
+    const trainMapping = {
+        6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號', 
+        6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號', 
+        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
+        5898: '藍皮解憂', 5899: '藍皮解憂',
+        6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
+        6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
+        1: '環島之星', 2: '環島之星',
+        6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+    };
+    const numKey = Number(number);
+    if (trainMapping[numKey]) {
+        return `${trainMapping[numKey]} ${numKey}`;
+    }
+    return `${train} ${numKey}`;
+}
 
-    const targetStationName = currentActiveStationName;
-    const cwSet = new Set(currentActiveStationCW);
-    const ccwSet = new Set(currentActiveStationCCW);
+function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData, targetTrainNumberToExpand = null) {
+    if (!Array.isArray(trainsList)) return;
 
-    const trainsList = [];
+    const connectedStationNames = new Set();
+    const combinedSortedTrains = [];
+    const now = new Date();
 
-    fullSchedule.forEach(trainObj => {
-        const dataStops = trainObj.data || [];
+    let currentHours = now.getHours();
+    let currentMins = now.getMinutes();
+
+    if (currentHours < 4) {
+        currentHours += 24;
+    }
+    const currentMinutesMidnight = currentHours * 60 + currentMins;
+
+    trainsList.forEach(train => {
+        const routeStops = train.data || [];
+        const matchingStops = routeStops.filter(stop => stop.x === targetStationName);
         
-        let matchingIndex = -1;
-        for (let i = 0; i < dataStops.length; i++) {
-            if (dataStops[i].x === targetStationName) {
-                matchingIndex = i;
-                break;
-            }
+        if (matchingStops.length > 0) {
+            const depStop = matchingStops[matchingStops.length - 1];
+            const departureMinutes = depStop.y;
+            const trainNumber = train.number || "N/A";
+            let delay = delayMap ? delayMap.get(String(trainNumber)) : undefined;
+            let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
+            const sortedSortingMinutes = departureMinutes + delayMinutesValue;
+
+            const trainData = {
+                ...train,
+                calculatedDepMinutes: departureMinutes,
+                sortingMinutes: sortedSortingMinutes, 
+                formattedTime: convertMinutesToHHMM(departureMinutes),
+                formattedDelayedTime: convertMinutesToHHMM(sortedSortingMinutes),
+                delay: delay 
+            };
+
+            routeStops.forEach(stop => {
+                if (stop.x && stop.x !== targetStationName) connectedStationNames.add(stop.x);
+            });
+            combinedSortedTrains.push(trainData);
         }
-
-        if (matchingIndex === -1) return;
-
-        const currentStopRow = dataStops[matchingIndex];
-        const prevStopRow = matchingIndex > 0 ? dataStops[matchingIndex - 1] : null;
-        const nextStopRow = matchingIndex < dataStops.length - 1 ? dataStops[matchingIndex + 1] : null;
-
-        let directionType = "unknown";
-        if (nextStopRow && nextStopRow.x) {
-            if (cwSet.has(nextStopRow.x)) directionType = "cw";
-            else if (ccwSet.has(nextStopRow.x)) directionType = "ccw";
-        }
-        if (directionType === "unknown" && prevStopRow && prevStopRow.x) {
-            if (cwSet.has(prevStopRow.x)) directionType = "ccw";
-            else if (ccwSet.has(prevStopRow.x)) directionType = "cw";
-        }
-
-        if (directionType === "unknown") return;
-
-        const scheduledMinutes = currentStopRow.y;
-        const trainNumStr = String(trainObj.number);
-        const liveInfo = delayMap[trainNumStr];
-        const delayMins = liveInfo ? parseInt(liveInfo.delayTime, 10) || 0 : 0;
-        const adjustedMinutes = scheduledMinutes + delayMins;
-
-        trainsList.push({
-            originalObject: trainObj,
-            number: trainObj.number,
-            train: trainObj.train,
-            start: trainObj.info?.start || "未知",
-            end: trainObj.info?.end || "未知",
-            scheduledMinutes: scheduledMinutes,
-            adjustedMinutes: adjustedMinutes,
-            delayMins: delayMins,
-            direction: directionType
-        });
     });
 
-    if (trainsList.length === 0) {
-        listContainer.innerHTML = `<p class="placeholder-text">🛸 偵測完成：目前時空斷層區間內沒有任何班次通過此站。</p>`;
+    mainGroup.selectAll(".station-group")
+        .filter(function(d) {
+            const name = getStationName(d);
+            const isConnected = connectedStationNames.has(name) && d3.select(this).select(".station").node() !== activeStationSelection;
+            if (isConnected) d.isConnectedState = true;
+            return isConnected;
+        })
+        .classed("connected", true);
+
+    mainGroup.selectAll(".station")
+        .filter(function(d) {
+            const name = getStationName(d);
+            return connectedStationNames.has(name) && this !== activeStationSelection;
+        })
+        .classed("connected", true);
+
+    if (combinedSortedTrains.length === 0) {
+        listContainer.innerHTML = `<p class="placeholder-text">No active schedules today.</p>`;
         return;
     }
 
-    trainsList.sort((a, b) => a.adjustedMinutes - b.adjustedMinutes);
+    combinedSortedTrains.sort((a, b) => a.sortingMinutes - b.sortingMinutes);
+    listContainer.innerHTML = ""; 
 
+    let upcomingTrainDOMElement = null;
     let explicitTargetCardDOMElement = null;
 
-    trainsList.forEach(t => {
+    combinedSortedTrains.forEach(train => {
         const card = document.createElement("div");
-        card.className = `train-card ${t.direction}-card`;
-        card.setAttribute("data-train-number", t.number);
+        card.className = "train-card";
+        // 增加屬性方便做停靠站反向搜尋定位
+        card.setAttribute("data-train-number", String(train.number));
 
-        if (targetTrainNumberToExpand && String(t.number) === String(targetTrainNumberToExpand)) {
-            explicitTargetCardDOMElement = card;
+        const trainType = train.train || "N/A";
+        const trainNumber = train.number || "N/A";
+        const trainNumberInt = parseInt(trainNumber, 10);
+        const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
+        const spacerCard = document.createElement("div");
+
+        if (isEven) {
+            card.classList.add("side-right");
+            spacerCard.className = "train-card-spacer side-left";
+        } else {
+            card.classList.add("side-left");
+            spacerCard.className = "train-card-spacer side-right";
         }
 
-        const hhmmText = convertMinutesToHHMM(t.adjustedMinutes);
-        const neonColor = colorPalette[t.train] || "#64748b";
+        const neonColor = colorPalette[trainType] || "#64748b";
+        card.style.borderLeftColor = neonColor;
+        card.style.boxShadow = `0 0 10px rgba(${hexToRgb(neonColor)}, 0.12)`;
 
-        let delayBadgeHTML = `<span class="delay-badge on-time">準點</span>`;
-        if (t.delayMins > 0) {
-            delayBadgeHTML = `<span class="delay-badge delayed">晚 ${t.delayMins} 分</span>`;
+        const infoObj = train.info || {};
+        const viaLine = infoObj.via || "-";
+        const rawEndStr = infoObj.end || "";
+        const endStationTrimmed = rawEndStr.length > 6 ? rawEndStr.substring(6) : rawEndStr;
+        const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
+        const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
+
+        const startText = infoObj.start || "N/A";
+        const endText = rawEndStr || "N/A";
+        const noteText = infoObj.note || "無";
+
+        let delayBadgeHTML = "";
+        let isActivelyInService = false;
+        const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
+        
+        if (train.delay !== undefined) {
+            isActivelyInService = true;
+            delayBadgeHTML = train.delay === 0 
+                ? `<span class="delay-badge delay-ontime">準點</span>` 
+                : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
+        } else {
+            if (rawLiveBoardInfo) {
+                if (rawLiveBoardInfo.TrainStationStatus === 0) delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+                else if (rawLiveBoardInfo.TrainStationStatus === 2) delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+                else {
+                    delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+                    isActivelyInService = true;
+                }
+            } else {
+                delayBadgeHTML = (currentMinutesMidnight > train.calculatedDepMinutes + 30)
+                    ? `<span class="delay-badge delay-status">已收班</span>`
+                    : `<span class="delay-badge delay-status">未發車</span>`;
+            }
         }
+
+        let timeDisplayHTML = (train.delay !== undefined && train.delay > 0)
+            ? `<span class="scheduled-time-strike">${train.formattedTime}</span><strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>`
+            : `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
+
+        let currentPositionHTML = (isActivelyInService && rawLiveBoardInfo?.StationName?.Zh_tw)
+            ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
+            : "";
 
         card.innerHTML = `
-            <div class="train-header" style="border-left: 4px solid ${neonColor};">
-                <div style="display: flex; justify-content: space-between; align-items: center; width:100%;">
+            <div class="train-header">
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
                     <div>
-                        <span class="train-type-badge" style="background: ${neonColor}22; color: ${neonColor}; border: 1px solid ${neonColor}55;">
-                            ${t.train}
-                        </span>
-                        <span class="train-number-text">${t.number}</span>
-                        <span class="route-bounds">${t.start} ➔ ${t.end}</span>
+                        ${timeDisplayHTML}<br>
+                        <strong style="color: ${neonColor}; font-weight: bold;">${getTrainTypeName(trainType, trainNumber)}</strong>
                     </div>
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <span class="time-display-text">${hhmmText}</span>
-                        ${delayBadgeHTML}
-                    </div>
+                    ${delayBadgeHTML}
                 </div>
+                <span class="train-sub-title">${routeSubtitleText}</span>
+            </div>
+            <div class="train-details">
+                <div style="margin-bottom: 6px;">${startText} → ${endText} ${currentPositionHTML}</div>
+                <span style="color: #64748b; display: inline-block; margin-top: 6px;">備註：${noteText}</span>
             </div>
         `;
 
         card.querySelector(".train-header").addEventListener("click", () => {
-            const alreadyExpanded = card.classList.contains("expanded");
-            
-            document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
-            
-            if (!alreadyExpanded) {
-                card.classList.add("expanded");
-                document.getElementById("app-container").classList.add("multi-split-mode");
-                renderSchedulePanelContent(t.originalObject, targetStationName, neonColor);
+            const appContainer = document.getElementById("app-container");
+            const isCurrentlyActive = card.classList.contains("expanded");
+
+            listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+
+            if (isCurrentlyActive) {
+                appContainer.classList.remove("multi-split-mode");
             } else {
-                document.getElementById("app-container").classList.remove("multi-split-mode");
+                card.classList.add("expanded");
+                appContainer.classList.add("multi-split-mode");
+                renderSchedulePanelContent(train, targetStationName, neonColor);
             }
         });
 
-        listContainer.appendChild(card);
-    });
+        if (isEven) {
+            listContainer.appendChild(spacerCard);
+            listContainer.appendChild(card);
+        } else {
+            listContainer.appendChild(card);
+            listContainer.appendChild(spacerCard);
+        }
 
-    // 建立一個不可見的 Spacer，用來避免 CSS Grid 在雙欄排版時，因最後一張卡片展開導致版面跳動
-    const spacer = document.createElement("div");
-    spacer.className = "train-card-spacer";
-    listContainer.appendChild(spacer);
+        if (!upcomingTrainDOMElement && train.sortingMinutes >= currentMinutesMidnight) {
+            upcomingTrainDOMElement = card;
+        }
+
+        if (targetTrainNumberToExpand && String(trainNumber) === String(targetTrainNumberToExpand)) {
+            explicitTargetCardDOMElement = card;
+        }
+    });
 
     // 處理反向選取或預設時間定位滾動
     if (explicitTargetCardDOMElement) {
+        // 預先設定佈局模式，確保滾動高度計算準確
         const appContainer = document.getElementById("app-container");
         if (window.innerWidth > 768) {
             appContainer.classList.add("multi-split-mode");
@@ -589,29 +722,34 @@ function renderUnifiedPassingTrains(fullSchedule, delayMap, targetTrainNumberToE
 
         requestAnimationFrame(() => {
             setTimeout(() => {
+                // 模擬點擊車次標頭，觸發完整的展開及排程面板顯示邏輯
                 const headerEl = explicitTargetCardDOMElement.querySelector(".train-header");
                 if (headerEl) {
+                    // 先移除非目標車次的展開狀態
                     listContainer.querySelectorAll(".train-card").forEach(c => {
                         if (c !== explicitTargetCardDOMElement) c.classList.remove("expanded");
                     });
                     
+                    // 根據目前設備版面狀態，決定是否需要展開
                     if (window.innerWidth > 768) {
                         explicitTargetCardDOMElement.classList.add("expanded");
                         const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
-                            renderSchedulePanelContent(matchedTrainObj.originalObject, targetStationName, neonColor);
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
                         }
                     } else {
+                        // 手機版：搜尋車次時直接點擊打開停靠站面板，不重複展開卡片
                         const matchedTrainObj = trainsList.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
                             appContainer.classList.add("multi-split-mode");
-                            renderSchedulePanelContent(matchedTrainObj.originalObject, targetStationName, neonColor);
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
                         }
                     }
                 }
 
+                // 執行平滑滾動到目標車次卡片
                 listContainer.scrollTo({
                     top: explicitTargetCardDOMElement.offsetTop - listContainer.offsetTop - 10,
                     behavior: 'smooth'
@@ -619,179 +757,149 @@ function renderUnifiedPassingTrains(fullSchedule, delayMap, targetTrainNumberToE
             }, 150);
         });
     } else {
-        const currentMins = new Date().getHours() * 60 + new Date().getMinutes();
-        let closestCard = null;
-        let minDiff = Infinity;
+        if (!upcomingTrainDOMElement && listContainer.firstChild) {
+            upcomingTrainDOMElement = listContainer.querySelector(".train-card"); 
+        }
 
-        trainsList.forEach(t => {
-            const diff = t.adjustedMinutes - currentMins;
-            if (diff >= -15 && diff < minDiff) {
-                minDiff = diff;
-                closestCard = listContainer.querySelector(`[data-train-number="${t.number}"]`);
-            }
-        });
-
-        if (closestCard) {
-            setTimeout(() => {
-                listContainer.scrollTo({
-                    top: closestCard.offsetTop - listContainer.offsetTop - 10,
-                    behavior: 'smooth'
-                });
-            }, 50);
+        if (upcomingTrainDOMElement) {
+            requestAnimationFrame(() => {
+                setTimeout(() => {
+                    listContainer.scrollTo({
+                        top: upcomingTrainDOMElement.offsetTop - listContainer.offsetTop - 10,
+                        behavior: 'smooth'
+                    });
+                }, 100);
+            });
         }
     }
 }
 
-async function renderSchedulePanelContent(trainRawObject, selectedStationName, neonColor) {
-    const titleEl = document.getElementById("schedule-train-title");
-    const routeEl = document.getElementById("schedule-train-route");
-    const containerEl = document.getElementById("schedule-stops-container");
+function renderSchedulePanelContent(train, targetStationName, neonColor) {
+    const trainType = train.train || "N/A";
+    const trainNumber = train.number || "N/A";
+    const infoObj = train.info || {};
 
-    titleEl.innerText = `${trainRawObject.train || "未知車型"} - ${trainRawObject.number || "車次"}`;
-    routeEl.innerText = `${trainRawObject.info?.start || "起點"} ➔ ${trainRawObject.info?.end || "終點"}`;
-    
-    containerEl.innerHTML = `<p class="placeholder-text">⏳ 正在載入完整停靠站資訊...</p>`;
+    document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
+    document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
-    const dataStops = trainRawObject.data || [];
-    if (dataStops.length === 0) {
-        containerEl.innerHTML = `<p class="placeholder-text">❌ 無法提供停靠明細資料欄位。</p>`;
-        return;
-    }
+    const stopsContainer = document.getElementById("schedule-stops-container");
+    stopsContainer.innerHTML = "";
 
+    const rawStops = train.data || [];
     const groupedStops = [];
-    dataStops.forEach(entry => {
-        if (!entry.x) return;
+
+    for (let i = 0; i < rawStops.length; i++) {
+        const entry = rawStops[i];
+        if (!entry.x) continue;
+
         if (groupedStops.length > 0 && groupedStops[groupedStops.length - 1].stationName === entry.x) {
             groupedStops[groupedStops.length - 1].depMinutes = entry.y;
         } else {
             groupedStops.push({
                 stationName: entry.x,
                 arrMinutes: entry.y,
-                depMinutes: entry.y
+                depMinutes: null
             });
         }
-    });
-
-    let delayMinutesValue = 0;
-    try {
-        let liveBoardData = null;
-        for (let attempts = 0; attempts < 3; attempts++) {
-            try {
-                liveBoardData = await d3.json(getLatestTDXUrl(attempts * 5));
-                if (liveBoardData) break;
-            } catch(e) {}
-        }
-        if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
-            const liveInfo = liveBoardData.TrainLiveBoards.find(b => String(b.TrainNo) === String(trainRawObject.number));
-            if (liveInfo && liveInfo.DelayTime !== undefined && !isNaN(liveInfo.DelayTime)) {
-                delayMinutesValue = parseInt(liveInfo.DelayTime, 10);
-            }
-        }
-    } catch(e) {
-        console.warn("Live board dynamic lookup error", e);
     }
 
-    containerEl.innerHTML = "";
-    
-    const timelineList = document.createElement("div");
-    timelineList.id = "stops-timeline-list";
-    containerEl.appendChild(timelineList);
+    const delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
 
-    groupedStops.forEach((stop, index) => {
-        const item = document.createElement("div");
-        item.className = "timeline-item";
-        if (stop.stationName === selectedStationName) {
-            item.classList.add("current-selected-stop");
-        }
-
-        const isStart = index === 0;
-        const isEnd = index === groupedStops.length - 1;
-
-        let timeStringHTML = "";
-        if (isStart) {
-            const finalDep = stop.depMinutes + delayMinutesValue;
-            if (delayMinutesValue > 0) {
-                timeStringHTML = `<span class="time-delayed-main">${convertMinutesToHHMM(finalDep)}</span>`;
-            } else {
-                timeStringHTML = `<span class="time-scheduled-main">${convertMinutesToHHMM(stop.depMinutes)}</span>`;
-            }
-            timeStringHTML += `<span class="time-type-label">開</span>`;
-        } else if (isEnd) {
-            const finalArr = stop.arrMinutes + delayMinutesValue;
-            if (delayMinutesValue > 0) {
-                timeStringHTML = `<span class="time-delayed-main">${convertMinutesToHHMM(finalArr)}</span>`;
-            } else {
-                timeStringHTML = `<span class="time-scheduled-main">${convertMinutesToHHMM(stop.arrMinutes)}</span>`;
-            }
-            timeStringHTML += `<span class="time-type-label">到</span>`;
+    stopsContainer.innerHTML = groupedStops.map(stop => {
+        const isCurrentStation = stop.stationName === targetStationName;
+        
+        let scheduledString = "";
+        if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+            scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
         } else {
-            const finalArr = stop.arrMinutes + delayMinutesValue;
-            const finalDep = stop.depMinutes + delayMinutesValue;
-            
-            if (delayMinutesValue > 0) {
-                timeStringHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                        <div><span class="time-delayed-main">${convertMinutesToHHMM(finalArr)}</span><span class="time-type-label">到</span></div>
-                        <div><span class="time-delayed-main">${convertMinutesToHHMM(finalDep)}</span><span class="time-type-label">開</span></div>
-                    </div>
-                `;
-            } else {
-                timeStringHTML = `
-                    <div style="display:flex; flex-direction:column; align-items:flex-end;">
-                        <div><span class="time-scheduled-main">${convertMinutesToHHMM(stop.arrMinutes)}</span><span class="time-type-label">到</span></div>
-                        <div><span class="time-scheduled-main">${convertMinutesToHHMM(stop.depMinutes)}</span><span class="time-type-label">開</span></div>
-                    </div>
-                `;
-            }
+            const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+            scheduledString = convertMinutesToHHMM(singleTime);
         }
 
-        item.innerHTML = `
-            <div class="timeline-left-time">
-                ${timeStringHTML}
-            </div>
-            <div class="timeline-node-wrapper">
-                <div class="timeline-line-top"></div>
-                <div class="timeline-dot" style="background-color: ${stop.stationName === selectedStationName ? neonColor : '#1e293b'}; border-color: ${neonColor};"></div>
-                <div class="timeline-line-bottom"></div>
-            </div>
-            <div class="timeline-right-name">
-                <span class="clickable-station-link">${stop.stationName}</span>
+        const stringColor = isCurrentStation ? `style="color: ${neonColor}"` : "";
+
+        let timeDisplayHTML = "";
+        if (delayMinutesValue > 0) {
+            let delayedString = "";
+            if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+                delayedString = `${convertMinutesToHHMM(stop.arrMinutes + delayMinutesValue)} / ${convertMinutesToHHMM(stop.depMinutes + delayMinutesValue)}`;
+            } else {
+                const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+                delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
+            }
+            timeDisplayHTML = `<strong ${stringColor}>${delayedString}</strong>`;
+        } else {
+            timeDisplayHTML = `<strong ${stringColor}>${scheduledString}</strong>`;
+        }
+
+        const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 6px; font-weight: bold;` : "";
+        const activeClassAttr = isCurrentStation ? `class="current-selected-stop-row"` : "";
+
+        // 將整個停靠站的外層 div 設為可點擊，並加入滑鼠懸停樣式
+        return `
+            <div ${activeClassAttr} 
+                 class="schedule-stop-item-row"
+                 data-station-click-name="${stop.stationName}"
+                 data-associated-train="${trainNumber}"
+                 style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; margin-bottom: 3px; cursor: pointer; ${highlightStyle}">
+                <span class="stop-name-text" style="transition: color 0.2s;">${stop.stationName}</span>
+                <span>${timeDisplayHTML}</span>
             </div>
         `;
+    }).join("");
 
-        if (isStart) item.classList.add("is-start-node");
-        if (isEnd) item.classList.add("is-end-node");
+    // 綁定停靠站點擊反向尋站事件
+    stopsContainer.querySelectorAll(".schedule-stop-item-row").forEach(row => {
+        row.addEventListener("click", (e) => {
+            const clickedName = row.getAttribute("data-station-click-name");
+            const currentTrainNum = row.getAttribute("data-associated-train");
+            if (!clickedName) return;
 
-        item.querySelector(".clickable-station-link").addEventListener("click", () => {
-            const targetName = stop.stationName;
+            // 在 D3 中查找對應車站節點
             const d3Circles = mainGroup.selectAll(".station");
-            let matchedNodeData = null;
-            let matchedDOMNode = null;
+            let matchedData = null;
+            let matchedNode = null;
 
             d3Circles.each(function(d) {
-                if (getStationName(d) === targetName) {
-                    matchedNodeData = d;
-                    matchedDOMNode = this;
+                if (getStationName(d) === clickedName) {
+                    matchedData = d;
+                    matchedNode = this;
                 }
             });
 
-            if (matchedDOMNode && matchedNodeData) {
+            if (matchedNode && matchedData) {
                 if (window.innerWidth <= 768) {
-                    // 行動裝置視窗邏輯：關閉時刻面板並切換顯示車站動態面板與滾動聚焦車次
+                    // 行動裝置：關閉 schedule panel，開啟 info panel 並滾動至指定車次
                     const appContainer = document.getElementById("app-container");
                     appContainer.classList.remove("multi-split-mode");
-                    selectStationElement(matchedDOMNode, matchedNodeData, String(trainRawObject.number));
-                } else {
-                    // 桌面端維持雙視窗連動
-                    selectStationElement(matchedDOMNode, matchedNodeData, String(trainRawObject.number));
+                    appContainer.classList.add("split-mode");
+                    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
                 }
+                // 觸發切換到新車站，並傳遞目前正在檢視的車次編號以便追蹤滾動
+                selectStationElement(matchedNode, matchedData, currentTrainNum);
             }
         });
-
-        timelineList.appendChild(item);
     });
+
+    const targetRow = stopsContainer.querySelector(".current-selected-stop-row");
+    if (targetRow) {
+        setTimeout(() => {
+            stopsContainer.scrollTo({
+                top: targetRow.offsetTop - stopsContainer.offsetTop - 20,
+                behavior: "smooth"
+            });
+        }, 60);
+    }
 }
 
+function hexToRgb(hex) {
+    let c = hex.substring(1);
+    if(c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    const num = parseInt(c, 16);
+    return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
+}
+
+// Unified Search Autocomplete for Stations and Trains
 function initUnifiedSearchAutocomplete() {
     const searchInput = document.getElementById("unified-search-input");
     const suggestionsDropdown = document.getElementById("unified-suggestions");
@@ -806,19 +914,20 @@ function initUnifiedSearchAutocomplete() {
             return;
         }
 
-        // 1. 搜尋車站名稱
+        // 1. Find Station Matches
         const stationMatches = globalStationsData.filter(station => {
             const name = getStationName(station).toLowerCase();
             return name.includes(normalizedValue);
         });
 
-        // 2. 搜尋車次代碼並進行數字升序排序
+        // 2. Find Train Matches & Sort by Train Number Numerically
         let trainMatches = [];
         if (globalScheduleData) {
             trainMatches = globalScheduleData.filter(t => 
                 String(t.number).includes(normalizedValue)
             );
             
+            // Sort all matched trains numerically by train number
             trainMatches.sort((a, b) => {
                 return parseInt(a.number, 10) - parseInt(b.number, 10);
             });
@@ -829,7 +938,7 @@ function initUnifiedSearchAutocomplete() {
             return;
         }
 
-        // 渲染車站類別
+        // Render Station Category if matches exist
         if (stationMatches.length > 0) {
             const catTitle = document.createElement("div");
             catTitle.className = "suggestion-category-title";
@@ -851,7 +960,7 @@ function initUnifiedSearchAutocomplete() {
             });
         }
 
-        // 渲染車次類別 (全數顯示匹配車次)
+        // Render Train Category if matches exist (showing all matching results)
         if (trainMatches.length > 0) {
             const catTitle = document.createElement("div");
             catTitle.className = "suggestion-category-title";
@@ -866,7 +975,7 @@ function initUnifiedSearchAutocomplete() {
 
                 const item = document.createElement("div");
                 item.className = "suggestion-item";
-                item.innerHTML = `<span style="color:#00f0ff; font-weight:bold;">${trainNum}</span> <span style="font-size:12px; color:#a1a1aa;">(${trainType}: ${startNode}➔${endNode})</span>`;
+                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType,trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode} → ${endNode})</span>`;
                 
                 item.addEventListener("click", () => {
                     searchInput.value = "";
@@ -885,6 +994,7 @@ function initUnifiedSearchAutocomplete() {
             const val = this.value.trim().replace(/台/g, '臺');
             if (!val) return;
 
+            // If entry is completely numeric, prioritize train number tracking
             if (/^\d+$/.test(val)) {
                 triggerSelectionByTrainNumber(val);
             } else {
@@ -919,6 +1029,7 @@ function triggerSelectionByStationName(targetName) {
     }
 }
 
+// Target routing logic based on your three timeline requirements
 async function triggerSelectionByTrainNumber(trainNumber) {
     if (!globalScheduleData || globalScheduleData.length === 0) {
         alert("班次資料尚在準備中，請稍候再試。");
@@ -934,6 +1045,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
     const rawStops = matchedTrain.data || [];
     if (rawStops.length === 0) return;
 
+    // Compile consecutive arrival/departure points into distinct chronological nodes
     const groupedStops = [];
     rawStops.forEach(entry => {
         if (!entry.x) return;
@@ -950,6 +1062,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     if (groupedStops.length === 0) return;
 
+    // Fetch real-time logs to pull live status delays
     let delayMinutesValue = 0;
     try {
         let liveBoardData = null;
@@ -969,6 +1082,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
         console.warn("Live board fetch failure during train routing selection", e);
     }
 
+    // Capture absolute minutes since midnight
     const now = new Date();
     let currentHours = now.getHours();
     if (currentHours < 4) currentHours += 24; 
@@ -979,20 +1093,26 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     let targetStationName = "";
 
+    // Condition A: Train service hasn't started today
     if (currentMinutesMidnight < (firstStop.arrMinutes + delayMinutesValue)) {
         targetStationName = firstStop.stationName;
     }
+    // Condition B: Train completed today's service route 
     else if (currentMinutesMidnight > (lastStop.depMinutes + delayMinutesValue)) {
         targetStationName = lastStop.stationName;
     }
+    // Condition C: Train is active / en route
     else {
+        // Find the first upcoming station stop row where departure time + delay is greater than now
         const nextUpcomingStop = groupedStops.find(stop => 
             (stop.depMinutes + delayMinutesValue) >= currentMinutesMidnight
         );
         targetStationName = nextUpcomingStop ? nextUpcomingStop.stationName : lastStop.stationName;
     }
 
+    // Fire map updates to select the computed target station and filter down to expand this train card
     if (targetStationName) {
+        if (targetStationName === "臺北_環島") targetStationName = "臺北";
         const d3Circles = mainGroup.selectAll(".station");
         let matchedNodeData = null;
         let matchedDOMNode = null;
@@ -1012,69 +1132,10 @@ async function triggerSelectionByTrainNumber(trainNumber) {
     }
 }
 
-let autoRefreshTimer = null;
-function scheduleNextAutoRefresh() {
-    if (autoRefreshTimer) clearTimeout(autoRefreshTimer);
-    
-    autoRefreshTimer = setTimeout(async () => {
-        if (currentActiveStationCode && activeStationSelection) {
-            console.log(`Auto refreshing live data for station: ${currentActiveStationName}`);
-            const expandedCard = document.querySelector(".train-card.expanded");
-            const targetTrainNo = expandedCard ? expandedCard.getAttribute("data-train-number") : null;
-            await fetchLiveBoardData(targetTrainNo);
-        }
-        scheduleNextAutoRefresh();
-    }, 45 * 1000); // 45秒自動更新一次
-}
-
-async function loadData() {
-    try {
-        const twData = await d3.json(mapUrl);
-        try {
-            globalStationsData = await d3.json("stations.json");
-        } catch (e) {
-            console.warn("Stations data file loading failed!");
-        }
-        
-        const dateStr = getTodayDateString();
-        const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
-        try {
-            globalScheduleData = await d3.json(targetScheduleUrl);
-        } catch(e) {
-            console.warn("Global daily schedules pre-cache failure", e);
-        }
-
-        drawMap(twData, globalStationsData);
-        initUnifiedSearchAutocomplete();
-        scheduleNextAutoRefresh();
-    } catch (err) {
-        console.error("Critical error during layout initialize:", err);
-    }
-}
-
-loadData();
-
-svg.on("click", () => {
-    if (activeStationSelection) {
-        const oldSelection = activeStationSelection;
-        activeStationSelection = null;
-        
-        const currentTransform = d3.zoomTransform(svg.node());
-        const k = currentTransform.k;
-        
-        d3.select(oldSelection).classed("active", false);
-        d3.select(oldSelection.parentNode).classed("active", false);
-        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
-    }
-    
-    const appContainer = document.getElementById("app-container");
-    appContainer.classList.remove("split-mode");
-    appContainer.classList.remove("multi-split-mode");
-    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
-});
-
 document.getElementById("close-schedule-btn").addEventListener("click", () => {
-    document.getElementById("app-container").classList.remove("multi-split-mode");
+    const appContainer = document.getElementById("app-container");
+    appContainer.classList.remove("multi-split-mode");
+    appContainer.classList.add("split-mode");
     document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
 });
 
@@ -1114,3 +1175,5 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         .duration(750)
         .call(zoom.transform, d3.zoomIdentity);
 });
+
+loadData();
