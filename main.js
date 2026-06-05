@@ -779,7 +779,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
     const trainNumber = train.number || "N/A";
     const infoObj = train.info || {};
 
-    document.getElementById("schedule-train-title").innerText = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
+    document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
     document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
     const stopsContainer = document.getElementById("schedule-stops-container");
