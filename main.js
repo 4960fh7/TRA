@@ -327,6 +327,12 @@ async function loadData() {
 }
 
 function selectStationElement(circleDOM, d) {
+    // If the clicked station is already selected, close the panel and return
+    if (activeStationSelection === circleDOM) {
+        document.getElementById("close-panel-btn").click();
+        return;
+    }
+
     if (activeStationSelection) {
         const oldSelection = activeStationSelection;
         activeStationSelection = null;
@@ -670,19 +676,72 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
             : "";
 
-        // 提取該列車所有停靠的車站名稱，並以 " → " 串接
-        const stopStations = (train.data || []).map(stop => stop.x).filter(Boolean);
+        // --- 3, 4, & 5: Enhanced Stop List Parsing, Delays, and Layout Generation ---
+        const rawStops = train.data || [];
+        const groupedStops = [];
 
-        const stopsListHTML =
-            (trainType === "區間" && stopStations.includes("豐田") && !stopStations.includes("林榮新光"))
-                ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停（林榮新光除外）`
-                : (trainType === "區間")
-                    ? `${startText.replace(/[0-9: ]/g, "")} 到 ${endText.replace(/[0-9: ]/g, "")} 中途各站皆停`
-                    : stopStations
-                        .filter((station, index, arr) => {
-                            return index === 0 || station !== arr[index - 1];
-                        })
-                        .join(" → ");
+        // Group the raw sequential entries into unique station objects with arr/dep properties
+        for (let i = 0; i < rawStops.length; i++) {
+            const currentRaw = rawStops[i];
+            if (!currentRaw.x) continue;
+
+            // Check if we already started grouping this station consecutively
+            if (groupedStops.length > 0 && groupedStops[groupedStops.length - 1].stationName === currentRaw.x) {
+                // The second consecutive entry for a station represents its Departure time
+                groupedStops[groupedStops.length - 1].depMinutes = currentRaw.y;
+            } else {
+                // The first entry represents either the Arrival time or a single-entry terminal stop
+                groupedStops.push({
+                    stationName: currentRaw.x,
+                    arrMinutes: currentRaw.y,
+                    depMinutes: null
+                });
+            }
+        }
+
+        // Generate HTML list for all stops
+        const stopsListHTML = groupedStops.map(stop => {
+            const isTargetStation = stop.stationName === targetStationName;
+            
+            // Format Scheduled Times
+            let scheduledString = "";
+            if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+                scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
+            } else {
+                // If arrival matches departure or one is missing (terminal stations)
+                const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+                scheduledString = convertMinutesToHHMM(singleTime);
+            }
+
+            // Estimate delay formatting based on overall train delay mapping
+            let delayMinutesValue = (delay !== undefined && !isNaN(delay)) ? parseInt(delay, 10) : 0;
+            let finalTimeHTML = "";
+
+            if (delayMinutesValue > 0) {
+                // Create your similar timeDisplayHTML markup if the train is delayed
+                let delayedString = "";
+                if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
+                    delayedString = `${convertMinutesToHHMM(stop.arrMinutes + delayMinutesValue)} / ${convertMinutesToHHMM(stop.depMinutes + delayMinutesValue)}`;
+                } else {
+                    const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+                    delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
+                }
+                finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span><strong style="color: ${neonColor}">${delayedString}</strong>`;
+            } else {
+                finalTimeHTML = `<strong>${scheduledString}</strong>`;
+            }
+
+            // Highlight the current active station row to make it clear where the user is looking
+            const highlightStyle = isTargetStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 4px; font-weight: bold;` : "";
+            const activeClassAttr = isTargetStation ? `class="current-selected-stop-row"` : "";
+
+            return `
+                <div ${activeClassAttr} style="display: flex; justify-content: space-between; margin-bottom: 3px; ${highlightStyle}">
+                    <span>${stop.stationName}</span>
+                    <span>${finalTimeHTML}</span>
+                </div>
+            `;
+        }).join("");
 
         card.innerHTML = `
             <div class="train-header">
@@ -696,20 +755,34 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
             <div class="train-details">
-                ${startText} → ${endText} ${currentPositionHTML}
-                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px; word-break: break-all; line-height: 1.4;">
-                    停靠站：${stopsListHTML}
+                <div style="margin-bottom: 6px;">${startText} → ${endText} ${currentPositionHTML}</div>
+                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px; width: 100%; border-top: 1px dashed #162238; padding-top: 6px;">
+                    <div style="font-weight: bold; margin-bottom: 4px; color: #e2e8f0;">停靠站時程：</div>
+                    <div class="stops-scroll-container" style="max-height: 150px; overflow-y: auto; padding-right: 4px;">
+                        ${stopsListHTML}
+                    </div>
                 </div>
-                <span style="color: #64748b; display: inline-block; margin-top: 4px;">${noteText}</span>
+                <span style="color: #64748b; display: inline-block; margin-top: 6px;">備註：${noteText}</span>
             </div>
         `;
 
-        // MODIFIED: Click triggers the secondary route schedule timeline side panel instead of expanding
+        // Handle auto-scroll to current station when schedule details expand
         card.querySelector(".train-header").addEventListener("click", () => {
-            // Remove previous active indicator on other cards
-            listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
-            card.classList.add("expanded");
-            showTrainSchedulePanel(train);
+            card.classList.toggle("expanded");
+            
+            if (card.classList.contains("expanded")) {
+                const scrollContainer = card.querySelector(".stops-scroll-container");
+                const targetRow = card.querySelector(".current-selected-stop-row");
+                if (scrollContainer && targetRow) {
+                    // Smoothly scroll the stops list down to the matched station row
+                    setTimeout(() => {
+                        scrollContainer.scrollTo({
+                            top: targetRow.offsetTop - scrollContainer.offsetTop - 10,
+                            behavior: 'smooth'
+                        });
+                    }, 50);
+                }
+            }
         });
 
         if (isEven) {
