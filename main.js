@@ -421,12 +421,14 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget) {
     currentActiveStationCW = cwTarget;
     currentActiveStationCCW = ccwTarget;
 
+    // Remove multi-split configuration if active to avoid jumping animations
+    document.getElementById("app-container").classList.remove("multi-split-mode");
     document.getElementById("app-container").classList.add("split-mode");
 
     document.getElementById("station-details").innerHTML = window.innerWidth <= 768 ? `<h2>${name}</h2>` : `
         <h2>${name}</h2>
         <p><strong>車站代碼：</strong> ${code}</p>
-        <p><strong>地　　址：</strong> ${address}</p>
+        <p><strong>地  址：</strong> ${address}</p>
     `;
 
     const ccwIndicatorElement = document.querySelector(".dir-indicator.ccw-ind");
@@ -702,8 +704,12 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             </div>
         `;
 
+        // MODIFIED: Click triggers the secondary route schedule timeline side panel instead of expanding
         card.querySelector(".train-header").addEventListener("click", () => {
-            card.classList.toggle("expanded");
+            // Remove previous active indicator on other cards
+            listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+            card.classList.add("expanded");
+            showTrainSchedulePanel(train);
         });
 
         if (isEven) {
@@ -737,6 +743,46 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }, 100);
         });
     }
+}
+
+// NEW: Displays specific station stop arrays along a train's path inside the secondary right-most sidebar panel
+function showTrainSchedulePanel(train) {
+    const appContainer = document.getElementById("app-container");
+    appContainer.classList.remove("split-mode");
+    appContainer.classList.add("multi-split-mode");
+
+    const trainType = train.train || "N/A";
+    const trainNumber = train.number || "N/A";
+    const infoObj = train.info || {};
+
+    document.getElementById("schedule-train-title").innerText = `${getTrainTypeName(trainType, trainNumber)}`;
+    document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} 始發 → ${infoObj.end || "N/A"}`;
+
+    const listContainer = document.getElementById("stops-timeline-list");
+    listContainer.innerHTML = "";
+
+    const routeStops = train.data || [];
+    routeStops.forEach((stop, index) => {
+        const item = document.createElement("div");
+        item.className = "timeline-stop-item";
+        if(stop.x === currentActiveStationName) {
+            item.classList.add("highlighted-stop");
+        }
+
+        const formattedTime = convertMinutesToHHMM(stop.y);
+        
+        item.innerHTML = `
+            <div class="stop-marker-group">
+                <div class="stop-line-connector ${index === 0 ? 'first-stop' : ''} ${index === routeStops.length - 1 ? 'last-stop' : ''}"></div>
+                <div class="stop-dot"></div>
+            </div>
+            <div class="stop-info-content">
+                <span class="stop-station-name">${stop.x}</span>
+                <span class="stop-arrival-time">${formattedTime}</span>
+            </div>
+        `;
+        listContainer.appendChild(item);
+    });
 }
 
 function hexToRgb(hex) {
@@ -819,8 +865,18 @@ function triggerSelectionByStationName(targetName) {
     else alert("Station not found. Please clarify spelling entries.");
 }
 
+// NEW: Close listener for the third panel
+document.getElementById("close-schedule-btn").addEventListener("click", () => {
+    const appContainer = document.getElementById("app-container");
+    appContainer.classList.remove("multi-split-mode");
+    appContainer.classList.add("split-mode");
+    document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+});
+
 document.getElementById("close-panel-btn").addEventListener("click", () => {
-    document.getElementById("app-container").classList.remove("split-mode");
+    const appContainer = document.getElementById("app-container");
+    appContainer.classList.remove("split-mode");
+    appContainer.classList.remove("multi-split-mode");
     
     currentActiveStationCode = null;
     currentActiveStationName = null;

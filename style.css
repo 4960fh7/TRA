@@ -488,6 +488,180 @@ svg {
     background: transparent;
 }
 
+/* --- Multi-Split Mode System Layout Adjustments (Map: 40% | Info Panel: 40% | Schedule Panel: 20%) --- */
+#schedule-panel {
+    width: 20%;
+    max-width: 20%;
+    min-width: 200px;
+    height: 90vh;
+    background-color: #080d16;
+    border-left: 2px solid #ce6be0; /* Violet neon contrast marker border */
+    box-sizing: border-box;
+    padding: 24px; 
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 10vh;
+    right: -25%; /* Completely tucked away by default */
+    z-index: 1001;
+    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.85);
+    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#app-container.multi-split-mode #map-container {
+    width: 40%;
+}
+
+#app-container.multi-split-mode #info-panel {
+    right: 20% !important; /* Push inwards away from screen bounds to let schedule slip in */
+    width: 40%; 
+    max-width: 40%;
+    min-width: 40%;
+    opacity: 1;
+}
+
+#app-container.multi-split-mode #schedule-panel {
+    right: 0 !important;
+}
+
+/* Secondary Panels Header Structural Formats */
+#schedule-panel-meta-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 10px;
+}
+
+.schedule-panel-header-actions {
+    width: 30%;
+    display: flex;
+    justify-content: flex-end;
+    box-sizing: border-box;
+}
+
+#train-details {
+    width: 70%;
+    box-sizing: border-box;
+}
+
+#train-details h2 {
+    margin: 0 0 4px 0;
+    color: #ce6be0;
+    font-size: 1.3rem;
+    text-shadow: 0 0 8px rgba(206, 107, 224, 0.4);
+}
+
+#train-details p {
+    color: #94a3b8;
+    font-size: 11px;
+    margin: 2px 0;
+}
+
+/* Sci-Fi Vertical Timeline Route stops design layouts */
+#stops-timeline-wrapper {
+    flex: 1;
+    width: 100%;
+    overflow-y: auto;
+    padding-right: 4px;
+    box-sizing: border-box;
+}
+
+#stops-timeline-list {
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding: 10px 0;
+}
+
+.timeline-stop-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 0px;
+    padding: 8px 0;
+    position: relative;
+}
+
+.stop-marker-group {
+    width: 24px;
+    height: 36px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.stop-line-connector {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #162238;
+    z-index: 1;
+}
+
+.stop-line-connector.first-stop {
+    top: 50%;
+}
+
+.stop-line-connector.last-stop {
+    bottom: 50%;
+}
+
+.stop-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #475569;
+    border: 1px solid #060a12;
+    z-index: 2;
+    transition: all 0.2s ease;
+}
+
+.stop-info-content {
+    flex: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-left: 12px;
+    font-size: 13px;
+}
+
+.stop-station-name {
+    color: #94a3b8;
+}
+
+.stop-arrival-time {
+    font-family: monospace;
+    color: #64748b;
+}
+
+/* Timeline Highlighting Modifiers for current chosen Station context rules */
+.timeline-stop-item.highlighted-stop .stop-dot {
+    background: #00ffff;
+    box-shadow: 0 0 8px #00ffff;
+}
+
+.timeline-stop-item.highlighted-stop .stop-station-name {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+.timeline-stop-item.highlighted-stop .stop-arrival-time {
+    color: #00ffff;
+    font-weight: bold;
+}
+
+/* Card Active Indicator Accent Styles */
+.train-card.expanded {
+    border-right: 3px solid #ce6be0 !important;
+    background: #111a2e !important;
+}
+
 /* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
 @media screen and (max-width: 768px) {
     body {
@@ -599,5 +773,18 @@ svg {
     #info-panel-header-actions {
         width: 65% !important;
         max-width: 65% !important;
+    }
+
+    #app-container.multi-split-mode #map-container,
+    #app-container.multi-split-mode #info-panel {
+        display: none !important;
+    }
+    #app-container.multi-split-mode #schedule-panel {
+        right: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 100% !important;
+        height: calc(100vh - 140px);
+        top: 14vh;
     }
 }
