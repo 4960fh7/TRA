@@ -46,11 +46,10 @@ body {
 /* Cybernetic Search Bar Component */
 .search-container {
     position: relative;
-    width: 300px;
-    margin: 0;
+    max-width: 500px;
 }
 
-#station-search-input {
+#station-search-input, #train-search-input {
     width: 100%;
     padding: 8px 14px;
     font-size: 12px;
@@ -65,8 +64,14 @@ body {
     transition: all 0.3s ease-in-out;
 }
 
-#station-search-input:focus {
-    box-shadow: 0 0 15px rgba(0, 240, 255, 0.5), inset 0 0 8px rgba(0, 240, 255, 0.3);
+#station-search-input:focus, #train-search-input:focus {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+    background: #14283f;
+}
+
+#train-search-suggestions {
+    width: 100%;
+    top: 40px;
 }
 
 .suggestions-dropdown {

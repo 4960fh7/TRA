@@ -18,6 +18,7 @@ const mapUrl = "counties.json";
 
 let activeStationSelection = null;
 let globalStationsData = [];
+let globalScheduleData = []; // Cache full schedule lookup tables globally
 
 // 全域追蹤狀態
 let currentActiveStationCode = null;
@@ -305,8 +306,19 @@ async function loadData() {
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
+        
+        // Cache the daily schedule file globally to handle standalone train search actions
+        const dateStr = getTodayDateString();
+        const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
+        try {
+            globalScheduleData = await d3.json(targetScheduleUrl);
+        } catch(e) {
+            console.warn("Global daily schedules pre-cache failure", e);
+        }
+
         drawMap(twData, globalStationsData);
         initSearchAutocomplete();
+        initTrainSearchAutocomplete(); // Initialize train number search bindings
         scheduleNextAutoRefresh();
     } catch (err) {
         console.error("Error configuration mapping pipeline:", err);
@@ -925,6 +937,169 @@ function triggerSelectionByStationName(targetName) {
 
     if (matchedNode && matchedData) selectStationElement(matchedNode, matchedData);
     else alert("Station not found. Please clarify spelling entries.");
+}
+
+// Complete Train Search Autocomplete System
+function initTrainSearchAutocomplete() {
+    const trainInput = document.getElementById("train-search-input");
+    const trainSuggestions = document.getElementById("train-search-suggestions");
+
+    trainInput.addEventListener("input", function() {
+        const value = this.value.trim();
+        trainSuggestions.innerHTML = "";
+
+        if (!value || !globalScheduleData) {
+            trainSuggestions.style.display = "none";
+            return;
+        }
+
+        // Filter schedules matching the input digits
+        const matches = globalScheduleData.filter(t => 
+            String(t.number).includes(value)
+        ).slice(0, 10); // Clamp to maximum 10 suggestions
+
+        if (matches.length === 0) {
+            trainSuggestions.style.display = "none";
+            return;
+        }
+
+        matches.forEach(train => {
+            const trainType = train.train || "";
+            const trainNum = train.number || "";
+            const startNode = train.info?.start || "";
+            const endNode = train.info?.end || "";
+
+            const item = document.createElement("div");
+            item.className = "suggestion-item";
+            item.innerHTML = `<span style="color:#00f0ff; font-weight:bold;">${trainNum}</span> <span style="font-size:12px; color:#a1a1aa;">(${trainType}: ${startNode}→${endNode})</span>`;
+            
+            item.addEventListener("click", () => {
+                trainInput.value = "";
+                trainSuggestions.style.display = "none";
+                triggerSelectionByTrainNumber(trainNum);
+            });
+            trainSuggestions.appendChild(item);
+        });
+
+        trainSuggestions.style.display = "block";
+    });
+
+    trainInput.addEventListener("keydown", function(e) {
+        if (e.key === "Enter") {
+            const val = this.value.trim();
+            if (val) {
+                this.value = "";
+                triggerSelectionByTrainNumber(val);
+                trainSuggestions.style.display = "none";
+            }
+        }
+    });
+
+    document.addEventListener("click", (e) => {
+        if (e.target !== trainInput) trainSuggestions.style.display = "none";
+    });
+}
+
+// Target routing logic based on your three timeline requirements
+async function triggerSelectionByTrainNumber(trainNumber) {
+    if (!globalScheduleData || globalScheduleData.length === 0) {
+        alert("班次資料尚在準備中，請稍候再試。");
+        return;
+    }
+
+    const matchedTrain = globalScheduleData.find(t => String(t.number) === String(trainNumber));
+    if (!matchedTrain) {
+        alert(`找不到車次編號: ${trainNumber}`);
+        return;
+    }
+
+    const rawStops = matchedTrain.data || [];
+    if (rawStops.length === 0) return;
+
+    // Compile consecutive arrival/departure points into distinct chronological nodes
+    const groupedStops = [];
+    rawStops.forEach(entry => {
+        if (!entry.x) return;
+        if (groupedStops.length > 0 && groupedStops[groupedStops.length - 1].stationName === entry.x) {
+            groupedStops[groupedStops.length - 1].depMinutes = entry.y;
+        } else {
+            groupedStops.push({
+                stationName: entry.x,
+                arrMinutes: entry.y,
+                depMinutes: entry.y
+            });
+        }
+    });
+
+    if (groupedStops.length === 0) return;
+
+    // Fetch real-time logs to pull live status delays
+    let delayMinutesValue = 0;
+    try {
+        let liveBoardData = null;
+        for (let attempts = 0; attempts < 3; attempts++) {
+            try {
+                liveBoardData = await d3.json(getLatestTDXUrl(attempts * 5));
+                if (liveBoardData) break;
+            } catch(e) {}
+        }
+        if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
+            const liveInfo = liveBoardData.TrainLiveBoards.find(b => String(b.TrainNo) === String(trainNumber));
+            if (liveInfo && liveInfo.DelayTime !== undefined && !isNaN(liveInfo.DelayTime)) {
+                delayMinutesValue = parseInt(liveInfo.DelayTime, 10);
+            }
+        }
+    } catch(e) {
+        console.warn("Live board fetch failure during train routing selection", e);
+    }
+
+    // Capture absolute minutes since midnight
+    const now = new Date();
+    let currentHours = now.getHours();
+    if (currentHours < 4) currentHours += 24; 
+    const currentMinutesMidnight = currentHours * 60 + now.getMinutes();
+
+    const firstStop = groupedStops[0];
+    const lastStop = groupedStops[groupedStops.length - 1];
+
+    let targetStationName = "";
+
+    // Condition A: Train service hasn't started today
+    if (currentMinutesMidnight < (firstStop.arrMinutes + delayMinutesValue)) {
+        targetStationName = firstStop.stationName;
+    }
+    // Condition B: Train completed today's service route 
+    else if (currentMinutesMidnight > (lastStop.depMinutes + delayMinutesValue)) {
+        targetStationName = lastStop.stationName;
+    }
+    // Condition C: Train is active / en route
+    else {
+        // Find the first upcoming station stop row where departure time + delay is greater than now
+        const nextUpcomingStop = groupedStops.find(stop => 
+            (stop.depMinutes + delayMinutesValue) >= currentMinutesMidnight
+        );
+        targetStationName = nextUpcomingStop ? nextUpcomingStop.stationName : lastStop.stationName;
+    }
+
+    // Fire map updates to select the computed target station and filter down to expand this train card
+    if (targetStationName) {
+        const d3Circles = mainGroup.selectAll(".station");
+        let matchedNodeData = null;
+        let matchedDOMNode = null;
+
+        d3Circles.each(function(d) {
+            if (getStationName(d) === targetStationName) {
+                matchedNodeData = d;
+                matchedDOMNode = this;
+            }
+        });
+
+        if (matchedDOMNode && matchedNodeData) {
+            selectStationElement(matchedDOMNode, matchedNodeData, trainNumber);
+        } else {
+            alert(`找不到對應的車站節點: ${targetStationName}`);
+        }
+    }
 }
 
 document.getElementById("close-schedule-btn").addEventListener("click", () => {
