@@ -714,7 +714,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
     document.getElementById("schedule-train-title").innerText = `${getTrainTypeName(trainType, trainNumber)}`;
     document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
 
-    const stopsContainer = document.getElementById("stops-timeline-list");
+    const stopsContainer = document.getElementById("schedule-stops-container");
     stopsContainer.innerHTML = "";
 
     const rawStops = train.data || [];
