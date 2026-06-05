@@ -786,6 +786,7 @@ svg {
         grid-template-columns: 1fr 1fr !important; 
         gap: 12px 10px !important; 
         max-height: none !important;
+        padding-bottom: 85px !important;
     }
 
     .train-card-spacer {
@@ -859,6 +860,10 @@ svg {
         /* Hide off-screen by default */
         right: -100% !important;
         transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #schedule-stops-container {
+        padding-bottom: 85px !important;
     }
 
     /* Slide the schedule panel in from the right when multi-split-mode is active */
