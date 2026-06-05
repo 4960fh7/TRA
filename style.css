@@ -518,17 +518,17 @@ svg {
     white-space: nowrap;
 }
 
-#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar {
+#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar #schedule-stops-container::-webkit-scrollbar{
     height: 6px; 
     width: 6px; 
 }
 
-#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb { 
+#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb #schedule-stops-container::-webkit-scrollbar-thumb{
     background: #555; 
     border-radius: 10px;
 }
 
-#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track { 
+#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track #schedule-stops-container::-webkit-scrollbar-track{
     background: transparent;
 }
 

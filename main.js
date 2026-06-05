@@ -726,6 +726,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
                     delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
                 }
+                if (delayedString !== "") delayedString = delayedString + "<br>";
                 finalTimeHTML = `<span class="scheduled-time-strike" style="font-size:10px;">${scheduledString}</span><strong style="color: ${neonColor}">${delayedString}</strong>`;
             } else {
                 finalTimeHTML = `<strong>${scheduledString}</strong>`;
@@ -756,12 +757,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             </div>
             <div class="train-details">
                 <div style="margin-bottom: 6px;">${startText} → ${endText} ${currentPositionHTML}</div>
-                <div style="color: #94a3b8; font-size: 11px; margin-top: 4px; width: 100%; border-top: 1px dashed #162238; padding-top: 6px;">
-                    <div style="font-weight: bold; margin-bottom: 4px; color: #e2e8f0;">停靠站時程：</div>
-                    <div class="stops-scroll-container" style="max-height: 150px; overflow-y: auto; padding-right: 4px;">
-                        ${stopsListHTML}
-                    </div>
-                </div>
                 <span style="color: #64748b; display: inline-block; margin-top: 6px;">備註：${noteText}</span>
             </div>
         `;
