@@ -1223,11 +1223,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 1. Initialize CSS variables from memory if available
     const root = document.documentElement;
     const savedSplitInfoWidth = localStorage.getItem('splitInfoWidth');
-    const savedMultiInfoWidth = localStorage.getItem('multiInfoWidth');
     const savedScheduleWidth = localStorage.getItem('scheduleWidth');
 
     if (savedSplitInfoWidth) root.style.setProperty('--split-info-width', savedSplitInfoWidth);
-    if (savedMultiInfoWidth) root.style.setProperty('--multi-info-width', savedMultiInfoWidth);
     if (savedScheduleWidth) root.style.setProperty('--schedule-width', savedScheduleWidth);
 
     // 2. Create Resizers
@@ -1269,32 +1267,31 @@ document.addEventListener("DOMContentLoaded", () => {
         const containerWidth = window.innerWidth;
         
         if (isDraggingInfo) {
-            const isMulti = appContainer.classList.contains('multi-split-mode');
+            // Dragging the info resizer changes the total width allocated to side panels
             let newWidth = containerWidth - e.clientX;
             
-            if (isMulti) {
-                const scheduleWidthPx = schedulePanel.getBoundingClientRect().width;
-                newWidth = containerWidth - e.clientX - scheduleWidthPx;
-                
-                const minWidth = containerWidth * 0.2; 
-                const maxWidth = containerWidth * 0.6; 
-                newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-                
-                const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
-                root.style.setProperty('--multi-info-width', newWidthVw);
-            } else {
-                const minWidth = containerWidth * 0.3; 
-                const maxWidth = containerWidth * 0.8; 
-                newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-                
-                const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
-                root.style.setProperty('--split-info-width', newWidthVw);
-            }
+            const isMulti = appContainer.classList.contains('multi-split-mode');
+            const scheduleWidthVwStr = root.style.getPropertyValue('--schedule-width') || '20vw';
+            const scheduleWidthPx = parseFloat(scheduleWidthVwStr) / 100 * containerWidth;
+            
+            // Enforce limits: At least 30vw (or schedule width + 15vw if open), max 80vw
+            const minWidth = isMulti ? scheduleWidthPx + (containerWidth * 0.15) : containerWidth * 0.3; 
+            const maxWidth = containerWidth * 0.8; 
+            newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+            
+            const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
+            root.style.setProperty('--split-info-width', newWidthVw);
+            
         } else if (isDraggingSchedule) {
+            // Dragging the schedule resizer changes only the schedule panel width
             let newWidth = containerWidth - e.clientX;
+            
+            // It cannot exceed the total side panel width minus a 15vw buffer for the info panel
+            const totalSideWidthVwStr = root.style.getPropertyValue('--split-info-width') || '60vw';
+            const totalSideWidthPx = parseFloat(totalSideWidthVwStr) / 100 * containerWidth;
             
             const minWidth = containerWidth * 0.15; 
-            const maxWidth = containerWidth * 0.5; 
+            const maxWidth = totalSideWidthPx - (containerWidth * 0.15); 
             newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
             
             const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
@@ -1313,7 +1310,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Save adjustments to localStorage
             localStorage.setItem('splitInfoWidth', root.style.getPropertyValue('--split-info-width'));
-            localStorage.setItem('multiInfoWidth', root.style.getPropertyValue('--multi-info-width'));
             localStorage.setItem('scheduleWidth', root.style.getPropertyValue('--schedule-width'));
         }
     });
