@@ -605,40 +605,10 @@ svg {
 
 /* --- Multi-Split Mode System Layout Adjustments (Map: 40% | Info Panel: 40% | Schedule Panel: 20%) --- */
 #schedule-panel {
-    width: 20%;
-    max-width: 20%;
     min-width: 200px;
-    height: 90vh;
     background-color: #080d16;
     border-left: 2px solid #ce6be0;
     /* Violet neon contrast marker border */
-    box-sizing: border-box;
-    padding: 24px;
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 10vh;
-    right: -100%;
-    /* Completely tucked away by default */
-    z-index: 1001;
-    box-shadow: -5px 0 25px rgba(0, 0, 0, 0.85);
-}
-
-#app-container.multi-split-mode #map-container {
-    width: 40%;
-}
-
-#app-container.multi-split-mode #info-panel {
-    right: 20% !important;
-    /* Push inwards away from screen bounds to let schedule slip in */
-    width: 40%;
-    max-width: 40%;
-    min-width: 40%;
-    opacity: 1;
-}
-
-#app-container.multi-split-mode #schedule-panel {
-    right: 0 !important;
 }
 
 /* Secondary Panels Header Structural Formats */
