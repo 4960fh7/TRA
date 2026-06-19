@@ -105,10 +105,11 @@ function updateLabelForceSimulation(k) {
 
     const searchRadius = 40 / Math.pow(k, 0.8);
 
-    nodes = nodes.map(node => {
+    // 1. 計算每個站點是否為區域最大值 (Local Maximum)
+    nodes.forEach(node => {
         if (node.priority === 3) {
             node.isLocalMax = true;
-            return node;
+            return;
         }
         
         let isMax = true;
@@ -129,12 +130,26 @@ function updateLabelForceSimulation(k) {
             }
         }
         node.isLocalMax = isMax;
-        return node;
     });
 
     nodes.sort((a, b) => {
         if (b.priority !== a.priority) return b.priority - a.priority;
         return b.trainCount - a.trainCount;
+    });
+
+    // 2. 結合全域 Top N (Global Maximum) 與 區域最大值
+    const maxAllowed = Math.floor(15 * Math.pow(k, 1.3));
+    let allowedCount = 0;
+
+    nodes.forEach(node => {
+        let isTopN = false;
+        if (node.priority !== 3 && allowedCount < maxAllowed) {
+            isTopN = true;
+            allowedCount++;
+        }
+        
+        // 允許顯示的條件：目前選擇的站點 OR 全域 Top N OR 區域最大值
+        node.isAllowed = node.priority === 3 || isTopN || node.isLocalMax;
     });
 
     // 將所有車站圓圈加入已分配的盒子中，作為障礙物
@@ -367,6 +382,7 @@ async function loadData() {
         }
         
         drawMap(twData, globalStationsData);
+        svg.call(zoom.transform, d3.zoomIdentity); // Trigger initial zoom event to render labels
         initUnifiedSearchAutocomplete(); // Launch unified combined search engine
         scheduleNextAutoRefresh();
     } catch (err) {
