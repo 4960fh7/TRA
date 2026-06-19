@@ -846,18 +846,44 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
     }
 
     document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${titleText}</div>`;
-    
+
     let currentPositionHTML = (train.delay !== undefined && rawLiveBoardInfo?.StationName?.Zh_tw)
         ? `<div style="font-size: 13px; color: #00ffaa; margin-top: 6px; font-weight: bold;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</div>`
         : "";
 
     const noteText = infoObj.note || "無";
+    let noteHTML = `備註：${noteText}`;
+
+    if (noteText.length > 15) {
+        const shortNote = noteText.substring(0, 15);
+        noteHTML = `
+            <span class="note-collapsed">備註：${shortNote}<span style="color: #00f0ff;">...更多</span></span>
+            <span class="note-expanded" style="display: none;">備註：${noteText}</span>
+        `;
+    }
     
-    document.getElementById("schedule-train-route").innerHTML = `
+    const routeContainer = document.getElementById("schedule-train-route");
+    routeContainer.innerHTML = `
         <div style="font-size: 15px; margin-top: 4px;">${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}</div>
         ${currentPositionHTML}
-        <div style="color: #64748b; font-size: 12px; margin-top: 6px;">備註：${noteText}</div>
+        <div id="schedule-note-container" style="color: #64748b; font-size: 12px; margin-top: 6px; ${noteText.length > 15 ? 'cursor: pointer;' : ''}">${noteHTML}</div>
     `;
+
+    if (noteText.length > 15) {
+        const noteContainer = document.getElementById("schedule-note-container");
+        const collapsedSpan = noteContainer.querySelector(".note-collapsed");
+        const expandedSpan = noteContainer.querySelector(".note-expanded");
+
+        noteContainer.addEventListener("click", () => {
+            if (collapsedSpan.style.display === "none") {
+                collapsedSpan.style.display = "inline";
+                expandedSpan.style.display = "none";
+            } else {
+                collapsedSpan.style.display = "none";
+                expandedSpan.style.display = "inline";
+            }
+        });
+    }
 
     const stopsContainer = document.getElementById("schedule-stops-container");
     stopsContainer.innerHTML = "";
@@ -1246,7 +1272,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function checkWidthAdjustments() {
         const resetBtn = document.getElementById('reset-widths-btn');
         if (!resetBtn) return;
-        
+
         if (window.innerWidth <= 768) {
             resetBtn.style.display = 'none';
             return;
@@ -1254,10 +1280,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const splitWidthStr = root.style.getPropertyValue('--split-info-width');
         const scheduleWidthStr = root.style.getPropertyValue('--schedule-width');
-        
-        const isCustomized = (splitWidthStr && splitWidthStr !== '60vw') || 
-                             (scheduleWidthStr && scheduleWidthStr !== '20vw');
-                             
+
+        const isCustomized = (splitWidthStr && splitWidthStr !== '60vw') ||
+            (scheduleWidthStr && scheduleWidthStr !== '20vw');
+
         resetBtn.style.display = isCustomized ? 'block' : 'none';
     }
 
@@ -1312,35 +1338,35 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!isDraggingInfo && !isDraggingSchedule) return;
 
         const containerWidth = window.innerWidth;
-        
+
         if (isDraggingInfo) {
             // Dragging the info resizer changes the total width allocated to side panels
             let newWidth = containerWidth - e.clientX;
-            
+
             const isMulti = appContainer.classList.contains('multi-split-mode');
             const scheduleWidthVwStr = root.style.getPropertyValue('--schedule-width') || '20vw';
             const scheduleWidthPx = parseFloat(scheduleWidthVwStr) / 100 * containerWidth;
-            
+
             // Enforce limits: At least 30vw (or schedule width + 15vw if open), max 80vw
-            const minWidth = isMulti ? scheduleWidthPx + (containerWidth * 0.15) : containerWidth * 0.3; 
-            const maxWidth = containerWidth * 0.8; 
+            const minWidth = isMulti ? scheduleWidthPx + (containerWidth * 0.15) : containerWidth * 0.3;
+            const maxWidth = containerWidth * 0.8;
             newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-            
+
             const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
             root.style.setProperty('--split-info-width', newWidthVw);
-            
+
         } else if (isDraggingSchedule) {
             // Dragging the schedule resizer changes only the schedule panel width
             let newWidth = containerWidth - e.clientX;
-            
+
             // It cannot exceed the total side panel width minus a 15vw buffer for the info panel
             const totalSideWidthVwStr = root.style.getPropertyValue('--split-info-width') || '60vw';
             const totalSideWidthPx = parseFloat(totalSideWidthVwStr) / 100 * containerWidth;
-            
-            const minWidth = containerWidth * 0.15; 
-            const maxWidth = totalSideWidthPx - (containerWidth * 0.15); 
+
+            const minWidth = containerWidth * 0.15;
+            const maxWidth = totalSideWidthPx - (containerWidth * 0.15);
             newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
-            
+
             const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
             root.style.setProperty('--schedule-width', newWidthVw);
         }
@@ -1358,7 +1384,7 @@ document.addEventListener("DOMContentLoaded", () => {
             // Save adjustments to localStorage
             localStorage.setItem('splitInfoWidth', root.style.getPropertyValue('--split-info-width'));
             localStorage.setItem('scheduleWidth', root.style.getPropertyValue('--schedule-width'));
-            
+
             checkWidthAdjustments();
         }
     });
