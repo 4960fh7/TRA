@@ -184,18 +184,18 @@ body {
 }
 
 /* 40% / 40% / 20% Layout Rules when both panels are open */
-#app-container.multi-split-mode #map-container {
+#app-container.split-mode.multi-split-mode #map-container {
     width: calc(100vw - var(--split-info-width));
 }
 
-#app-container.multi-split-mode #info-panel {
+#app-container.split-mode.multi-split-mode #info-panel {
     right: var(--schedule-width) !important;
     width: calc(var(--split-info-width) - var(--schedule-width));
     max-width: calc(var(--split-info-width) - var(--schedule-width));
     min-width: calc(var(--split-info-width) - var(--schedule-width));
 }
 
-#app-container.multi-split-mode #schedule-panel {
+#app-container.split-mode.multi-split-mode #schedule-panel {
     right: 0 !important;
     width: var(--schedule-width);
     max-width: var(--schedule-width);
