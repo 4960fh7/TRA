@@ -56,9 +56,35 @@ body {
     /* Explicitly forced left alignment */
 }
 
+.search-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
 .search-container {
     position: relative;
     width: 320px;
+}
+
+.reset-btn {
+    background: #0d1b2a;
+    border: 1px solid #00f0ff;
+    color: #fff;
+    padding: 8px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    cursor: pointer;
+    box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
+    transition: all 0.2s;
+    white-space: nowrap;
+    border-radius: 2px;
+}
+
+.reset-btn:hover {
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+    background: #14283f;
+    color: #00f0ff;
 }
 
 #unified-search-input {

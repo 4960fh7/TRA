@@ -1228,6 +1228,38 @@ document.addEventListener("DOMContentLoaded", () => {
     if (savedSplitInfoWidth) root.style.setProperty('--split-info-width', savedSplitInfoWidth);
     if (savedScheduleWidth) root.style.setProperty('--schedule-width', savedScheduleWidth);
 
+    function checkWidthAdjustments() {
+        const resetBtn = document.getElementById('reset-widths-btn');
+        if (!resetBtn) return;
+        
+        if (window.innerWidth <= 768) {
+            resetBtn.style.display = 'none';
+            return;
+        }
+
+        const splitWidthStr = root.style.getPropertyValue('--split-info-width');
+        const scheduleWidthStr = root.style.getPropertyValue('--schedule-width');
+        
+        const isCustomized = (splitWidthStr && splitWidthStr !== '60vw') || 
+                             (scheduleWidthStr && scheduleWidthStr !== '20vw');
+                             
+        resetBtn.style.display = isCustomized ? 'block' : 'none';
+    }
+
+    const resetBtn = document.getElementById('reset-widths-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            root.style.setProperty('--split-info-width', '60vw');
+            root.style.setProperty('--schedule-width', '20vw');
+            localStorage.removeItem('splitInfoWidth');
+            localStorage.removeItem('scheduleWidth');
+            checkWidthAdjustments();
+        });
+    }
+
+    window.addEventListener('resize', checkWidthAdjustments);
+    checkWidthAdjustments();
+
     // 2. Create Resizers
     const infoPanel = document.getElementById('info-panel');
     const schedulePanel = document.getElementById('schedule-panel');
@@ -1311,6 +1343,8 @@ document.addEventListener("DOMContentLoaded", () => {
             // Save adjustments to localStorage
             localStorage.setItem('splitInfoWidth', root.style.getPropertyValue('--split-info-width'));
             localStorage.setItem('scheduleWidth', root.style.getPropertyValue('--schedule-width'));
+            
+            checkWidthAdjustments();
         }
     });
 });
