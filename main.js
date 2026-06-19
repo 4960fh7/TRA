@@ -1219,4 +1219,104 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         .call(zoom.transform, d3.zoomIdentity);
 });
 
+document.addEventListener("DOMContentLoaded", () => {
+    // 1. Initialize CSS variables from memory if available
+    const root = document.documentElement;
+    const savedSplitInfoWidth = localStorage.getItem('splitInfoWidth');
+    const savedMultiInfoWidth = localStorage.getItem('multiInfoWidth');
+    const savedScheduleWidth = localStorage.getItem('scheduleWidth');
+
+    if (savedSplitInfoWidth) root.style.setProperty('--split-info-width', savedSplitInfoWidth);
+    if (savedMultiInfoWidth) root.style.setProperty('--multi-info-width', savedMultiInfoWidth);
+    if (savedScheduleWidth) root.style.setProperty('--schedule-width', savedScheduleWidth);
+
+    // 2. Create Resizers
+    const infoPanel = document.getElementById('info-panel');
+    const schedulePanel = document.getElementById('schedule-panel');
+    const appContainer = document.getElementById('app-container');
+
+    const infoResizer = document.createElement('div');
+    infoResizer.className = 'panel-resizer';
+    infoPanel.appendChild(infoResizer);
+
+    const scheduleResizer = document.createElement('div');
+    scheduleResizer.className = 'panel-resizer';
+    schedulePanel.appendChild(scheduleResizer);
+
+    // 3. Drag Logic
+    let isDraggingInfo = false;
+    let isDraggingSchedule = false;
+
+    infoResizer.addEventListener('mousedown', (e) => {
+        if (window.innerWidth <= 768) return; // Disable on mobile
+        isDraggingInfo = true;
+        infoResizer.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ew-resize';
+    });
+
+    scheduleResizer.addEventListener('mousedown', (e) => {
+        if (window.innerWidth <= 768) return; // Disable on mobile
+        isDraggingSchedule = true;
+        scheduleResizer.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ew-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+        if (!isDraggingInfo && !isDraggingSchedule) return;
+
+        const containerWidth = window.innerWidth;
+        
+        if (isDraggingInfo) {
+            const isMulti = appContainer.classList.contains('multi-split-mode');
+            let newWidth = containerWidth - e.clientX;
+            
+            if (isMulti) {
+                const scheduleWidthPx = schedulePanel.getBoundingClientRect().width;
+                newWidth = containerWidth - e.clientX - scheduleWidthPx;
+                
+                const minWidth = containerWidth * 0.2; 
+                const maxWidth = containerWidth * 0.6; 
+                newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+                
+                const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
+                root.style.setProperty('--multi-info-width', newWidthVw);
+            } else {
+                const minWidth = containerWidth * 0.3; 
+                const maxWidth = containerWidth * 0.8; 
+                newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+                
+                const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
+                root.style.setProperty('--split-info-width', newWidthVw);
+            }
+        } else if (isDraggingSchedule) {
+            let newWidth = containerWidth - e.clientX;
+            
+            const minWidth = containerWidth * 0.15; 
+            const maxWidth = containerWidth * 0.5; 
+            newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+            
+            const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
+            root.style.setProperty('--schedule-width', newWidthVw);
+        }
+    });
+
+    window.addEventListener('mouseup', () => {
+        if (isDraggingInfo || isDraggingSchedule) {
+            isDraggingInfo = false;
+            isDraggingSchedule = false;
+            infoResizer.classList.remove('dragging');
+            scheduleResizer.classList.remove('dragging');
+            document.body.style.userSelect = '';
+            document.body.style.cursor = '';
+
+            // Save adjustments to localStorage
+            localStorage.setItem('splitInfoWidth', root.style.getPropertyValue('--split-info-width'));
+            localStorage.setItem('multiInfoWidth', root.style.getPropertyValue('--multi-info-width'));
+            localStorage.setItem('scheduleWidth', root.style.getPropertyValue('--schedule-width'));
+        }
+    });
+});
+
 loadData();

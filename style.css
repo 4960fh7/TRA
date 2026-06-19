@@ -1,4 +1,10 @@
 /* --- Sci-Fi / Cyberpunk UI Redesign Theme --- */
+:root {
+    --split-info-width: 60vw;
+    --multi-info-width: 40vw;
+    --schedule-width: 20vw;
+}
+
 @font-face {
     font-family: 'GlowSansSCCom-Compressed';
     src: url('GlowSansSC-Compressed-Regular.otf') format('opentype');
@@ -147,7 +153,7 @@ body {
 }
 
 #info-panel {
-    width: 40%;
+    width: var(--split-info-width);
     height: 90vh;
     border: none;
     background-color: #0a1120;
@@ -157,13 +163,13 @@ body {
     flex-direction: column;
     position: fixed;
     top: 10vh;
-    right: -40%;
+    right: -100vw;
     z-index: 1000;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
 }
 
 #schedule-panel {
-    width: 20%;
+    width: var(--schedule-width);
     height: 90vh;
     border: none;
     background-color: #050a12;
@@ -173,23 +179,28 @@ body {
     flex-direction: column;
     position: fixed;
     top: 10vh;
-    right: -20%;
+    right: -100vw;
     z-index: 1001;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
 }
 
 /* 40% / 40% / 20% Layout Rules when both panels are open */
 #app-container.multi-split-mode #map-container {
-    width: 40%;
+    width: calc(100vw - var(--multi-info-width) - var(--schedule-width));
 }
 
 #app-container.multi-split-mode #info-panel {
-    right: 20% !important;
-    width: 40%;
+    right: var(--schedule-width) !important;
+    width: var(--multi-info-width);
+    max-width: var(--multi-info-width);
+    min-width: var(--multi-info-width);
 }
 
 #app-container.multi-split-mode #schedule-panel {
     right: 0 !important;
+    width: var(--schedule-width);
+    max-width: var(--schedule-width);
+    min-width: var(--schedule-width);
 }
 
 /* Schedule Stop Row Styles */
@@ -227,21 +238,37 @@ svg {
 
 /* Split-Mode Layout Definitions */
 #app-container.split-mode #map-container {
-    width: 40%;
-    /* Anchor the map canvas framework to 40% when panel slides open */
+    width: calc(100vw - var(--split-info-width));
+    /* Anchor the map canvas framework */
 }
 
 #app-container.split-mode #info-panel {
     right: 0 !important;
-    width: 60%;
-    /* Expand timetable info panel space cleanly to 60% */
-    max-width: 60%;
-    min-width: 60%;
+    width: var(--split-info-width);
+    max-width: var(--split-info-width);
+    min-width: var(--split-info-width);
     opacity: 1;
     padding: 24px;
 }
 
 /* Explicit Structural Height Distributions */
+
+.panel-resizer {
+    position: absolute;
+    left: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: ew-resize;
+    z-index: 10000;
+    background: transparent;
+    transition: background 0.2s;
+}
+
+.panel-resizer:hover, .panel-resizer.dragging {
+    background: rgba(0, 240, 255, 0.4);
+}
+
 #info-panel-meta-container {
     display: flex !important;
     flex-direction: row !important;
