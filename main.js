@@ -81,12 +81,6 @@ function updateLabelForceSimulation(k) {
     const labels = mainGroup.selectAll(".station-label")
         .style("font-size", `${fontSize}px`);
 
-    labels.attr("y", d => {
-        const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-        const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-        return -r - (4 / k);
-    }).attr("x", 0).style("visibility", "visible");
-
     const allocatedBoxes = [];
 
     const nodes = globalStationsData.map(d => {
@@ -96,7 +90,6 @@ function updateLabelForceSimulation(k) {
         
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
         const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
-        const labelYOffset = -r - (4 / k);
 
         const name = getStationName(d);
         const estWidth = name.length * fontSize * 1.1;
@@ -106,8 +99,7 @@ function updateLabelForceSimulation(k) {
             data: d,
             geoX: pos[0],
             geoY: pos[1],
-            offsetX: 0,
-            offsetY: labelYOffset,
+            r: r,
             width: estWidth,
             height: estHeight,
             priority: isCurrentActive ? 3 : (d.isConnectedState ? 2 : 1)
@@ -116,53 +108,62 @@ function updateLabelForceSimulation(k) {
 
     nodes.sort((a, b) => b.priority - a.priority);
 
-    const slotOffsets = [
-        { x: 0, y: 1 },  
-        { x: 1, y: 0 },  
-        { x: -1, y: 0 }  
+    // 將所有車站圓圈加入已分配的盒子中，作為障礙物
+    nodes.forEach(node => {
+        allocatedBoxes.push({
+            x1: node.geoX - node.r,
+            x2: node.geoX + node.r,
+            y1: node.geoY - node.r,
+            y2: node.geoY + node.r,
+            data: node.data,
+            isCircle: true
+        });
+    });
+
+    const gap = 1 / k; // 基礎間隙
+
+    const slotDirections = [
+        { dx: 0, dy: -1 }, // 上
+        { dx: 0, dy: 1 },  // 下
+        { dx: 1, dy: 0 },  // 右
+        { dx: -1, dy: 0 }, // 左
+        { dx: 1, dy: -1 }, // 右上
+        { dx: -1, dy: -1 },// 左上
+        { dx: 1, dy: 1 },  // 右下
+        { dx: -1, dy: 1 }  // 左下
     ];
 
     nodes.forEach(node => {
-        let currentX = node.geoX + node.offsetX;
-        let currentY = node.geoY + node.offsetY;
-        
-        let box = {
-            x1: currentX - node.width / 2,
-            x2: currentX + node.width / 2,
-            y1: currentY - node.height / 2,
-            y2: currentY + node.height / 2,
-            data: node.data
-        };
+        let placed = false;
 
-        let hasOverlap = checkOverlap(box, allocatedBoxes, k);
-        
-        if (hasOverlap) {
-            for (let slot of slotOffsets) {
-                const shiftDist = (fontSize * 1.2) + standardCircleRadius + (5 / k);
-                let altOffsetX = slot.x * shiftDist * 1.5;
-                let altOffsetY = slot.y * shiftDist;
-                if (slot.x !== 0) altOffsetY = 0; 
+        for (let slot of slotDirections) {
+            const paddingX = 4 / k;
+            const paddingY = 2 / k;
+            
+            let cx = node.geoX;
+            let cy = node.geoY;
+            
+            if (slot.dx !== 0) cx += slot.dx * (node.r + node.width / 2 + paddingX + gap);
+            if (slot.dy !== 0) cy += slot.dy * (node.r + node.height / 2 + paddingY + gap);
+            
+            let box = {
+                x1: cx - node.width / 2,
+                x2: cx + node.width / 2,
+                y1: cy - node.height / 2,
+                y2: cy + node.height / 2,
+                data: node.data
+            };
 
-                box.x1 = (node.geoX + altOffsetX) - node.width / 2;
-                box.x2 = (node.geoX + altOffsetX) + node.width / 2;
-                box.y1 = (node.geoY + altOffsetY) - node.height / 2;
-                box.y2 = (node.geoY + altOffsetY) + node.height / 2;
-
-                if (!checkOverlap(box, allocatedBoxes, k)) {
-                    node.offsetX = altOffsetX;
-                    node.offsetY = altOffsetY;
-                    hasOverlap = false;
-                    break;
-                }
+            if (!checkOverlap(box, allocatedBoxes, k)) {
+                node.offsetX = cx - node.geoX;
+                node.offsetY = cy - node.geoY;
+                allocatedBoxes.push(box);
+                placed = true;
+                break;
             }
         }
 
-        if (!hasOverlap) {
-            allocatedBoxes.push(box);
-            node.visible = true;
-        } else {
-            node.visible = false;
-        }
+        node.visible = placed;
     });
 
     labels.style("visibility", d => {
