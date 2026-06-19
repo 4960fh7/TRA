@@ -2,29 +2,36 @@
 @font-face {
     font-family: 'GlowSansSCCom-Compressed';
     src: url('GlowSansSC-Compressed-Regular.otf') format('opentype');
-    font-weight: normal; font-style: normal;
+    font-weight: normal;
+    font-style: normal;
 }
 
 body {
     font-family: 'Courier New', Courier, monospace, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #060a12; /* Deep space dark backdrop */
+    background-color: #060a12;
+    /* Deep space dark backdrop */
     color: #e2e8f0;
-    overflow: hidden; /* Avoid dual scrolling on standard desktop viewports */
+    overflow: hidden;
+    /* Avoid dual scrolling on standard desktop viewports */
 }
 
 .header {
-    height: 10vh; /* Configured to explicitly occupy 10% of viewport height */
-    padding: 0 30px; 
+    height: 10vh;
+    /* Configured to explicitly occupy 10% of viewport height */
+    padding: 0 30px;
     position: relative;
     background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
     border-bottom: 1px dashed #d0ffe6;
     box-sizing: border-box;
     display: flex;
-    justify-content: space-between; /* Push title group left and search bar right */
-    align-items: center; /* Vertically center content elements */
-    z-index: 1005; /* Force dropdown overlap priority over panel surfaces underneath */
+    justify-content: space-between;
+    /* Push title group left and search bar right */
+    align-items: center;
+    /* Vertically center content elements */
+    z-index: 1005;
+    /* Force dropdown overlap priority over panel surfaces underneath */
 }
 
 .header-title-group {
@@ -35,12 +42,13 @@ body {
 }
 
 .header h1 {
-    font-size: 1.8rem; 
+    font-size: 1.8rem;
     color: #d0ffe6;
     text-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
     margin: 0;
     letter-spacing: 2px;
-    text-align: left; /* Explicitly forced left alignment */
+    text-align: left;
+    /* Explicitly forced left alignment */
 }
 
 .search-container {
@@ -95,7 +103,8 @@ body {
     background: #0a1120;
     border: 1px solid #d0ffe6;
     border-radius: 2px;
-    z-index: 2000; /* Overlaps map layout grids and active split panels smoothly */
+    z-index: 2000;
+    /* Overlaps map layout grids and active split panels smoothly */
     box-shadow: 0 4px 20px rgba(0, 240, 255, 0.35);
     text-align: left;
     display: none;
@@ -103,7 +112,8 @@ body {
 }
 
 .suggestion-item {
-    display: block; /* Ensures full structural clickable layout target block size */
+    display: block;
+    /* Ensures full structural clickable layout target block size */
     width: 100%;
     padding: 10px 14px;
     cursor: pointer;
@@ -123,13 +133,15 @@ body {
     display: flex;
     position: relative;
     width: 100%;
-    height: 90vh; /* Takes the remaining 90% space below the header */
+    height: 90vh;
+    /* Takes the remaining 90% space below the header */
     overflow: hidden;
     z-index: 1;
 }
 
 #map-container {
-    width: 100%; /* Default width when info panel is hidden */
+    width: 100%;
+    /* Default width when info panel is hidden */
     height: 100%;
     transition: cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -148,7 +160,6 @@ body {
     right: -40%;
     z-index: 1000;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
-    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1), width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #schedule-panel {
@@ -165,7 +176,6 @@ body {
     right: -20%;
     z-index: 1001;
     box-shadow: -5px 0 20px rgba(0, 0, 0, 0.6);
-    transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* 40% / 40% / 20% Layout Rules when both panels are open */
@@ -217,12 +227,14 @@ svg {
 
 /* Split-Mode Layout Definitions */
 #app-container.split-mode #map-container {
-    width: 40%; /* Anchor the map canvas framework to 40% when panel slides open */
+    width: 40%;
+    /* Anchor the map canvas framework to 40% when panel slides open */
 }
 
 #app-container.split-mode #info-panel {
     right: 0 !important;
-    width: 60%; /* Expand timetable info panel space cleanly to 60% */
+    width: 60%;
+    /* Expand timetable info panel space cleanly to 60% */
     max-width: 60%;
     min-width: 60%;
     opacity: 1;
@@ -235,12 +247,12 @@ svg {
     flex-direction: row !important;
     justify-content: space-between !important;
     align-items: center !important;
-    
+
     /* 核心修改：強制容器佔滿側邊欄 100% 的水平可用寬度 */
     width: 100% !important;
     max-width: 100% !important;
     min-width: 100% !important;
-    
+
     /* 防止內距 (Padding) 將容器撐寬破壞佈局 */
     box-sizing: border-box !important;
     margin: 0 0 10px 0 !important;
@@ -250,7 +262,8 @@ svg {
     width: 60%;
     max-width: 60% !important;
     display: flex !important;
-    justify-content: flex-end !important; /* 讓內部的關閉按鈕靠最右側對齊 */
+    justify-content: flex-end !important;
+    /* 讓內部的關閉按鈕靠最右側對齊 */
     box-sizing: border-box !important;
 }
 
@@ -303,9 +316,10 @@ svg {
     display: flex;
     flex-direction: column;
     width: 100%;
-    flex: 1; /* Automatically scales to claim all remaining panel height elegantly */
+    flex: 1;
+    /* Automatically scales to claim all remaining panel height elegantly */
     overflow: hidden;
-    margin-top: 1px; 
+    margin-top: 1px;
     box-sizing: border-box;
 }
 
@@ -332,14 +346,15 @@ svg {
     letter-spacing: 1px;
 }
 
-.ccw-ind { 
-    background-color: rgba(239, 68, 68, 0.1); 
-    color: #ef4444; 
+.ccw-ind {
+    background-color: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
     border: 1px dashed #ef4444;
 }
-.cw-ind { 
-    background-color: rgba(59, 130, 246, 0.1); 
-    color: #5696fd; 
+
+.cw-ind {
+    background-color: rgba(59, 130, 246, 0.1);
+    color: #5696fd;
     border: 1px dashed #5696fd;
 }
 
@@ -348,7 +363,8 @@ svg {
     overflow-y: auto;
     padding-right: 6px;
     display: grid;
-    grid-template-columns: 1fr 1fr; /* Retains 2-column configuration uniformly */
+    grid-template-columns: 1fr 1fr;
+    /* Retains 2-column configuration uniformly */
     gap: 16px 20px;
     box-sizing: border-box;
 }
@@ -366,17 +382,19 @@ svg {
     height: max-content;
 }
 
-.train-card.side-left, .train-card-spacer.side-left {
+.train-card.side-left,
+.train-card-spacer.side-left {
     grid-column: 1;
 }
 
-.train-card.side-right, .train-card-spacer.side-right {
+.train-card.side-right,
+.train-card-spacer.side-right {
     grid-column: 2;
 }
 
 .train-card-spacer {
     width: 100%;
-    height: 0px; 
+    height: 0px;
     visibility: hidden;
     pointer-events: none;
     box-sizing: border-box;
@@ -425,10 +443,10 @@ svg {
 }
 
 .scheduled-time-strike {
-    color: #ef4444; 
-    text-decoration: line-through; 
-    text-decoration-color: #ef4444; 
-    margin-right: 6px; 
+    color: #ef4444;
+    text-decoration: line-through;
+    text-decoration-color: #ef4444;
+    margin-right: 6px;
     opacity: 0.7;
 }
 
@@ -488,7 +506,8 @@ svg {
 .station-label {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
-    fill: #00f0ff;             /* 預設繼承基本青藍色 */
+    fill: #00f0ff;
+    /* 預設繼承基本青藍色 */
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
     text-anchor: middle;
     dominant-baseline: central;
@@ -505,6 +524,7 @@ svg {
     fill: #ff0055 !important;
     filter: drop-shadow(0 0 6px #ff0055);
 }
+
 .station-group.active .station-label {
     fill: #ff0055 !important;
 }
@@ -514,6 +534,7 @@ svg {
     fill: #00ffaa !important;
     filter: drop-shadow(0 0 5px #00ffaa);
 }
+
 .station-group.connected .station-label {
     fill: #00ffaa !important;
 }
@@ -536,17 +557,23 @@ svg {
     white-space: nowrap;
 }
 
-#unified-train-list::-webkit-scrollbar, .suggestions-dropdown::-webkit-scrollbar, #schedule-stops-container::-webkit-scrollbar{
-    height: 6px; 
-    width: 6px; 
+#unified-train-list::-webkit-scrollbar,
+.suggestions-dropdown::-webkit-scrollbar,
+#schedule-stops-container::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
 }
 
-#unified-train-list::-webkit-scrollbar-thumb, .suggestions-dropdown::-webkit-scrollbar-thumb, #schedule-stops-container::-webkit-scrollbar-thumb{
-    background: #555; 
+#unified-train-list::-webkit-scrollbar-thumb,
+.suggestions-dropdown::-webkit-scrollbar-thumb,
+#schedule-stops-container::-webkit-scrollbar-thumb {
+    background: #555;
     border-radius: 10px;
 }
 
-#unified-train-list::-webkit-scrollbar-track, .suggestions-dropdown::-webkit-scrollbar-track, #schedule-stops-container::-webkit-scrollbar-track{
+#unified-train-list::-webkit-scrollbar-track,
+.suggestions-dropdown::-webkit-scrollbar-track,
+#schedule-stops-container::-webkit-scrollbar-track {
     background: transparent;
 }
 
@@ -557,17 +584,18 @@ svg {
     min-width: 200px;
     height: 90vh;
     background-color: #080d16;
-    border-left: 2px solid #ce6be0; /* Violet neon contrast marker border */
+    border-left: 2px solid #ce6be0;
+    /* Violet neon contrast marker border */
     box-sizing: border-box;
-    padding: 24px; 
+    padding: 24px;
     display: flex;
     flex-direction: column;
     position: fixed;
     top: 10vh;
-    right: -100%; /* Completely tucked away by default */
+    right: -100%;
+    /* Completely tucked away by default */
     z-index: 1001;
     box-shadow: -5px 0 25px rgba(0, 0, 0, 0.85);
-    transition: left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 #app-container.multi-split-mode #map-container {
@@ -575,8 +603,9 @@ svg {
 }
 
 #app-container.multi-split-mode #info-panel {
-    right: 20% !important; /* Push inwards away from screen bounds to let schedule slip in */
-    width: 40%; 
+    right: 20% !important;
+    /* Push inwards away from screen bounds to let schedule slip in */
+    width: 40%;
     max-width: 40%;
     min-width: 40%;
     opacity: 1;
@@ -767,13 +796,13 @@ svg {
         padding: 16px !important;
         height: calc(100vh - 140px);
     }
-    
+
     #info-panel-meta-container {
         height: auto !important;
         min-height: auto !important;
         max-height: none !important;
     }
-    
+
     #unified-train-wrapper {
         height: auto !important;
         max-height: none !important;
@@ -782,39 +811,39 @@ svg {
     }
 
     #unified-train-list {
-        display: grid !important; 
-        grid-template-columns: 1fr 1fr !important; 
-        gap: 12px 10px !important; 
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px 10px !important;
         max-height: none !important;
         padding-bottom: 85px !important;
     }
 
     .train-card-spacer {
-        display: block !important;       
-        grid-column: auto !important;    
-        height: 0px !important;          
-        min-height: 0px !important;      
+        display: block !important;
+        grid-column: auto !important;
+        height: 0px !important;
+        min-height: 0px !important;
         margin: 0 !important;
         padding: 0 !important;
-        visibility: hidden !important;   
-        pointer-events: none !important; 
+        visibility: hidden !important;
+        pointer-events: none !important;
     }
 
     .train-card {
         width: 100% !important;
         box-sizing: border-box;
-        grid-column: auto !important;    
+        grid-column: auto !important;
     }
 
     .train-card:hover {
         transform: none;
     }
-    
+
     .train-header {
-        padding: 8px; 
+        padding: 8px;
     }
-    
-    .train-header > div {
+
+    .train-header>div {
         flex-direction: column !important;
         align-items: flex-start !important;
     }
@@ -831,7 +860,7 @@ svg {
         border-left: none;
         padding: 16px !important;
         height: calc(100vh - 140px);
-        
+
         /* 手機板寬度改為 100%，預設推向下方或更右側 */
         right: -100% !important;
         top: 14vh;
@@ -855,11 +884,11 @@ svg {
         padding: 16px !important;
         height: calc(100vh - 140px);
         top: 14vh;
-        z-index: 2000; /* Ensure it stacks completely above the station list panel */
-        
+        z-index: 2000;
+        /* Ensure it stacks completely above the station list panel */
+
         /* Hide off-screen by default */
         right: -100% !important;
-        transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
     }
 
     #schedule-stops-container {
@@ -875,6 +904,7 @@ svg {
     #app-container.multi-split-mode #map-container {
         width: 100% !important;
     }
+
     #app-container.multi-split-mode #info-panel {
         right: 0 !important;
         width: 100% !important;

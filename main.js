@@ -138,7 +138,7 @@ function updateLabelForceSimulation(k) {
     });
 
     // 2. 結合全域 Top N (Global Maximum) 與 區域最大值
-    const maxAllowed = Math.floor(15 * Math.pow(k, 1.3));
+    const maxAllowed = Math.floor(25 * Math.pow(k, 1.3));
     let allowedCount = 0;
 
     nodes.forEach(node => {
