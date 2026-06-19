@@ -24,19 +24,19 @@ let globalScheduleData = []; // Cache full schedule lookup tables globally
 let currentActiveStationCode = null;
 let currentActiveStationName = null;
 let currentActiveStationAddress = null;
-let currentActiveStationCW = null;   
-let currentActiveStationCCW = null;  
+let currentActiveStationCW = null;
+let currentActiveStationCCW = null;
 
 // Sci-Fi 列車顏色調色盤
 const colorPalette = {
-    "普悠瑪": "#FF5252",  
-    "太魯閣": "#FFA726",  
-    "新自強": "#ce6be0",  
-    "PP自強": "#5ad362",    
-    "柴聯自強": "#baff66",    
-    "莒光": "#FFEE58",    
-    "區間快": "#5b7cfe",  
-    "區間": "#00ffff"     
+    "普悠瑪": "#FF5252",
+    "太魯閣": "#FFA726",
+    "新自強": "#ce6be0",
+    "PP自強": "#5ad362",
+    "柴聯自強": "#baff66",
+    "莒光": "#FFEE58",
+    "區間快": "#5b7cfe",
+    "區間": "#00ffff"
 };
 
 // 全域力學模擬器變數 (已廢棄，使用高性能靜態防重疊演算法)
@@ -48,7 +48,7 @@ const zoom = d3.zoom()
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
-        
+
         mainGroup.selectAll(".station")
             .attr("r", d => {
                 const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
@@ -82,7 +82,7 @@ function updateLabelForceSimulation(k) {
         const coords = getCoords(d);
         if (!coords) return null;
         const pos = projection([coords.lon, coords.lat]);
-        
+
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
         const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
 
@@ -111,11 +111,11 @@ function updateLabelForceSimulation(k) {
             node.isLocalMax = true;
             return;
         }
-        
+
         let isMax = true;
         for (let other of nodes) {
             if (other === node) continue;
-            
+
             const dist = Math.hypot(node.geoX - other.geoX, node.geoY - other.geoY);
             if (dist < searchRadius) {
                 if (other.trainCount > node.trainCount) {
@@ -147,7 +147,7 @@ function updateLabelForceSimulation(k) {
             isTopN = true;
             allowedCount++;
         }
-        
+
         // 允許顯示的條件：目前選擇的站點 OR 全域 Top N OR 區域最大值
         node.isAllowed = node.priority === 3 || isTopN || node.isLocalMax;
     });
@@ -184,13 +184,13 @@ function updateLabelForceSimulation(k) {
             for (let slot of slotDirections) {
                 const paddingX = 4 / k;
                 const paddingY = 2 / k;
-                
+
                 let cx = node.geoX;
                 let cy = node.geoY;
-                
+
                 if (slot.dx !== 0) cx += slot.dx * (node.r + node.width / 2 + paddingX + gap);
                 if (slot.dy !== 0) cy += slot.dy * (node.r + node.height / 2 + paddingY + gap);
-                
+
                 let box = {
                     x1: cx - node.width / 2,
                     x2: cx + node.width / 2,
@@ -216,25 +216,25 @@ function updateLabelForceSimulation(k) {
         const found = nodes.find(n => n.data === d);
         return (found && found.visible) ? "visible" : "hidden";
     })
-    .attr("x", d => {
-        const found = nodes.find(n => n.data === d);
-        return found ? found.offsetX : 0;
-    })
-    .attr("y", d => {
-        const found = nodes.find(n => n.data === d);
-        return found ? found.offsetY : 0;
-    });
+        .attr("x", d => {
+            const found = nodes.find(n => n.data === d);
+            return found ? found.offsetX : 0;
+        })
+        .attr("y", d => {
+            const found = nodes.find(n => n.data === d);
+            return found ? found.offsetY : 0;
+        });
 }
 
 function checkOverlap(box, allocatedBoxes, k) {
-    const paddingX = 4 / k; 
+    const paddingX = 4 / k;
     const paddingY = 2 / k;
 
     for (let b of allocatedBoxes) {
-        if (!(box.x2 + paddingX < b.x1 || 
-              box.x1 - paddingX > b.x2 || 
-              box.y2 + paddingY < b.y1 || 
-              box.y1 - paddingY > b.y2)) {
+        if (!(box.x2 + paddingX < b.x1 ||
+            box.x1 - paddingX > b.x2 ||
+            box.y2 + paddingY < b.y1 ||
+            box.y1 - paddingY > b.y2)) {
             return true;
         }
     }
@@ -270,29 +270,29 @@ function drawMap(twData, stationsData) {
             const pos = projection([coords.lon, coords.lat]);
             return `translate(${pos[0]}, ${pos[1]})`;
         })
-        .on("mouseover", function(event, d) {
+        .on("mouseover", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
             const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
-            
+
             d3.select(this).select(".station").attr("r", currentBaseRadius * 1.5);
-            
+
             const name = getStationName(d);
             tooltip.style("opacity", 1)
-                   .html(name)
-                   .style("left", (event.pageX + 10) + "px")
-                   .style("top", (event.pageY - 10) + "px");
+                .html(name)
+                .style("left", (event.pageX + 10) + "px")
+                .style("top", (event.pageY - 10) + "px");
         })
-        .on("mouseout", function(event, d) {
+        .on("mouseout", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            
+
             d3.select(this).select(".station").attr("r", Math.max(0.6, base / Math.sqrt(k)));
             tooltip.style("opacity", 0);
         })
-        .on("click", function(event, d) {
+        .on("click", function (event, d) {
             event.stopPropagation();
             const circleDOM = d3.select(this).select(".station").node();
             selectStationElement(circleDOM, d);
@@ -306,7 +306,7 @@ function drawMap(twData, stationsData) {
 
     stationGroups.append("text")
         .attr("class", "station-label")
-        .style("opacity", 0) 
+        .style("opacity", 0)
         .attr("x", 0)
         .text(d => getStationName(d));
 }
@@ -333,7 +333,7 @@ function getCoords(d) {
         const nums = parts.map(Number).filter(n => !isNaN(n));
         lat = nums.find(n => n > 21 && n < 26);
         lon = nums.find(n => n > 119 && n < 123);
-    } 
+    }
     else if (d['緯度'] && d['經度']) {
         lat = parseFloat(d['緯度']);
         lon = parseFloat(d['經度']);
@@ -353,13 +353,13 @@ async function loadData() {
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
-        
+
         // Cache the daily schedule file globally to handle standalone train search actions
         const dateStr = getTodayDateString();
         const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
         try {
             globalScheduleData = await d3.json(targetScheduleUrl);
-            
+
             if (globalStationsData && globalScheduleData) {
                 const stationCounts = new Map();
                 globalScheduleData.forEach(train => {
@@ -371,16 +371,16 @@ async function loadData() {
                         });
                     }
                 });
-                
+
                 globalStationsData.forEach(station => {
                     const name = getStationName(station);
                     station.trainCount = stationCounts.get(name) || 0;
                 });
             }
-        } catch(e) {
+        } catch (e) {
             console.warn("Global daily schedules pre-cache failure", e);
         }
-        
+
         drawMap(twData, globalStationsData);
         svg.call(zoom.transform, d3.zoomIdentity); // Trigger initial zoom event to render labels
         initUnifiedSearchAutocomplete(); // Launch unified combined search engine
@@ -399,25 +399,25 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
     if (activeStationSelection) {
         const oldSelection = activeStationSelection;
         activeStationSelection = null;
-        
+
         const currentTransform = d3.zoomTransform(svg.node());
         const k = currentTransform.k;
-        
+
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
-        
+
         d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
-    
+
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
 
     d3.select(circleDOM).classed("active", true);
     d3.select(circleDOM.parentNode).classed("active", true);
-    
+
     activeStationSelection = circleDOM;
-    
+
     const currentTransform = d3.zoomTransform(svg.node());
     const k = currentTransform.k;
     d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
@@ -425,12 +425,12 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
     const stationName = getStationName(d);
     const stationAddrTw = d.stationAddrTw || d['站址'] || d.address || "N/A";
-    
+
     const cwTarget = d.CW || "未知";
     const ccwTarget = d.CCW || "未知";
 
     showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget, targetTrainNumberToExpand, searchInjectedDelay);
-    
+
     if (k > 8.0) updateLabelForceSimulation(k);
 
     const coords = getCoords(d);
@@ -454,7 +454,7 @@ function getLatestTDXUrl(minuteOffset = 0) {
     const rawMinutes = now.getMinutes();
     const roundedMinutes = Math.floor(rawMinutes / 5) * 5;
     const minutes = String(roundedMinutes).padStart(2, '0');
-    
+
     const datetimeStr = `${month}${date}${hours}${minutes}`;
     return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${now.getTime()}`;
 }
@@ -464,14 +464,14 @@ function scheduleNextAutoRefresh() {
     const currentMinutes = now.getMinutes();
     let targetMinute = Math.floor(currentMinutes / 5) * 5 + 1;
     if (currentMinutes >= targetMinute) targetMinute += 5;
-    
+
     const targetTime = new Date(now);
     targetTime.setMinutes(targetMinute);
     targetTime.setSeconds(0);
     targetTime.setMilliseconds(0);
-    
+
     const timeoutMs = targetTime.getTime() - now.getTime();
-    
+
     setTimeout(async () => {
         if (currentActiveStationCode) {
             await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress, currentActiveStationCW, currentActiveStationCCW);
@@ -518,10 +518,10 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, ta
 
     let liveBoardData = null;
     let attempts = 0;
-    const maxAttempts = 3; 
+    const maxAttempts = 3;
 
     while (attempts < maxAttempts) {
-        let currentOffset = attempts * 5; 
+        let currentOffset = attempts * 5;
         let liveBoardUrl = getLatestTDXUrl(currentOffset);
 
         try {
@@ -580,8 +580,8 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, ta
 
 function getTrainTypeName(train, number) {
     const trainMapping = {
-        6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號', 
-        6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號', 
+        6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號',
+        6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號',
         6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
@@ -614,7 +614,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     trainsList.forEach(train => {
         const routeStops = train.data || [];
         const matchingStops = routeStops.filter(stop => stop.x === targetStationName);
-        
+
         if (matchingStops.length > 0) {
             const depStop = matchingStops[matchingStops.length - 1];
             const departureMinutes = depStop.y;
@@ -626,10 +626,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             const trainData = {
                 ...train,
                 calculatedDepMinutes: departureMinutes,
-                sortingMinutes: sortedSortingMinutes, 
+                sortingMinutes: sortedSortingMinutes,
                 formattedTime: convertMinutesToHHMM(departureMinutes),
                 formattedDelayedTime: convertMinutesToHHMM(sortedSortingMinutes),
-                delay: delayMinutesValue 
+                delay: delayMinutesValue
             };
 
             routeStops.forEach(stop => {
@@ -640,7 +640,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     });
 
     mainGroup.selectAll(".station-group")
-        .filter(function(d) {
+        .filter(function (d) {
             const name = getStationName(d);
             const isConnected = connectedStationNames.has(name) && d3.select(this).select(".station").node() !== activeStationSelection;
             if (isConnected) d.isConnectedState = true;
@@ -649,7 +649,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         .classed("connected", true);
 
     mainGroup.selectAll(".station")
-        .filter(function(d) {
+        .filter(function (d) {
             const name = getStationName(d);
             return connectedStationNames.has(name) && this !== activeStationSelection;
         })
@@ -661,7 +661,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     }
 
     combinedSortedTrains.sort((a, b) => a.sortingMinutes - b.sortingMinutes);
-    listContainer.innerHTML = ""; 
+    listContainer.innerHTML = "";
 
     let upcomingTrainDOMElement = null;
     let explicitTargetCardDOMElement = null;
@@ -703,11 +703,11 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         let delayBadgeHTML = "";
         let isActivelyInService = false;
         const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
-        
+
         if (train.delay !== undefined) {
             isActivelyInService = true;
-            delayBadgeHTML = train.delay === 0 
-                ? `<span class="delay-badge delay-ontime">準點</span>` 
+            delayBadgeHTML = train.delay === 0
+                ? `<span class="delay-badge delay-ontime">準點</span>`
                 : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
         } else {
             if (rawLiveBoardInfo) {
@@ -794,7 +794,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                     listContainer.querySelectorAll(".train-card").forEach(c => {
                         if (c !== explicitTargetCardDOMElement) c.classList.remove("expanded");
                     });
-                    
+
                     if (window.innerWidth > 768) {
                         explicitTargetCardDOMElement.classList.add("expanded");
                         const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
@@ -820,7 +820,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         });
     } else {
         if (!upcomingTrainDOMElement && listContainer.firstChild) {
-            upcomingTrainDOMElement = listContainer.querySelector(".train-card"); 
+            upcomingTrainDOMElement = listContainer.querySelector(".train-card");
         }
 
         if (upcomingTrainDOMElement) {
@@ -869,7 +869,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
 
     stopsContainer.innerHTML = groupedStops.map(stop => {
         const isCurrentStation = stop.stationName === targetStationName;
-        
+
         let scheduledString = "";
         if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
             scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
@@ -919,7 +919,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
             let matchedData = null;
             let matchedNode = null;
 
-            d3Circles.each(function(d) {
+            d3Circles.each(function (d) {
                 if (getStationName(d) === clickedName) {
                     matchedData = d;
                     matchedNode = this;
@@ -951,7 +951,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor) {
 
 function hexToRgb(hex) {
     let c = hex.substring(1);
-    if(c.length === 3) c = c[0]+c[0]+c[1]+c[1]+c[2]+c[2];
+    if (c.length === 3) c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
     const num = parseInt(c, 16);
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
@@ -961,7 +961,7 @@ function initUnifiedSearchAutocomplete() {
     const searchInput = document.getElementById("unified-search-input");
     const suggestionsDropdown = document.getElementById("unified-suggestions");
 
-    searchInput.addEventListener("input", function() {
+    searchInput.addEventListener("input", function () {
         const rawValue = this.value.trim();
         const normalizedValue = rawValue.replace(/台/g, '臺').toLowerCase();
         suggestionsDropdown.innerHTML = "";
@@ -978,10 +978,10 @@ function initUnifiedSearchAutocomplete() {
 
         let trainMatches = [];
         if (globalScheduleData) {
-            trainMatches = globalScheduleData.filter(t => 
+            trainMatches = globalScheduleData.filter(t =>
                 String(t.number).includes(normalizedValue)
             );
-            
+
             trainMatches.sort((a, b) => {
                 return parseInt(a.number, 10) - parseInt(b.number, 10);
             });
@@ -1003,7 +1003,7 @@ function initUnifiedSearchAutocomplete() {
                 const item = document.createElement("div");
                 item.className = "suggestion-item";
                 item.textContent = name;
-                
+
                 item.addEventListener("click", () => {
                     searchInput.value = "";
                     suggestionsDropdown.style.display = "none";
@@ -1027,8 +1027,8 @@ function initUnifiedSearchAutocomplete() {
 
                 const item = document.createElement("div");
                 item.className = "suggestion-item";
-                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType,trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode} → ${endNode})</span>`;
-                
+                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType, trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode} → ${endNode})</span>`;
+
                 item.addEventListener("click", () => {
                     searchInput.value = "";
                     suggestionsDropdown.style.display = "none";
@@ -1041,7 +1041,7 @@ function initUnifiedSearchAutocomplete() {
         suggestionsDropdown.style.display = "block";
     });
 
-    searchInput.addEventListener("keydown", function(e) {
+    searchInput.addEventListener("keydown", function (e) {
         if (e.key === "Enter") {
             const val = this.value.trim().replace(/台/g, '臺');
             if (!val) return;
@@ -1066,7 +1066,7 @@ function triggerSelectionByStationName(targetName) {
     let matchedData = null;
     let matchedNode = null;
 
-    d3Circles.each(function(d) {
+    d3Circles.each(function (d) {
         if (getStationName(d).toLowerCase() === targetName.toLowerCase()) {
             matchedData = d;
             matchedNode = this;
@@ -1118,7 +1118,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
             try {
                 liveBoardData = await d3.json(getLatestTDXUrl(attempts * 5));
                 if (liveBoardData) break;
-            } catch(e) {}
+            } catch (e) { }
         }
         if (liveBoardData && Array.isArray(liveBoardData.TrainLiveBoards)) {
             const liveInfo = liveBoardData.TrainLiveBoards.find(b => String(b.TrainNo) === String(trainNumber));
@@ -1126,7 +1126,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
                 delayMinutesValue = parseInt(liveInfo.DelayTime, 10);
             }
         }
-    } catch(e) {
+    } catch (e) {
         console.warn("Live board fetch failure during train routing selection", e);
     }
 
@@ -1135,7 +1135,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
 
     const now = new Date();
     let currentHours = now.getHours();
-    if (currentHours < 4) currentHours += 24; 
+    if (currentHours < 4) currentHours += 24;
     const currentMinutesMidnight = currentHours * 60 + now.getMinutes();
 
     const firstStop = groupedStops[0];
@@ -1148,7 +1148,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
     } else if (currentMinutesMidnight > (lastStop.depMinutes + delayMinutesValue)) {
         targetStationName = lastStop.stationName;
     } else {
-        const nextUpcomingStop = groupedStops.find(stop => 
+        const nextUpcomingStop = groupedStops.find(stop =>
             (stop.depMinutes + delayMinutesValue) >= currentMinutesMidnight
         );
         targetStationName = nextUpcomingStop ? nextUpcomingStop.stationName : lastStop.stationName;
@@ -1160,7 +1160,7 @@ async function triggerSelectionByTrainNumber(trainNumber) {
         let matchedNodeData = null;
         let matchedDOMNode = null;
 
-        d3Circles.each(function(d) {
+        d3Circles.each(function (d) {
             if (getStationName(d) === targetStationName) {
                 matchedNodeData = d;
                 matchedDOMNode = this;
@@ -1187,7 +1187,7 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
     appContainer.classList.remove("split-mode");
     appContainer.classList.remove("multi-split-mode");
     document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
-    
+
     currentActiveStationCode = null;
     currentActiveStationName = null;
     currentActiveStationAddress = null;
@@ -1200,20 +1200,20 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
     if (activeStationSelection) {
         const oldSelection = activeStationSelection;
         activeStationSelection = null;
-        
+
         const currentTransform = d3.zoomTransform(svg.node());
         const k = currentTransform.k;
-        
+
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
-        
+
         d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
     }
-    
+
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
-    
+
     svg.transition()
         .duration(750)
         .call(zoom.transform, d3.zoomIdentity);
