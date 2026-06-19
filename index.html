@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,27 +9,28 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://unpkg.com/topojson@3"></script>
 </head>
+
 <body>
     <div class="header">
         <div class="header-title-group">
             <h1>臺鐵列車動態</h1>
         </div>
         <div class="search-wrap">
+            <button id="reset-widths-btn" class="reset-btn" style="display: none;">重設</button>
             <div class="search-container">
                 <input type="text" id="unified-search-input" placeholder="搜尋車站或車次編號..." autocomplete="off">
                 <div id="unified-suggestions" class="suggestions-dropdown"></div>
             </div>
-            <button id="reset-widths-btn" class="reset-btn" style="display: none;">重設</button>
         </div>
     </div>
-    
+
     <div id="tooltip" class="tooltip"></div>
 
     <div id="app-container">
         <div id="map-container">
             <div id="map"></div>
         </div>
-        
+
         <div id="info-panel">
             <div id="info-panel-meta-container">
                 <div id="station-details"></div>
@@ -36,9 +38,9 @@
                     <div id="close-panel-btn" class="close-btn">&times;</div>
                 </div>
             </div>
-            
+
             <hr>
-            
+
             <div id="unified-train-wrapper">
                 <div class="sticky-direction-header">
                     <div class="dir-indicator ccw-ind">逆行</div>
@@ -60,11 +62,13 @@
                     <div id="close-schedule-btn" class="close-btn">&times;</div>
                 </div>
             </div>
-            <hr><div id="schedule-stops-container">
+            <hr>
+            <div id="schedule-stops-container">
                 <p class="placeholder-text">選擇列車以顯示停靠站...</p>
             </div>
         </div>
     </div>
     <script src="main.js"></script>
 </body>
+
 </html>

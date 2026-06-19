@@ -743,10 +743,6 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                 </div>
                 <span class="train-sub-title">${routeSubtitleText}</span>
             </div>
-            <div class="train-details">
-                <div style="margin-bottom: 6px;">${startText} → ${endText} ${currentPositionHTML}</div>
-                <span style="color: #64748b; display: inline-block; margin-top: 6px;">備註：${noteText}</span>
-            </div>
         `;
 
         card.querySelector(".train-header").addEventListener("click", () => {
@@ -760,7 +756,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             } else {
                 card.classList.add("expanded");
                 appContainer.classList.add("multi-split-mode");
-                renderSchedulePanelContent(train, targetStationName, neonColor);
+                renderSchedulePanelContent(train, targetStationName, neonColor, rawLiveBoardInfo);
             }
         });
 
@@ -800,14 +796,16 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                         const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
-                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
+                            const explicitLiveBoard = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(targetTrainNumberToExpand));
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor, explicitLiveBoard);
                         }
                     } else {
                         const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
                         if (matchedTrainObj) {
                             const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
                             appContainer.classList.add("multi-split-mode");
-                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor);
+                            const explicitLiveBoard = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(targetTrainNumberToExpand));
+                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor, explicitLiveBoard);
                         }
                     }
                 }
@@ -836,13 +834,24 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
     }
 }
 
-function renderSchedulePanelContent(train, targetStationName, neonColor) {
+function renderSchedulePanelContent(train, targetStationName, neonColor, rawLiveBoardInfo) {
     const trainType = train.train || "N/A";
     const trainNumber = train.number || "N/A";
     const infoObj = train.info || {};
 
     document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
-    document.getElementById("schedule-train-route").innerText = `${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}`;
+    
+    let currentPositionHTML = (train.delay !== undefined && rawLiveBoardInfo?.StationName?.Zh_tw)
+        ? `<div style="font-size: 13px; color: #00ffaa; margin-top: 6px; font-weight: bold;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</div>`
+        : "";
+
+    const noteText = infoObj.note || "無";
+    
+    document.getElementById("schedule-train-route").innerHTML = `
+        <div style="font-size: 15px; margin-top: 4px;">${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}</div>
+        ${currentPositionHTML}
+        <div style="color: #64748b; font-size: 12px; margin-top: 6px;">備註：${noteText}</div>
+    `;
 
     const stopsContainer = document.getElementById("schedule-stops-container");
     stopsContainer.innerHTML = "";
