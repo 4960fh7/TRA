@@ -838,8 +838,14 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
     const trainType = train.train || "N/A";
     const trainNumber = train.number || "N/A";
     const infoObj = train.info || {};
+    const viaLine = infoObj.via || "-";
 
-    document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${getTrainTypeName(trainType, trainNumber)}</div>`;
+    let titleText = getTrainTypeName(trainType, trainNumber);
+    if (viaLine !== "-") {
+        titleText += ` (${viaLine.replace(/線/g, '')})`;
+    }
+
+    document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${titleText}</div>`;
     
     let currentPositionHTML = (train.delay !== undefined && rawLiveBoardInfo?.StationName?.Zh_tw)
         ? `<div style="font-size: 13px; color: #00ffaa; margin-top: 6px; font-weight: bold;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</div>`
