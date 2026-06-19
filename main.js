@@ -56,13 +56,8 @@ const zoom = d3.zoom()
             })
             .style("stroke-width", `${0.3 / k}px`);
 
-        // 當縮放比例大於 8 時顯示標籤並重新計算防重疊布局
-        if (k > 8.0) {
-            mainGroup.selectAll(".station-label").style("opacity", 1);
-            updateLabelForceSimulation(k);
-        } else {
-            mainGroup.selectAll(".station-label").style("opacity", 0);
-        }
+        mainGroup.selectAll(".station-label").style("opacity", 1);
+        updateLabelForceSimulation(k);
     });
 
 svg.call(zoom);
@@ -83,7 +78,7 @@ function updateLabelForceSimulation(k) {
 
     const allocatedBoxes = [];
 
-    const nodes = globalStationsData.map(d => {
+    let nodes = globalStationsData.map(d => {
         const coords = getCoords(d);
         if (!coords) return null;
         const pos = projection([coords.lon, coords.lat]);
@@ -99,14 +94,48 @@ function updateLabelForceSimulation(k) {
             data: d,
             geoX: pos[0],
             geoY: pos[1],
+            name: name,
             r: r,
             width: estWidth,
             height: estHeight,
-            priority: isCurrentActive ? 3 : (d.isConnectedState ? 2 : 1)
+            priority: isCurrentActive ? 3 : (d.isConnectedState ? 2 : 1),
+            trainCount: d.trainCount || 0
         };
     }).filter(n => n !== null);
 
-    nodes.sort((a, b) => b.priority - a.priority);
+    const searchRadius = 40 / Math.pow(k, 0.8);
+
+    nodes = nodes.map(node => {
+        if (node.priority === 3) {
+            node.isLocalMax = true;
+            return node;
+        }
+        
+        let isMax = true;
+        for (let other of nodes) {
+            if (other === node) continue;
+            
+            const dist = Math.hypot(node.geoX - other.geoX, node.geoY - other.geoY);
+            if (dist < searchRadius) {
+                if (other.trainCount > node.trainCount) {
+                    isMax = false;
+                    break;
+                } else if (other.trainCount === node.trainCount) {
+                    if (other.name > node.name) {
+                        isMax = false;
+                        break;
+                    }
+                }
+            }
+        }
+        node.isLocalMax = isMax;
+        return node;
+    });
+
+    nodes.sort((a, b) => {
+        if (b.priority !== a.priority) return b.priority - a.priority;
+        return b.trainCount - a.trainCount;
+    });
 
     // 將所有車站圓圈加入已分配的盒子中，作為障礙物
     nodes.forEach(node => {
@@ -136,30 +165,32 @@ function updateLabelForceSimulation(k) {
     nodes.forEach(node => {
         let placed = false;
 
-        for (let slot of slotDirections) {
-            const paddingX = 4 / k;
-            const paddingY = 2 / k;
-            
-            let cx = node.geoX;
-            let cy = node.geoY;
-            
-            if (slot.dx !== 0) cx += slot.dx * (node.r + node.width / 2 + paddingX + gap);
-            if (slot.dy !== 0) cy += slot.dy * (node.r + node.height / 2 + paddingY + gap);
-            
-            let box = {
-                x1: cx - node.width / 2,
-                x2: cx + node.width / 2,
-                y1: cy - node.height / 2,
-                y2: cy + node.height / 2,
-                data: node.data
-            };
+        if (node.isLocalMax) {
+            for (let slot of slotDirections) {
+                const paddingX = 4 / k;
+                const paddingY = 2 / k;
+                
+                let cx = node.geoX;
+                let cy = node.geoY;
+                
+                if (slot.dx !== 0) cx += slot.dx * (node.r + node.width / 2 + paddingX + gap);
+                if (slot.dy !== 0) cy += slot.dy * (node.r + node.height / 2 + paddingY + gap);
+                
+                let box = {
+                    x1: cx - node.width / 2,
+                    x2: cx + node.width / 2,
+                    y1: cy - node.height / 2,
+                    y2: cy + node.height / 2,
+                    data: node.data
+                };
 
-            if (!checkOverlap(box, allocatedBoxes, k)) {
-                node.offsetX = cx - node.geoX;
-                node.offsetY = cy - node.geoY;
-                allocatedBoxes.push(box);
-                placed = true;
-                break;
+                if (!checkOverlap(box, allocatedBoxes, k)) {
+                    node.offsetX = cx - node.geoX;
+                    node.offsetY = cy - node.geoY;
+                    allocatedBoxes.push(box);
+                    placed = true;
+                    break;
+                }
             }
         }
 
@@ -313,6 +344,24 @@ async function loadData() {
         const targetScheduleUrl = `https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json?t=${new Date().getTime()}`;
         try {
             globalScheduleData = await d3.json(targetScheduleUrl);
+            
+            if (globalStationsData && globalScheduleData) {
+                const stationCounts = new Map();
+                globalScheduleData.forEach(train => {
+                    if (train.data && Array.isArray(train.data)) {
+                        train.data.forEach(stop => {
+                            if (stop.x) {
+                                stationCounts.set(stop.x, (stationCounts.get(stop.x) || 0) + 1);
+                            }
+                        });
+                    }
+                });
+                
+                globalStationsData.forEach(station => {
+                    const name = getStationName(station);
+                    station.trainCount = stationCounts.get(name) || 0;
+                });
+            }
         } catch(e) {
             console.warn("Global daily schedules pre-cache failure", e);
         }
