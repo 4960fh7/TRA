@@ -481,37 +481,36 @@ function scheduleNextAutoRefresh() {
 }
 
 function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
-    let delayBadgeHTML = "";
-    let isActivelyInService = false;
-
-    if (train.delay !== undefined) {
-        isActivelyInService = true;
-        delayBadgeHTML = train.delay === 0
-            ? `<span class="delay-badge delay-ontime">準點</span>`
-            : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
-    } else {
-        if (rawLiveBoardInfo) {
-            if (rawLiveBoardInfo.TrainStationStatus === 0) delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
-            else if (rawLiveBoardInfo.TrainStationStatus === 2) delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
-            else {
-                delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
-                isActivelyInService = true;
-            }
-        } else {
-            const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
-            const lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
-            
-            if (currentMinutesMidnight < firstStopMinutes) {
-                delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
-            } else if (currentMinutesMidnight > lastStopMinutes + 30) {
-                delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
-            } else {
-                delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
-            }
-        }
-    }
+    const apiStatus = rawLiveBoardInfo ? rawLiveBoardInfo.TrainStationStatus : null;
     
-    return { delayBadgeHTML, isActivelyInService };
+    const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
+    const lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
+    
+    const isTheoreticallyBefore = currentMinutesMidnight < firstStopMinutes;
+    const isTheoreticallyAfter = currentMinutesMidnight > lastStopMinutes + 30;
+
+    // If there's an active delay > 0, always prioritize displaying the delay
+    if (train.delay !== undefined && train.delay > 0) {
+        return { delayBadgeHTML: `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`, isActivelyInService: true };
+    }
+
+    // Catch explicit or theoretical "Not Departed" states (suppress "準點")
+    if (apiStatus === 0 || (apiStatus === null && isTheoreticallyBefore)) {
+        return { delayBadgeHTML: `<span class="delay-badge delay-status">未發車</span>`, isActivelyInService: false };
+    }
+
+    // Catch explicit or theoretical "Off Duty" states (suppress "準點")
+    if (apiStatus === 2 || (apiStatus === null && isTheoreticallyAfter)) {
+        return { delayBadgeHTML: `<span class="delay-badge delay-status">已收班</span>`, isActivelyInService: false };
+    }
+
+    // If it's actively running and delay is exactly 0
+    if (train.delay === 0) {
+        return { delayBadgeHTML: `<span class="delay-badge delay-ontime">準點</span>`, isActivelyInService: true };
+    }
+
+    // Fallback if status is unknown and no delay data
+    return { delayBadgeHTML: `<span class="delay-badge delay-unknown">未知</span>`, isActivelyInService: true };
 }
 
 async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, targetTrainNumberToExpand = null, searchInjectedDelay = undefined) {
