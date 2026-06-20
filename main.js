@@ -482,16 +482,16 @@ function scheduleNextAutoRefresh() {
 
 function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
     const delayMinutes = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
-    
+
     const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
     let lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
-    
+
     if (lastStopMinutes < firstStopMinutes) {
         lastStopMinutes += 1440; // Unroll midnight crossing
     }
 
     let currentMins = currentMinutesMidnight;
-    
+
     // If the time is early morning, and the train starts late night, we are likely observing it post-midnight
     if (currentMins < firstStopMinutes && currentMins < 4 * 60 && firstStopMinutes > 20 * 60) {
         currentMins += 1440;
@@ -737,33 +737,24 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const viaSegment = (viaLine !== "-") ? `經${viaLine} ` : "";
         const routeSubtitleText = `${viaSegment}往 ${endStationTrimmed}`;
 
-        const startText = infoObj.start || "N/A";
-        const endText = rawEndStr || "N/A";
-        const noteText = infoObj.note || "無";
-
         const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
         const badgeInfo = getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight);
         const delayBadgeHTML = badgeInfo.delayBadgeHTML;
-        const isActivelyInService = badgeInfo.isActivelyInService;
 
         let timeDisplayHTML = (train.delay !== undefined && train.delay > 0)
             ? `<span class="scheduled-time-strike">${train.formattedTime}</span><strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>`
             : `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
 
-        let currentPositionHTML = (isActivelyInService && rawLiveBoardInfo?.StationName?.Zh_tw)
-            ? `<br><span style="font-size: 11px;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</span>`
-            : "";
-
         card.innerHTML = `
-            <div class="train-header">
-                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-                    <div>
-                        ${timeDisplayHTML}<br>
-                        <strong style="color: ${neonColor}; font-weight: bold;">${getTrainTypeName(trainType, trainNumber)}</strong>
-                    </div>
+            <div class="train-header" style="display: flex; flex-direction: column; gap: 4px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                    <div style="font-size: 14px;">${timeDisplayHTML}</div>
                     ${delayBadgeHTML}
                 </div>
-                <span class="train-sub-title">${routeSubtitleText}</span>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                    <strong style="color: ${neonColor}; font-weight: bold; font-size: 13px;">${getTrainTypeName(trainType, trainNumber)}</strong>
+                    <span class="train-sub-title" style="margin-top: 0; text-align: right;">${routeSubtitleText}</span>
+                </div>
             </div>
         `;
 
@@ -892,7 +883,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
             <span class="note-expanded" style="display: none;">備註：${noteText}</span>
         `;
     }
-    
+
     const routeContainer = document.getElementById("schedule-train-route");
     routeContainer.innerHTML = `
         <div style="font-size: 15px; margin-top: 4px;">${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}</div>

@@ -865,16 +865,6 @@ svg {
         padding: 8px;
     }
 
-    .train-header>div {
-        flex-direction: column !important;
-        align-items: flex-start !important;
-    }
-
-    .train-header .delay-badge {
-        margin-top: 6px !important;
-        align-self: flex-start !important;
-    }
-
     #info-panel {
         width: 100% !important;
         max-width: 100% !important;
