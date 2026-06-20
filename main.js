@@ -746,7 +746,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             : `<strong style="color: ${neonColor}">${train.formattedTime}</strong>`;
 
         card.innerHTML = `
-            <div class="train-header" style="display: flex; flex-direction: column; gap: 4px;">
+            <div class="train-header" style="display: flex; flex-direction: column; gap: 2px;">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
                     <div style="font-size: 14px;">${timeDisplayHTML}</div>
                     ${delayBadgeHTML}
@@ -761,10 +761,11 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         card.querySelector(".train-header").addEventListener("click", () => {
             const appContainer = document.getElementById("app-container");
             const isCurrentlyActive = card.classList.contains("expanded");
+            const isSchedulePanelOpen = appContainer.classList.contains("multi-split-mode");
 
             listContainer.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
 
-            if (isCurrentlyActive) {
+            if (isCurrentlyActive && isSchedulePanelOpen) {
                 appContainer.classList.remove("multi-split-mode");
             } else {
                 card.classList.add("expanded");
@@ -813,13 +814,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
                             renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor, explicitLiveBoard);
                         }
                     } else {
-                        const matchedTrainObj = combinedSortedTrains.find(t => String(t.number) === String(targetTrainNumberToExpand));
-                        if (matchedTrainObj) {
-                            const neonColor = colorPalette[matchedTrainObj.train] || "#64748b";
-                            appContainer.classList.add("multi-split-mode");
-                            const explicitLiveBoard = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(targetTrainNumberToExpand));
-                            renderSchedulePanelContent(matchedTrainObj, targetStationName, neonColor, explicitLiveBoard);
-                        }
+                        explicitTargetCardDOMElement.classList.add("expanded");
                     }
                 }
 
