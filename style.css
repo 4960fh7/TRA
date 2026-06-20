@@ -593,20 +593,42 @@ svg {
 
 .tooltip {
     position: absolute;
-    opacity: 0;
-    background: #0a1120;
-    color: #00f0ff;
-    border: 1px solid #00f0ff;
+    text-align: center;
     padding: 6px 12px;
-    border-radius: 2px;
+    font: 13px "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-weight: bold;
+    background: rgba(13, 21, 38, 0.95);
+    color: #e2e8f0;
+    border: 1px solid #1e293b;
+    border-radius: 4px;
     pointer-events: none;
-    font-size: 12px;
-    font-family: monospace;
-    box-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
-    transform: translate(-50%, -100%);
-    margin-top: -10px;
-    z-index: 100;
-    white-space: nowrap;
+    opacity: 0;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    transition: opacity 0.2s;
+    letter-spacing: 1px;
+}
+
+.topology-toggle-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    background: rgba(13, 21, 38, 0.9);
+    border: 1px solid #00f0ff;
+    color: #00f0ff;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
+    transition: all 0.2s ease;
+}
+
+.topology-toggle-btn:hover {
+    background: rgba(0, 240, 255, 0.1);
+    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
 }
 
 #unified-train-list::-webkit-scrollbar,

@@ -252,6 +252,110 @@ function drawMap(twData, stationsData) {
 
     const counties = topojson.feature(twData, twData.objects[objectsKey]).features;
 
+    // Topology View Toggle and Logic
+    window.isTopologyMode = false;
+    window.topologyPathElement = mainGroup.append("path")
+        .attr("class", "topology-line")
+        .style("fill", "none")
+        .style("stroke", "#00f0ff")
+        .style("stroke-width", 2)
+        .style("opacity", 0)
+        .style("pointer-events", "none");
+
+    window.toggleTopologyMode = function() {
+        isTopologyMode = !isTopologyMode;
+        const btn = document.getElementById("topology-toggle-btn");
+        if (isTopologyMode) {
+            if (btn) btn.innerHTML = '<i class="fas fa-map"></i> 切換地圖';
+            enableTopologyView();
+        } else {
+            if (btn) btn.innerHTML = '<i class="fas fa-project-diagram"></i> 切換拓樸圖';
+            disableTopologyView();
+        }
+    };
+
+    function enableTopologyView() {
+        mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
+        
+        const spacingX = 80;
+        const spacingY = 80;
+        const totalItems = stationsData.length;
+        const itemsPerRow = Math.max(5, Math.floor(width / spacingX));
+        
+        let pathData = [];
+        
+        stationsData.forEach((d, i) => {
+            const row = Math.floor(i / itemsPerRow);
+            let col = i % itemsPerRow;
+            
+            // Zig-zag to create a continuous connected path
+            if (row % 2 === 1) {
+                col = itemsPerRow - 1 - col;
+            }
+            
+            d.topoX = (col * spacingX) + (width - (itemsPerRow - 1) * spacingX) / 2;
+            d.topoY = (row * spacingY) + 100;
+            
+            pathData.push([d.topoX, d.topoY]);
+            d.isAllowed = true;
+        });
+
+        // Set the SVG viewport bounding box manually since D3 zoom might be active
+        svg.transition().duration(750).call(
+            zoom.transform, 
+            d3.zoomIdentity.translate(0, 0).scale(1)
+        );
+
+        const stationGroups = mainGroup.selectAll(".station-group");
+        
+        stationGroups.transition().duration(750)
+            .attr("transform", d => `translate(${d.topoX}, ${d.topoY})`);
+            
+        stationGroups.selectAll(".station").transition().duration(750)
+            .attr("r", 6)
+            .style("fill", "#00f0ff");
+
+        mainGroup.selectAll(".station-label")
+            .style("visibility", "visible")
+            .style("pointer-events", "none")
+            .transition().duration(750)
+            .style("opacity", 1)
+            .attr("x", 0)
+            .attr("y", -14)
+            .style("font-size", "10px");
+
+        const lineGen = d3.line().x(d => d[0]).y(d => d[1]);
+        topologyPathElement
+            .attr("d", lineGen(pathData))
+            .transition().duration(750)
+            .style("opacity", 0.5);
+    }
+
+    function disableTopologyView() {
+        mainGroup.selectAll(".county").transition().duration(500).style("opacity", 1);
+        
+        const stationGroups = mainGroup.selectAll(".station-group");
+        
+        stationGroups.transition().duration(750)
+            .attr("transform", d => {
+                const coords = getCoords(d);
+                if (!coords) return "translate(-9999, -9999)";
+                const pos = projection([coords.lon, coords.lat]);
+                return `translate(${pos[0]}, ${pos[1]})`;
+            });
+            
+        stationGroups.selectAll(".station").transition().duration(750)
+            .attr("r", 4)
+            .style("fill", "#ef4444");
+            
+        topologyPathElement.transition().duration(500).style("opacity", 0);
+        
+        // Let the label tick simulation handle restoring labels
+        if (!activeStationSelection) {
+            mainGroup.selectAll(".station-label").style("opacity", 0);
+        }
+    }
+
     mainGroup.selectAll(".county")
         .data(counties)
         .enter()
