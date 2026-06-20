@@ -591,6 +591,16 @@ svg {
     fill: #00ffaa !important;
 }
 
+/* 狀態 C：列車停靠站 -> 橘色 (Circle & Label) */
+.station-group.train-stop .station {
+    fill: #ff9900 !important;
+    filter: drop-shadow(0 0 5px #ff9900);
+}
+
+.station-group.train-stop .station-label {
+    fill: #ff9900 !important;
+}
+
 .tooltip {
     position: absolute;
     text-align: center;
@@ -612,7 +622,7 @@ svg {
 .topology-toggle-btn {
     position: absolute;
     top: 20px;
-    right: 20px;
+    left: 20px;
     z-index: 1000;
     background: rgba(13, 21, 38, 0.9);
     border: 1px solid #00f0ff;

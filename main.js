@@ -519,6 +519,18 @@ function drawMap(twData, stationsData) {
         
         if (!activeStationSelection) {
             mainGroup.selectAll(".station-label").style("opacity", 0);
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+        } else {
+            const d = d3.select(activeStationSelection).datum();
+            const coords = getCoords(d);
+            if (coords) {
+                const projectedCoords = projection([coords.lon, coords.lat]);
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
+            } else {
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+            }
         }
     }
 
@@ -689,6 +701,7 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
+    mainGroup.selectAll(".station-group").classed("train-stop", false);
 
     d3.select(circleDOM).classed("active", true);
     d3.select(circleDOM.parentNode).classed("active", true);
@@ -1210,6 +1223,9 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
         }
     }
 
+    const targetStationNames = new Set(groupedStops.map(s => s.stationName).filter(n => n !== targetStationName));
+    mainGroup.selectAll(".station-group").classed("train-stop", d => targetStationNames.has(getStationName(d)));
+
     const delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
 
     stopsContainer.innerHTML = groupedStops.map(stop => {
@@ -1525,6 +1541,7 @@ document.getElementById("close-schedule-btn").addEventListener("click", () => {
     appContainer.classList.remove("multi-split-mode");
     appContainer.classList.add("split-mode");
     document.querySelectorAll(".train-card").forEach(c => c.classList.remove("expanded"));
+    mainGroup.selectAll(".station-group").classed("train-stop", false);
 });
 
 document.getElementById("close-panel-btn").addEventListener("click", () => {
@@ -1561,6 +1578,7 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
+    mainGroup.selectAll(".station-group").classed("train-stop", false);
 
     if (window.isTopologyMode) {
         const cx = 6 * 35;
