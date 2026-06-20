@@ -481,41 +481,43 @@ function scheduleNextAutoRefresh() {
 }
 
 function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
-    const apiStatus = rawLiveBoardInfo ? rawLiveBoardInfo.TrainStationStatus : null;
+    const delayMinutes = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
     
     const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
-    const lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
+    let lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
     
-    let duration = lastStopMinutes - firstStopMinutes;
-    if (duration < 0) duration += 1440; // Handle midnight crossing
-
-    let elapsed = currentMinutesMidnight - firstStopMinutes;
-    if (elapsed < -720) elapsed += 1440;
-    
-    const isTheoreticallyBefore = elapsed < 0 && elapsed > -720;
-    const isTheoreticallyAfter = elapsed > duration + 30;
-
-    // If there's an active delay > 0, always prioritize displaying the delay
-    if (train.delay !== undefined && train.delay > 0) {
-        return { delayBadgeHTML: `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`, isActivelyInService: true };
+    if (lastStopMinutes < firstStopMinutes) {
+        lastStopMinutes += 1440; // Unroll midnight crossing
     }
 
-    // Catch explicit or theoretical "Not Departed" states (suppress "準點")
-    if (apiStatus === 0 || (apiStatus === null && isTheoreticallyBefore)) {
+    let currentMins = currentMinutesMidnight;
+    
+    // If the time is early morning, and the train starts late night, we are likely observing it post-midnight
+    if (currentMins < firstStopMinutes && currentMins < 4 * 60 && firstStopMinutes > 20 * 60) {
+        currentMins += 1440;
+    }
+
+    const isBeforeDeparture = currentMins < firstStopMinutes;
+    const isAfterArrival = currentMins > (lastStopMinutes + delayMinutes);
+
+    if (isBeforeDeparture) {
         return { delayBadgeHTML: `<span class="delay-badge delay-status">未發車</span>`, isActivelyInService: false };
     }
 
-    // Catch explicit or theoretical "Off Duty" states (suppress "準點")
-    if (apiStatus === 2 || (apiStatus === null && isTheoreticallyAfter)) {
+    if (isAfterArrival) {
         return { delayBadgeHTML: `<span class="delay-badge delay-status">已收班</span>`, isActivelyInService: false };
     }
 
-    // If it's actively running and delay is exactly 0
-    if (train.delay === 0) {
-        return { delayBadgeHTML: `<span class="delay-badge delay-ontime">準點</span>`, isActivelyInService: true };
+    // It is actively running
+    if (train.delay !== undefined) {
+        if (train.delay === 0) {
+            return { delayBadgeHTML: `<span class="delay-badge delay-ontime">準點</span>`, isActivelyInService: true };
+        } else {
+            return { delayBadgeHTML: `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`, isActivelyInService: true };
+        }
     }
 
-    // Fallback if status is unknown and no delay data
+    // Fallback
     return { delayBadgeHTML: `<span class="delay-badge delay-unknown">未知</span>`, isActivelyInService: true };
 }
 
