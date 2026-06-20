@@ -480,6 +480,40 @@ function scheduleNextAutoRefresh() {
     }, timeoutMs);
 }
 
+function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
+    let delayBadgeHTML = "";
+    let isActivelyInService = false;
+
+    if (train.delay !== undefined) {
+        isActivelyInService = true;
+        delayBadgeHTML = train.delay === 0
+            ? `<span class="delay-badge delay-ontime">準點</span>`
+            : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
+    } else {
+        if (rawLiveBoardInfo) {
+            if (rawLiveBoardInfo.TrainStationStatus === 0) delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+            else if (rawLiveBoardInfo.TrainStationStatus === 2) delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+            else {
+                delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+                isActivelyInService = true;
+            }
+        } else {
+            const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
+            const lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
+            
+            if (currentMinutesMidnight < firstStopMinutes) {
+                delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
+            } else if (currentMinutesMidnight > lastStopMinutes + 30) {
+                delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
+            } else {
+                delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
+            }
+        }
+    }
+    
+    return { delayBadgeHTML, isActivelyInService };
+}
+
 async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, targetTrainNumberToExpand = null, searchInjectedDelay = undefined) {
     currentActiveStationCode = code;
     currentActiveStationName = name;
@@ -700,29 +734,10 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const endText = rawEndStr || "N/A";
         const noteText = infoObj.note || "無";
 
-        let delayBadgeHTML = "";
-        let isActivelyInService = false;
         const rawLiveBoardInfo = liveBoardData?.TrainLiveBoards?.find(b => String(b.TrainNo) === String(trainNumber));
-
-        if (train.delay !== undefined) {
-            isActivelyInService = true;
-            delayBadgeHTML = train.delay === 0
-                ? `<span class="delay-badge delay-ontime">準點</span>`
-                : `<span class="delay-badge delay-late">晚 ${train.delay} 分</span>`;
-        } else {
-            if (rawLiveBoardInfo) {
-                if (rawLiveBoardInfo.TrainStationStatus === 0) delayBadgeHTML = `<span class="delay-badge delay-status">未發車</span>`;
-                else if (rawLiveBoardInfo.TrainStationStatus === 2) delayBadgeHTML = `<span class="delay-badge delay-status">已收班</span>`;
-                else {
-                    delayBadgeHTML = `<span class="delay-badge delay-unknown">未知</span>`;
-                    isActivelyInService = true;
-                }
-            } else {
-                delayBadgeHTML = (currentMinutesMidnight > train.calculatedDepMinutes + 30)
-                    ? `<span class="delay-badge delay-status">已收班</span>`
-                    : `<span class="delay-badge delay-status">未發車</span>`;
-            }
-        }
+        const badgeInfo = getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight);
+        const delayBadgeHTML = badgeInfo.delayBadgeHTML;
+        const isActivelyInService = badgeInfo.isActivelyInService;
 
         let timeDisplayHTML = (train.delay !== undefined && train.delay > 0)
             ? `<span class="scheduled-time-strike">${train.formattedTime}</span><strong style="color: ${neonColor}">${train.formattedDelayedTime}</strong>`
@@ -845,9 +860,18 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
         titleText += ` (${viaLine.replace(/線/g, '')})`;
     }
 
-    document.getElementById("schedule-train-title").innerHTML = `<div style="color: ${neonColor}">${titleText}</div>`;
+    const now = new Date();
+    const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
+    const badgeInfo = getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight);
 
-    let currentPositionHTML = (train.delay !== undefined && rawLiveBoardInfo?.StationName?.Zh_tw)
+    document.getElementById("schedule-train-title").innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <div style="color: ${neonColor}">${titleText}</div>
+            ${badgeInfo.delayBadgeHTML}
+        </div>
+    `;
+
+    let currentPositionHTML = (badgeInfo.isActivelyInService && rawLiveBoardInfo?.StationName?.Zh_tw)
         ? `<div style="font-size: 13px; color: #00ffaa; margin-top: 6px; font-weight: bold;">目前位置：${rawLiveBoardInfo.StationName.Zh_tw}</div>`
         : "";
 
