@@ -289,7 +289,7 @@ function drawMap(twData, stationsData) {
     function generateTopologyLayout() {
         if (stationsData.length > 0 && stationsData[0].topoX !== undefined) return;
 
-        const S = 35; // Uniform grid spacing
+        const S = 35; 
         const offsetX = 0;
         const offsetY = -20 * S;
 
@@ -297,96 +297,110 @@ function drawMap(twData, stationsData) {
             return { x: gridX * S + offsetX, y: gridY * S + offsetY };
         }
 
-        function mapSegment(startIdx, endIdx, startGridX, startGridY, endGridX, endGridY) {
-            const count = endIdx - startIdx;
-            const dx = count > 0 ? (endGridX - startGridX) / count : 0;
-            const dy = count > 0 ? (endGridY - startGridY) / count : 0;
-            
-            for (let i = startIdx; i <= endIdx; i++) {
-                const pos = p(startGridX + dx * (i - startIdx), startGridY + dy * (i - startIdx));
-                stationsData[i].topoX = pos.x;
-                stationsData[i].topoY = pos.y;
+        function makeArr(start, end) {
+            let arr = [];
+            if (start <= end) { for(let i=start; i<=end; i++) arr.push(i); } 
+            else { for(let i=start; i>=end; i--) arr.push(i); }
+            return arr;
+        }
+
+        function mapChain(stations, startGridX, startGridY, endGridX, endGridY) {
+            let count = stations.length - 1;
+            if (count < 0) return;
+            if (count === 0) {
+                stationsData[stations[0]].topoX = p(startGridX, startGridY).x;
+                stationsData[stations[0]].topoY = p(startGridX, startGridY).y;
+                return;
             }
-            if (count > 0) {
+            for(let i=0; i<=count; i++) {
+                let t = i / count;
+                let gx = startGridX + t * (endGridX - startGridX);
+                let gy = startGridY + t * (endGridY - startGridY);
+                stationsData[stations[i]].topoX = p(gx, gy).x;
+                stationsData[stations[i]].topoY = p(gx, gy).y;
+            }
+            for(let i=0; i<count; i++) {
+                let idx1 = stations[i];
+                let idx2 = stations[i+1];
                 topologyLinesData.push({
-                    x1: p(startGridX, startGridY).x, y1: p(startGridX, startGridY).y, 
-                    x2: p(endGridX, endGridY).x, y2: p(endGridX, endGridY).y
+                    x1: stationsData[idx1].topoX, y1: stationsData[idx1].topoY,
+                    x2: stationsData[idx2].topoX, y2: stationsData[idx2].topoY
                 });
             }
         }
 
-        function addLine(gx1, gy1, gx2, gy2) {
-            topologyLinesData.push({
-                x1: p(gx1, gy1).x, y1: p(gx1, gy1).y,
-                x2: p(gx2, gy2).x, y2: p(gx2, gy2).y
-            });
+        function addLineAbs(x1, y1, x2, y2) {
+            topologyLinesData.push({x1, y1, x2, y2});
         }
 
-        mapSegment(2, 14, 12, 0, 0, 0);
-        mapSegment(0, 2, 12, -2, 12, 0);
+        function drawBranch(stationsArr, junctionIdx, dx_grid, dy_grid) {
+            let jX = stationsData[junctionIdx].topoX;
+            let jY = stationsData[junctionIdx].topoY;
+            
+            let lenX = dx_grid * S;
+            let lenY = dy_grid * S;
+            
+            let count = stationsArr.length;
+            for(let i=0; i<count; i++) {
+                let t = (i + 1) / count;
+                stationsData[stationsArr[i]].topoX = jX + t * lenX;
+                stationsData[stationsArr[i]].topoY = jY + t * lenY;
+            }
+            
+            addLineAbs(jX, jY, stationsData[stationsArr[0]].topoX, stationsData[stationsArr[0]].topoY);
+            for(let i=0; i<count-1; i++) {
+                addLineAbs(stationsData[stationsArr[i]].topoX, stationsData[stationsArr[i]].topoY, 
+                           stationsData[stationsArr[i+1]].topoX, stationsData[stationsArr[i+1]].topoY);
+            }
+        }
 
-        mapSegment(14, 30, 0, 0, 0, 16);
-        mapSegment(43, 47, 0, 17, 0, 21);
-        addLine(0, 16, 0, 17);
+        let leftCoast = [...makeArr(14, 30), ...makeArr(43, 47), ...makeArr(64, 84), ...makeArr(85, 92), ...makeArr(99, 124), ...makeArr(127, 158)];
+        let rightCoast = [...makeArr(168, 194), ...makeArr(195, 205), 207, ...makeArr(208, 226), ...makeArr(233, 234), ...makeArr(237, 238), 2];
 
-        mapSegment(64, 84, 0, 22, 0, 42);
-        addLine(0, 21, 0, 22);
-        addLine(0, 42, 0, 43);
+        // 1. Top Edge
+        mapChain(makeArr(2, 14), 12, 0, 0, 0);
 
-        stationsData[48].topoX = p(-1, 21).x; stationsData[48].topoY = p(-1, 21).y;
-        addLine(0, 21, -1, 21);
-        addLine(-1, 21, -2, 21);
-        mapSegment(49, 63, -2, 21, -2, 35);
-        addLine(-2, 35, -2, 43);
-        addLine(-2, 43, 0, 43);
+        // 2. Left Edge
+        mapChain(leftCoast, 0, 0, 0, 100);
 
-        mapSegment(85, 92, 0, 43, 0, 50);
-        mapSegment(99, 124, 0, 51, 0, 76);
-        mapSegment(127, 158, 0, 77, 0, 108);
-        addLine(0, 50, 0, 51);
-        addLine(0, 76, 0, 77);
+        // 3. Bottom Edge
+        mapChain(makeArr(158, 168), 0, 100, 12, 100);
 
-        mapSegment(159, 168, 1, 108, 10, 108);
-        addLine(0, 108, 1, 108);
+        // 4. Right Edge
+        mapChain(rightCoast, 12, 100, 12, 0);
 
-        mapSegment(169, 194, 10, 107, 10, 82);
-        addLine(10, 108, 10, 107);
+        // 5. Sea Line
+        let y_start = stationsData[47].topoY;
+        let y_end = stationsData[85].topoY;
+        let seaX = p(-2.5, 0).x;
+        
+        let seaStations = makeArr(48, 63);
+        let seaCount = seaStations.length;
+        
+        addLineAbs(stationsData[47].topoX, y_start, seaX, y_start);
+        addLineAbs(seaX, y_end, stationsData[85].topoX, y_end);
+        
+        for(let i=0; i<seaCount; i++) {
+            let t = (i + 1) / (seaCount + 1);
+            stationsData[seaStations[i]].topoX = seaX;
+            stationsData[seaStations[i]].topoY = y_start + t * (y_end - y_start);
+        }
+        addLineAbs(seaX, y_start, stationsData[seaStations[0]].topoX, stationsData[seaStations[0]].topoY);
+        for(let i=0; i<seaCount-1; i++) {
+            addLineAbs(stationsData[seaStations[i]].topoX, stationsData[seaStations[i]].topoY, 
+                       stationsData[seaStations[i+1]].topoX, stationsData[seaStations[i+1]].topoY);
+        }
+        addLineAbs(stationsData[seaStations[seaCount-1]].topoX, stationsData[seaStations[seaCount-1]].topoY, seaX, y_end);
 
-        mapSegment(195, 205, 10, 81, 10, 71);
-        stationsData[207].topoX = p(10, 70).x; stationsData[207].topoY = p(10, 70).y;
-        addLine(10, 82, 10, 81);
-        addLine(10, 71, 10, 70);
-
-        mapSegment(208, 226, 10, 69, 10, 51);
-        mapSegment(233, 234, 10, 50, 10, 49);
-        mapSegment(237, 238, 10, 48, 10, 47);
-        addLine(10, 70, 10, 69);
-        addLine(10, 51, 10, 50);
-        addLine(10, 49, 10, 48);
-        addLine(10, 47, 12, 47);
-        addLine(12, 47, 12, 0);
-
-        stationsData[206].topoX = p(11, 70).x; stationsData[206].topoY = p(11, 70).y;
-        addLine(10, 70, 11, 70);
-
-        mapSegment(31, 33, 1, 16, 3, 16);
-        addLine(0, 16, 1, 16);
-        stationsData[34].topoX = p(3, 15).x; stationsData[34].topoY = p(3, 15).y;
-        addLine(3, 16, 3, 15);
-        mapSegment(35, 42, 4, 16, 11, 16);
-        addLine(3, 16, 4, 16);
-
-        mapSegment(93, 98, 1, 50, 6, 50);
-        addLine(0, 50, 1, 50);
-
-        mapSegment(125, 126, 1, 76, 2, 76);
-        addLine(0, 76, 1, 76);
-
-        mapSegment(227, 232, 9, 51, 4, 51);
-        addLine(10, 51, 9, 51);
-
-        mapSegment(235, 236, 9, 49, 8, 49);
-        addLine(10, 49, 9, 49);
+        // 6. Branches
+        drawBranch([1, 0], 2, 0, -3);
+        drawBranch([206], 207, 2, 0);
+        drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30, 8, 0);
+        drawBranch([34], 33, 0, -2);
+        drawBranch(makeArr(93, 98), 92, 5, 0);
+        drawBranch([125, 126], 124, 2, 0);
+        drawBranch(makeArr(227, 232), 226, -5, 0);
+        drawBranch([235, 236], 234, -3, 0);
 
         stationsData.forEach(d => d.isAllowed = true);
 
@@ -417,8 +431,8 @@ function drawMap(twData, stationsData) {
         generateTopologyLayout();
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
 
-        const cx = 5 * 35;
-        const cy = 54 * 35 - 20 * 35;
+        const cx = 6 * 35;
+        const cy = 50 * 35 - 20 * 35;
         svg.transition().duration(750).call(
             zoom.transform, 
             d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25)
