@@ -486,8 +486,14 @@ function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
     const firstStopMinutes = train.data && train.data.length > 0 ? train.data[0].y : train.calculatedDepMinutes;
     const lastStopMinutes = train.data && train.data.length > 0 ? train.data[train.data.length - 1].y : train.calculatedDepMinutes;
     
-    const isTheoreticallyBefore = currentMinutesMidnight < firstStopMinutes;
-    const isTheoreticallyAfter = currentMinutesMidnight > lastStopMinutes + 30;
+    let duration = lastStopMinutes - firstStopMinutes;
+    if (duration < 0) duration += 1440; // Handle midnight crossing
+
+    let elapsed = currentMinutesMidnight - firstStopMinutes;
+    if (elapsed < -720) elapsed += 1440;
+    
+    const isTheoreticallyBefore = elapsed < 0 && elapsed > -720;
+    const isTheoreticallyAfter = elapsed > duration + 30;
 
     // If there's an active delay > 0, always prioritize displaying the delay
     if (train.delay !== undefined && train.delay > 0) {
