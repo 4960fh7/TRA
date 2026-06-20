@@ -223,6 +223,7 @@ function updateLabelForceSimulation(k) {
         const name = getStationName(d);
         if (name === "蘇澳新") return { dx: -1, dy: 0 };
         if (name === "六家") return { dx: 0, dy: -1 };
+        if (name === "八堵") return { dx: 1, dy: 0 };
 
         const S = 35;
         const tX = d.topoX;
@@ -488,7 +489,7 @@ function drawMap(twData, stationsData) {
 
         mainGroup.selectAll(".station-label")
             .style("visibility", "visible")
-            .style("pointer-events", "none")
+            .style("pointer-events", "auto")
             .transition().duration(750)
             .style("opacity", 1);
 
@@ -539,7 +540,7 @@ function drawMap(twData, stationsData) {
             const pos = projection([coords.lon, coords.lat]);
             return `translate(${pos[0]}, ${pos[1]})`;
         })
-        .on("mouseover", function (event, d) {
+        .on("mouseenter", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
@@ -554,7 +555,7 @@ function drawMap(twData, stationsData) {
                 .style("left", (event.pageX + 10) + "px")
                 .style("top", (event.pageY - 10) + "px");
         })
-        .on("mouseout", function (event, d) {
+        .on("mouseleave", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
@@ -579,6 +580,7 @@ function drawMap(twData, stationsData) {
     stationGroups.append("text")
         .attr("class", "station-label")
         .style("opacity", 0)
+        .style("pointer-events", "auto")
         .attr("x", 0)
         .text(d => getStationName(d));
 }
