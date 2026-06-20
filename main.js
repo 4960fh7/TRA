@@ -469,12 +469,22 @@ function drawMap(twData, stationsData) {
         generateTopologyLayout();
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
 
-        const cx = 6 * 35;
-        const cy = 50 * 35 - 20 * 35;
-        svg.transition().duration(750).call(
-            zoom.transform, 
-            d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25)
-        );
+        if (activeStationSelection) {
+            const d = d3.select(activeStationSelection).datum();
+            if (d.topoX !== undefined && d.topoY !== undefined) {
+                svg.transition()
+                    .duration(750)
+                    .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(1.5).translate(-d.topoX, -d.topoY));
+            } else {
+                const cx = 6 * 35;
+                const cy = 50 * 35 - 20 * 35;
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+            }
+        } else {
+            const cx = 6 * 35;
+            const cy = 50 * 35 - 20 * 35;
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+        }
 
         const stationGroups = mainGroup.selectAll(".station-group");
         
