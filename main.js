@@ -267,97 +267,104 @@ function drawMap(twData, stationsData) {
     function generateTopologyLayout() {
         if (stationsData.length > 0 && stationsData[0].topoX !== undefined) return;
 
-        function mapSegment(startIdx, endIdx, startX, startY, endX, endY) {
+        const S = 35; // Uniform grid spacing
+        const offsetX = 0;
+        const offsetY = -20 * S;
+
+        function p(gridX, gridY) {
+            return { x: gridX * S + offsetX, y: gridY * S + offsetY };
+        }
+
+        function mapSegment(startIdx, endIdx, startGridX, startGridY, endGridX, endGridY) {
             const count = endIdx - startIdx;
-            const dx = count > 0 ? (endX - startX) / count : 0;
-            const dy = count > 0 ? (endY - startY) / count : 0;
+            const dx = count > 0 ? (endGridX - startGridX) / count : 0;
+            const dy = count > 0 ? (endGridY - startGridY) / count : 0;
             
             for (let i = startIdx; i <= endIdx; i++) {
-                stationsData[i].topoX = startX + dx * (i - startIdx);
-                stationsData[i].topoY = startY + dy * (i - startIdx);
+                const pos = p(startGridX + dx * (i - startIdx), startGridY + dy * (i - startIdx));
+                stationsData[i].topoX = pos.x;
+                stationsData[i].topoY = pos.y;
             }
             if (count > 0) {
-                topologyLinesData.push({x1: startX, y1: startY, x2: endX, y2: endY});
+                topologyLinesData.push({
+                    x1: p(startGridX, startGridY).x, y1: p(startGridX, startGridY).y, 
+                    x2: p(endGridX, endGridY).x, y2: p(endGridX, endGridY).y
+                });
             }
         }
 
-        const topY = -1800, bottomY = 1800, leftX = -1500, rightX = 1500;
+        function addLine(gx1, gy1, gx2, gy2) {
+            topologyLinesData.push({
+                x1: p(gx1, gy1).x, y1: p(gx1, gy1).y,
+                x2: p(gx2, gy2).x, y2: p(gx2, gy2).y
+            });
+        }
 
-        mapSegment(0, 2, 0, topY - 300, 0, topY);
+        mapSegment(2, 14, 12, 0, 0, 0);
+        mapSegment(0, 2, 12, -2, 12, 0);
 
-        const dx_top_left = leftX / 33;
-        mapSegment(2, 30, 0, topY, 28 * dx_top_left, topY);
-        mapSegment(43, 47, 29 * dx_top_left, topY, leftX, topY);
-        topologyLinesData.push({x1: stationsData[30].topoX, y1: topY, x2: stationsData[43].topoX, y2: topY});
+        mapSegment(14, 30, 0, 0, 0, 16);
+        mapSegment(43, 47, 0, 17, 0, 21);
+        addLine(0, 16, 0, 17);
 
-        const dy_mid = (0 - topY) / 22;
-        mapSegment(64, 84, leftX, topY + dy_mid, leftX, 0 - dy_mid);
-        topologyLinesData.push({x1: leftX, y1: topY, x2: leftX, y2: topY + dy_mid}); 
-        topologyLinesData.push({x1: leftX, y1: 0 - dy_mid, x2: leftX, y2: 0}); 
+        mapSegment(64, 84, 0, 22, 0, 42);
+        addLine(0, 21, 0, 22);
+        addLine(0, 42, 0, 43);
 
-        mapSegment(48, 63, leftX - 400, topY, leftX - 400, 0);
-        topologyLinesData.push({x1: leftX, y1: topY, x2: leftX - 400, y2: topY}); 
-        topologyLinesData.push({x1: leftX - 400, y1: 0, x2: leftX, y2: 0}); 
+        stationsData[48].topoX = p(-1, 21).x; stationsData[48].topoY = p(-1, 21).y;
+        addLine(0, 21, -1, 21);
+        addLine(-1, 21, -2, 21);
+        mapSegment(49, 63, -2, 21, -2, 35);
+        addLine(-2, 35, -2, 43);
+        addLine(-2, 43, 0, 43);
 
-        const dy_left = (bottomY - 0) / 65;
-        mapSegment(85, 92, leftX, 0, leftX, 7 * dy_left);
-        mapSegment(99, 124, leftX, 8 * dy_left, leftX, 33 * dy_left);
-        mapSegment(127, 158, leftX, 34 * dy_left, leftX, bottomY);
-        topologyLinesData.push({x1: leftX, y1: 7 * dy_left, x2: leftX, y2: 8 * dy_left}); 
-        topologyLinesData.push({x1: leftX, y1: 33 * dy_left, x2: leftX, y2: 34 * dy_left}); 
+        mapSegment(85, 92, 0, 43, 0, 50);
+        mapSegment(99, 124, 0, 51, 0, 76);
+        mapSegment(127, 158, 0, 77, 0, 108);
+        addLine(0, 50, 0, 51);
+        addLine(0, 76, 0, 77);
 
-        mapSegment(158, 168, leftX, bottomY, rightX, bottomY);
+        mapSegment(159, 168, 1, 108, 10, 108);
+        addLine(0, 108, 1, 108);
 
-        mapSegment(168, 194, rightX, bottomY, rightX, 0);
+        mapSegment(169, 194, 10, 107, 10, 82);
+        addLine(10, 108, 10, 107);
 
-        const dy_right = (topY - 0) / 12;
-        mapSegment(194, 205, rightX, 0, rightX, 11 * dy_right);
-        stationsData[207].topoX = rightX;
-        stationsData[207].topoY = topY;
-        topologyLinesData.push({x1: rightX, y1: 11 * dy_right, x2: rightX, y2: topY}); 
+        mapSegment(195, 205, 10, 81, 10, 71);
+        stationsData[207].topoX = p(10, 70).x; stationsData[207].topoY = p(10, 70).y;
+        addLine(10, 82, 10, 81);
+        addLine(10, 71, 10, 70);
 
-        const dx_top_right = (0 - rightX) / 24;
-        mapSegment(208, 226, rightX + dx_top_right, topY, rightX + 19 * dx_top_right, topY);
-        topologyLinesData.push({x1: rightX, y1: topY, x2: rightX + dx_top_right, y2: topY}); 
-        mapSegment(233, 234, rightX + 20 * dx_top_right, topY, rightX + 21 * dx_top_right, topY);
-        topologyLinesData.push({x1: rightX + 19 * dx_top_right, y1: topY, x2: rightX + 20 * dx_top_right, y2: topY}); 
-        mapSegment(237, 238, rightX + 22 * dx_top_right, topY, rightX + 23 * dx_top_right, topY);
-        topologyLinesData.push({x1: rightX + 21 * dx_top_right, y1: topY, x2: rightX + 22 * dx_top_right, y2: topY}); 
-        topologyLinesData.push({x1: rightX + 23 * dx_top_right, y1: topY, x2: 0, y2: topY}); 
+        mapSegment(208, 226, 10, 69, 10, 51);
+        mapSegment(233, 234, 10, 50, 10, 49);
+        mapSegment(237, 238, 10, 48, 10, 47);
+        addLine(10, 70, 10, 69);
+        addLine(10, 51, 10, 50);
+        addLine(10, 49, 10, 48);
+        addLine(10, 47, 12, 47);
+        addLine(12, 47, 12, 0);
 
-        let bx = stationsData[30].topoX;
-        let by = stationsData[30].topoY;
-        mapSegment(31, 33, bx, by - 150, bx, by - 450);
-        topologyLinesData.push({x1: bx, y1: by, x2: bx, y2: by - 150}); 
-        stationsData[34].topoX = bx - 150;
-        stationsData[34].topoY = by - 450;
-        topologyLinesData.push({x1: bx, y1: by - 450, x2: bx - 150, y2: by - 450}); 
-        mapSegment(35, 42, bx, by - 600, bx, by - 1650);
-        topologyLinesData.push({x1: bx, y1: by - 450, x2: bx, y2: by - 600}); 
+        stationsData[206].topoX = p(11, 70).x; stationsData[206].topoY = p(11, 70).y;
+        addLine(10, 70, 11, 70);
 
-        let ex = stationsData[92].topoX;
-        let ey = stationsData[92].topoY;
-        mapSegment(93, 98, ex + 150, ey, ex + 900, ey);
-        topologyLinesData.push({x1: ex, y1: ey, x2: ex + 150, y2: ey}); 
+        mapSegment(31, 33, 1, 16, 3, 16);
+        addLine(0, 16, 1, 16);
+        stationsData[34].topoX = p(3, 15).x; stationsData[34].topoY = p(3, 15).y;
+        addLine(3, 16, 3, 15);
+        mapSegment(35, 42, 4, 16, 11, 16);
+        addLine(3, 16, 4, 16);
 
-        let zx = stationsData[124].topoX;
-        let zy = stationsData[124].topoY;
-        mapSegment(125, 126, zx + 150, zy, zx + 300, zy);
-        topologyLinesData.push({x1: zx, y1: zy, x2: zx + 150, y2: zy}); 
+        mapSegment(93, 98, 1, 50, 6, 50);
+        addLine(0, 50, 1, 50);
 
-        stationsData[206].topoX = rightX + 200;
-        stationsData[206].topoY = topY;
-        topologyLinesData.push({x1: rightX, y1: topY, x2: rightX + 200, y2: topY}); 
+        mapSegment(125, 126, 1, 76, 2, 76);
+        addLine(0, 76, 1, 76);
 
-        let px = stationsData[226].topoX;
-        let py = stationsData[226].topoY;
-        mapSegment(227, 232, px, py - 150, px, py - 900);
-        topologyLinesData.push({x1: px, y1: py, x2: px, y2: py - 150}); 
+        mapSegment(227, 232, 9, 51, 4, 51);
+        addLine(10, 51, 9, 51);
 
-        let rx = stationsData[234].topoX;
-        let ry = stationsData[234].topoY;
-        mapSegment(235, 236, rx, ry - 150, rx, ry - 300);
-        topologyLinesData.push({x1: rx, y1: ry, x2: rx, y2: ry - 150}); 
+        mapSegment(235, 236, 9, 49, 8, 49);
+        addLine(10, 49, 9, 49);
 
         stationsData.forEach(d => d.isAllowed = true);
 
@@ -388,9 +395,11 @@ function drawMap(twData, stationsData) {
         generateTopologyLayout();
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
 
+        const cx = 5 * 35;
+        const cy = 54 * 35 - 20 * 35;
         svg.transition().duration(750).call(
             zoom.transform, 
-            d3.zoomIdentity.translate(width/2, height/2).scale(0.15)
+            d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25)
         );
 
         const stationGroups = mainGroup.selectAll(".station-group");
