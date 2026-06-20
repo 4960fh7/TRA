@@ -27,6 +27,16 @@ let currentActiveStationAddress = null;
 let currentActiveStationCW = null;
 let currentActiveStationCCW = null;
 
+function getStationRadius(d, isActive, isTopology) {
+    if (isTopology) {
+        let base = d.level !== undefined ? (22 - d.level * 3) : 15;
+        return isActive ? base * 1.2 : base;
+    } else {
+        let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
+        return Math.max(0.6, isActive ? base * 1.33 : base);
+    }
+}
+
 // Sci-Fi 列車顏色調色盤
 const colorPalette = {
     "普悠瑪": "#FF5252",
@@ -57,8 +67,9 @@ const zoom = d3.zoom()
 
         mainGroup.selectAll(".station")
             .attr("r", d => {
-                const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-                return Math.max(0.6, base / Math.sqrt(k));
+                const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
+                const baseR = getStationRadius(d, isActive, false);
+                return Math.max(0.6, baseR / Math.sqrt(k));
             })
             .style("stroke-width", `${0.3 / k}px`);
 
@@ -75,17 +86,11 @@ function updateLabelForceSimulation(k) {
         labelSimulation = null;
     }
 
-    let activeCircleRadius;
-    let standardCircleRadius;
     let fontSize;
 
     if (window.isTopologyMode) {
-        activeCircleRadius = 18;
-        standardCircleRadius = 15;
         fontSize = Math.max(12, 12 / Math.sqrt(k)); 
     } else {
-        activeCircleRadius = 4 / Math.sqrt(k);
-        standardCircleRadius = 3 / Math.sqrt(k);
         fontSize = Math.max(2.5, 9 / Math.sqrt(k));
     }
 
@@ -110,7 +115,8 @@ function updateLabelForceSimulation(k) {
         }
 
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
-        const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
+        let r = getStationRadius(d, isCurrentActive, window.isTopologyMode);
+        if (!window.isTopologyMode) r = r / Math.sqrt(k);
 
         const name = getStationName(d);
         const estWidth = name.length * fontSize * 1.1;
@@ -443,7 +449,7 @@ function drawMap(twData, stationsData) {
             .attr("transform", d => `translate(${d.topoX}, ${d.topoY})`);
             
         stationGroups.selectAll(".station").transition().duration(750)
-            .attr("r", 15)
+            .attr("r", d => getStationRadius(d, false, true))
             .style("fill", "#00f0ff")
             .style("stroke", "#0d1526")
             .style("stroke-width", 3);
@@ -471,7 +477,7 @@ function drawMap(twData, stationsData) {
             });
             
         stationGroups.selectAll(".station").transition().duration(750)
-            .attr("r", 4)
+            .attr("r", d => getStationRadius(d, false, false))
             .style("fill", null)
             .style("stroke", null)
             .style("stroke-width", null);
@@ -504,10 +510,11 @@ function drawMap(twData, stationsData) {
         .on("mouseover", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            const currentBaseRadius = window.isTopologyMode ? 15 : Math.max(0.6, base / Math.sqrt(k));
+            const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
+            let r = getStationRadius(d, isActive, window.isTopologyMode) * 1.5;
+            if (!window.isTopologyMode) r = Math.max(0.6, r / Math.sqrt(k));
 
-            d3.select(this).select(".station").attr("r", window.isTopologyMode ? 18 : currentBaseRadius * 1.5);
+            d3.select(this).select(".station").attr("r", r);
 
             const name = getStationName(d);
             tooltip.style("opacity", 1)
@@ -518,10 +525,11 @@ function drawMap(twData, stationsData) {
         .on("mouseout", function (event, d) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
-            const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            const currentBaseRadius = window.isTopologyMode ? 15 : Math.max(0.6, base / Math.sqrt(k));
+            const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
+            let r = getStationRadius(d, isActive, window.isTopologyMode);
+            if (!window.isTopologyMode) r = Math.max(0.6, r / Math.sqrt(k));
 
-            d3.select(this).select(".station").attr("r", currentBaseRadius);
+            d3.select(this).select(".station").attr("r", r);
             tooltip.style("opacity", 0);
         })
         .on("click", function (event, d) {
@@ -532,7 +540,7 @@ function drawMap(twData, stationsData) {
 
     stationGroups.append("circle")
         .attr("class", "station")
-        .attr("r", 4)
+        .attr("r", d => getStationRadius(d, false, false))
         .attr("cx", 0)
         .attr("cy", 0);
 
@@ -638,7 +646,9 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
 
-        const oldR = window.isTopologyMode ? 15 : Math.max(0.6, 3 / Math.sqrt(k));
+        const oldD = d3.select(oldSelection).datum();
+        let oldR = getStationRadius(oldD, false, window.isTopologyMode);
+        if (!window.isTopologyMode) oldR = Math.max(0.6, oldR / Math.sqrt(k));
         d3.select(oldSelection).attr("r", oldR);
     }
 
@@ -653,7 +663,8 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
 
     const currentTransform = d3.zoomTransform(svg.node());
     const k = currentTransform.k;
-    const activeR = window.isTopologyMode ? 18 : Math.max(0.6, 4 / Math.sqrt(k));
+    let activeR = getStationRadius(d, true, window.isTopologyMode);
+    if (!window.isTopologyMode) activeR = Math.max(0.6, activeR / Math.sqrt(k));
     d3.select(circleDOM).attr("r", activeR);
 
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
@@ -1507,7 +1518,9 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
 
-        const oldR = window.isTopologyMode ? 15 : Math.max(0.6, 3 / Math.sqrt(k));
+        const oldD = d3.select(oldSelection).datum();
+        let oldR = getStationRadius(oldD, false, window.isTopologyMode);
+        if (!window.isTopologyMode) oldR = Math.max(0.6, oldR / Math.sqrt(k));
         d3.select(oldSelection).attr("r", oldR);
     }
 
