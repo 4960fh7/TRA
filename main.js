@@ -269,8 +269,8 @@ function drawMap(twData, stationsData) {
 
         function mapSegment(startIdx, endIdx, startX, startY, endX, endY) {
             const count = endIdx - startIdx;
-            const dx = (endX - startX) / (count > 0 ? count : 1);
-            const dy = (endY - startY) / (count > 0 ? count : 1);
+            const dx = count > 0 ? (endX - startX) / count : 0;
+            const dy = count > 0 ? (endY - startY) / count : 0;
             
             for (let i = startIdx; i <= endIdx; i++) {
                 stationsData[i].topoX = startX + dx * (i - startIdx);
@@ -281,66 +281,83 @@ function drawMap(twData, stationsData) {
             }
         }
 
-        const topY = -800, bottomY = 800, leftX = -600, rightX = 600, seaX = -800;
+        const topY = -1800, bottomY = 1800, leftX = -1500, rightX = 1500;
 
-        mapSegment(0, 2, rightX, topY, rightX - 150, topY);
-        mapSegment(3, 47, rightX - 150, topY, leftX, topY + 300);
-        topologyLinesData.push({x1: stationsData[2].topoX, y1: stationsData[2].topoY, x2: stationsData[3].topoX, y2: stationsData[3].topoY});
+        mapSegment(0, 2, 0, topY - 300, 0, topY);
 
-        mapSegment(48, 63, leftX - 100, topY + 400, seaX, bottomY - 400);
-        topologyLinesData.push({x1: stationsData[47].topoX, y1: stationsData[47].topoY, x2: stationsData[48].topoX, y2: stationsData[48].topoY});
-        topologyLinesData.push({x1: stationsData[63].topoX, y1: stationsData[63].topoY, x2: stationsData[85].topoX, y2: stationsData[85].topoY});
+        const dx_top_left = leftX / 33;
+        mapSegment(2, 30, 0, topY, 28 * dx_top_left, topY);
+        mapSegment(43, 47, 29 * dx_top_left, topY, leftX, topY);
+        topologyLinesData.push({x1: stationsData[30].topoX, y1: topY, x2: stationsData[43].topoX, y2: topY});
 
-        mapSegment(64, 84, leftX + 100, topY + 400, leftX + 100, bottomY - 400);
-        topologyLinesData.push({x1: stationsData[47].topoX, y1: stationsData[47].topoY, x2: stationsData[64].topoX, y2: stationsData[64].topoY});
-        topologyLinesData.push({x1: stationsData[84].topoX, y1: stationsData[84].topoY, x2: stationsData[85].topoX, y2: stationsData[85].topoY});
+        const dy_mid = (0 - topY) / 22;
+        mapSegment(64, 84, leftX, topY + dy_mid, leftX, 0 - dy_mid);
+        topologyLinesData.push({x1: leftX, y1: topY, x2: leftX, y2: topY + dy_mid}); 
+        topologyLinesData.push({x1: leftX, y1: 0 - dy_mid, x2: leftX, y2: 0}); 
 
-        mapSegment(85, 158, leftX, bottomY - 300, leftX, bottomY);
+        mapSegment(48, 63, leftX - 400, topY, leftX - 400, 0);
+        topologyLinesData.push({x1: leftX, y1: topY, x2: leftX - 400, y2: topY}); 
+        topologyLinesData.push({x1: leftX - 400, y1: 0, x2: leftX, y2: 0}); 
 
-        mapSegment(159, 168, leftX + 100, bottomY, rightX - 100, bottomY);
-        topologyLinesData.push({x1: stationsData[158].topoX, y1: stationsData[158].topoY, x2: stationsData[159].topoX, y2: stationsData[159].topoY});
+        const dy_left = (bottomY - 0) / 65;
+        mapSegment(85, 92, leftX, 0, leftX, 7 * dy_left);
+        mapSegment(99, 124, leftX, 8 * dy_left, leftX, 33 * dy_left);
+        mapSegment(127, 158, leftX, 34 * dy_left, leftX, bottomY);
+        topologyLinesData.push({x1: leftX, y1: 7 * dy_left, x2: leftX, y2: 8 * dy_left}); 
+        topologyLinesData.push({x1: leftX, y1: 33 * dy_left, x2: leftX, y2: 34 * dy_left}); 
 
-        mapSegment(169, 194, rightX, bottomY - 100, rightX, topY + 500);
-        topologyLinesData.push({x1: stationsData[168].topoX, y1: stationsData[168].topoY, x2: stationsData[169].topoX, y2: stationsData[169].topoY});
+        mapSegment(158, 168, leftX, bottomY, rightX, bottomY);
 
-        mapSegment(195, 205, rightX, topY + 450, rightX, topY + 200); 
+        mapSegment(168, 194, rightX, bottomY, rightX, 0);
+
+        const dy_right = (topY - 0) / 12;
+        mapSegment(194, 205, rightX, 0, rightX, 11 * dy_right);
         stationsData[207].topoX = rightX;
-        stationsData[207].topoY = topY + 150; 
-        topologyLinesData.push({x1: stationsData[194].topoX, y1: stationsData[194].topoY, x2: stationsData[195].topoX, y2: stationsData[195].topoY});
-        topologyLinesData.push({x1: stationsData[205].topoX, y1: stationsData[205].topoY, x2: stationsData[207].topoX, y2: stationsData[207].topoY});
+        stationsData[207].topoY = topY;
+        topologyLinesData.push({x1: rightX, y1: 11 * dy_right, x2: rightX, y2: topY}); 
 
-        mapSegment(208, 238, rightX - 50, topY + 100, rightX - 130, topY + 50);
-        topologyLinesData.push({x1: stationsData[207].topoX, y1: stationsData[207].topoY, x2: stationsData[208].topoX, y2: stationsData[208].topoY});
-        topologyLinesData.push({x1: stationsData[238].topoX, y1: stationsData[238].topoY, x2: stationsData[2].topoX, y2: stationsData[2].topoY});
+        const dx_top_right = (0 - rightX) / 24;
+        mapSegment(208, 226, rightX + dx_top_right, topY, rightX + 19 * dx_top_right, topY);
+        topologyLinesData.push({x1: rightX, y1: topY, x2: rightX + dx_top_right, y2: topY}); 
+        mapSegment(233, 234, rightX + 20 * dx_top_right, topY, rightX + 21 * dx_top_right, topY);
+        topologyLinesData.push({x1: rightX + 19 * dx_top_right, y1: topY, x2: rightX + 20 * dx_top_right, y2: topY}); 
+        mapSegment(237, 238, rightX + 22 * dx_top_right, topY, rightX + 23 * dx_top_right, topY);
+        topologyLinesData.push({x1: rightX + 21 * dx_top_right, y1: topY, x2: rightX + 22 * dx_top_right, y2: topY}); 
+        topologyLinesData.push({x1: rightX + 23 * dx_top_right, y1: topY, x2: 0, y2: topY}); 
 
-        stationsData[206].topoX = rightX + 50;
-        stationsData[206].topoY = topY + 150;
-        topologyLinesData.push({x1: stationsData[207].topoX, y1: stationsData[207].topoY, x2: stationsData[206].topoX, y2: stationsData[206].topoY});
+        let bx = stationsData[30].topoX;
+        let by = stationsData[30].topoY;
+        mapSegment(31, 33, bx, by - 150, bx, by - 450);
+        topologyLinesData.push({x1: bx, y1: by, x2: bx, y2: by - 150}); 
+        stationsData[34].topoX = bx - 150;
+        stationsData[34].topoY = by - 450;
+        topologyLinesData.push({x1: bx, y1: by - 450, x2: bx - 150, y2: by - 450}); 
+        mapSegment(35, 42, bx, by - 600, bx, by - 1650);
+        topologyLinesData.push({x1: bx, y1: by - 450, x2: bx, y2: by - 600}); 
 
-        const nX = stationsData[30].topoX + 50, nY = stationsData[30].topoY + 50;
-        mapSegment(31, 33, nX, nY, nX + 50, nY + 50);
-        topologyLinesData.push({x1: stationsData[30].topoX, y1: stationsData[30].topoY, x2: stationsData[31].topoX, y2: stationsData[31].topoY});
-        stationsData[34].topoX = stationsData[33].topoX;
-        stationsData[34].topoY = stationsData[33].topoY + 40;
-        topologyLinesData.push({x1: stationsData[33].topoX, y1: stationsData[33].topoY, x2: stationsData[34].topoX, y2: stationsData[34].topoY});
-        mapSegment(35, 42, stationsData[33].topoX + 30, stationsData[33].topoY + 30, stationsData[33].topoX + 200, stationsData[33].topoY + 200);
-        topologyLinesData.push({x1: stationsData[33].topoX, y1: stationsData[33].topoY, x2: stationsData[35].topoX, y2: stationsData[35].topoY});
+        let ex = stationsData[92].topoX;
+        let ey = stationsData[92].topoY;
+        mapSegment(93, 98, ex + 150, ey, ex + 900, ey);
+        topologyLinesData.push({x1: ex, y1: ey, x2: ex + 150, y2: ey}); 
 
-        const jX = stationsData[92].topoX + 50, jY = stationsData[92].topoY + 50;
-        mapSegment(93, 98, jX, jY, jX + 200, jY + 200);
-        topologyLinesData.push({x1: stationsData[92].topoX, y1: stationsData[92].topoY, x2: stationsData[93].topoX, y2: stationsData[93].topoY});
+        let zx = stationsData[124].topoX;
+        let zy = stationsData[124].topoY;
+        mapSegment(125, 126, zx + 150, zy, zx + 300, zy);
+        topologyLinesData.push({x1: zx, y1: zy, x2: zx + 150, y2: zy}); 
 
-        const sX = stationsData[124].topoX + 50, sY = stationsData[124].topoY - 50;
-        mapSegment(125, 126, sX, sY, sX + 50, sY - 50);
-        topologyLinesData.push({x1: stationsData[124].topoX, y1: stationsData[124].topoY, x2: stationsData[125].topoX, y2: stationsData[125].topoY});
+        stationsData[206].topoX = rightX + 200;
+        stationsData[206].topoY = topY;
+        topologyLinesData.push({x1: rightX, y1: topY, x2: rightX + 200, y2: topY}); 
 
-        const pX = stationsData[226].topoX - 50, pY = stationsData[226].topoY - 50;
-        mapSegment(227, 232, pX, pY, pX - 200, pY - 200);
-        topologyLinesData.push({x1: stationsData[226].topoX, y1: stationsData[226].topoY, x2: stationsData[227].topoX, y2: stationsData[227].topoY});
+        let px = stationsData[226].topoX;
+        let py = stationsData[226].topoY;
+        mapSegment(227, 232, px, py - 150, px, py - 900);
+        topologyLinesData.push({x1: px, y1: py, x2: px, y2: py - 150}); 
 
-        const shX = stationsData[234].topoX - 50, shY = stationsData[234].topoY + 50;
-        mapSegment(235, 236, shX, shY, shX - 50, shY + 50);
-        topologyLinesData.push({x1: stationsData[234].topoX, y1: stationsData[234].topoY, x2: stationsData[235].topoX, y2: stationsData[235].topoY});
+        let rx = stationsData[234].topoX;
+        let ry = stationsData[234].topoY;
+        mapSegment(235, 236, rx, ry - 150, rx, ry - 300);
+        topologyLinesData.push({x1: rx, y1: ry, x2: rx, y2: ry - 150}); 
 
         stationsData.forEach(d => d.isAllowed = true);
 
@@ -373,7 +390,7 @@ function drawMap(twData, stationsData) {
 
         svg.transition().duration(750).call(
             zoom.transform, 
-            d3.zoomIdentity.translate(width/2, height/2).scale(0.3)
+            d3.zoomIdentity.translate(width/2, height/2).scale(0.15)
         );
 
         const stationGroups = mainGroup.selectAll(".station-group");
