@@ -333,18 +333,17 @@ function drawMap(twData, stationsData) {
             topologyLinesData.push({x1, y1, x2, y2});
         }
 
-        function drawBranch(stationsArr, junctionIdx, dx_grid, dy_grid) {
+        function drawBranch(stationsArr, junctionIdx, dirX, dirY) {
             let jX = stationsData[junctionIdx].topoX;
             let jY = stationsData[junctionIdx].topoY;
             
-            let lenX = dx_grid * S;
-            let lenY = dy_grid * S;
+            // Match the spacing of the Left Coast (Mountain Line)
+            let stepSize = (100 / (leftCoast.length - 1)) * S;
             
             let count = stationsArr.length;
             for(let i=0; i<count; i++) {
-                let t = (i + 1) / count;
-                stationsData[stationsArr[i]].topoX = jX + t * lenX;
-                stationsData[stationsArr[i]].topoY = jY + t * lenY;
+                stationsData[stationsArr[i]].topoX = jX + dirX * (i + 1) * stepSize;
+                stationsData[stationsArr[i]].topoY = jY + dirY * (i + 1) * stepSize;
             }
             
             addLineAbs(jX, jY, stationsData[stationsArr[0]].topoX, stationsData[stationsArr[0]].topoY);
@@ -393,14 +392,14 @@ function drawMap(twData, stationsData) {
         addLineAbs(stationsData[seaStations[seaCount-1]].topoX, stationsData[seaStations[seaCount-1]].topoY, seaX, y_end);
 
         // 6. Branches
-        drawBranch([1, 0], 2, 0, -3);
-        drawBranch([206], 207, 2, 0);
-        drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30, 8, 0);
-        drawBranch([34], 33, 0, -2);
-        drawBranch(makeArr(93, 98), 92, 5, 0);
-        drawBranch([125, 126], 124, 2, 0);
-        drawBranch(makeArr(227, 232), 226, -5, 0);
-        drawBranch([235, 236], 234, -3, 0);
+        drawBranch([1, 0], 2, 0, -1);
+        drawBranch([206], 207, 1, 0);
+        drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30, 1, 0);
+        drawBranch([34], 33, 0, -1);
+        drawBranch(makeArr(93, 98), 92, 1, 0);
+        drawBranch([125, 126], 124, 1, 0);
+        drawBranch(makeArr(227, 232), 226, -1, 0);
+        drawBranch([235, 236], 234, -1, 0);
 
         stationsData.forEach(d => d.isAllowed = true);
 
