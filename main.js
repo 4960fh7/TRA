@@ -432,8 +432,9 @@ function drawMap(twData, stationsData) {
             
         stationGroups.selectAll(".station").transition().duration(750)
             .attr("r", 4)
-            .style("fill", "#ef4444")
-            .style("stroke", "none");
+            .style("fill", null)
+            .style("stroke", null)
+            .style("stroke-width", null);
             
         topologyLinesGroup.transition().duration(500).style("opacity", 0);
         
@@ -464,9 +465,9 @@ function drawMap(twData, stationsData) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
-            const currentBaseRadius = Math.max(0.6, base / Math.sqrt(k));
+            const currentBaseRadius = window.isTopologyMode ? 15 : Math.max(0.6, base / Math.sqrt(k));
 
-            d3.select(this).select(".station").attr("r", currentBaseRadius * 1.5);
+            d3.select(this).select(".station").attr("r", window.isTopologyMode ? 18 : currentBaseRadius * 1.5);
 
             const name = getStationName(d);
             tooltip.style("opacity", 1)
@@ -478,8 +479,9 @@ function drawMap(twData, stationsData) {
             const currentTransform = d3.zoomTransform(svg.node());
             const k = currentTransform.k;
             const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
+            const currentBaseRadius = window.isTopologyMode ? 15 : Math.max(0.6, base / Math.sqrt(k));
 
-            d3.select(this).select(".station").attr("r", Math.max(0.6, base / Math.sqrt(k)));
+            d3.select(this).select(".station").attr("r", currentBaseRadius);
             tooltip.style("opacity", 0);
         })
         .on("click", function (event, d) {
