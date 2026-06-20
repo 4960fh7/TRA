@@ -209,11 +209,43 @@ function updateLabelForceSimulation(k) {
         { dx: -1, dy: 1 }  // 左下
     ];
 
+    let topoY_zhunan = -9999;
+    let topoY_changhua = 9999;
+    if (window.isTopologyMode) {
+        const z = globalStationsData.find(s => getStationName(s) === "竹南");
+        const c = globalStationsData.find(s => getStationName(s) === "彰化");
+        if (z) topoY_zhunan = z.topoY;
+        if (c) topoY_changhua = c.topoY;
+    }
+
+    function getTopoPreferredSlot(node) {
+        const d = node.data;
+        const name = getStationName(d);
+        if (name === "蘇澳新") return { dx: -1, dy: 0 };
+        if (name === "六家") return { dx: 0, dy: -1 };
+
+        const S = 35;
+        const tX = d.topoX;
+        const tY = d.topoY;
+
+        if (tY === -20 * S && tX >= 0 && tX <= 12 * S) return { dx: 0, dy: -1 }; // Top
+        if (tY === 80 * S && tX >= 0 && tX <= 12 * S) return { dx: 0, dy: 1 }; // Bottom
+        if (tX === 12 * S) return { dx: 1, dy: 0 }; // Right
+        if (tX === 0) {
+            if (tY > topoY_zhunan && tY < topoY_changhua) return { dx: 1, dy: 0 };
+            return { dx: -1, dy: 0 }; // Left
+        }
+        if (tX === -2.5 * S) return { dx: -1, dy: 0 }; // Sea Line
+
+        return { dx: 0, dy: 1 }; // Branches
+    }
+
     nodes.forEach(node => {
         let placed = false;
 
         if (node.isLocalMax) {
-            for (let slot of slotDirections) {
+            let slots = window.isTopologyMode ? [getTopoPreferredSlot(node)] : slotDirections;
+            for (let slot of slots) {
                 const paddingX = window.isTopologyMode ? 12 : (4 / k);
                 const paddingY = window.isTopologyMode ? 10 : (2 / k);
 
