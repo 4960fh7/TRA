@@ -639,7 +639,8 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
 
-        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
+        const oldR = window.isTopologyMode ? 15 : Math.max(0.6, 3 / Math.sqrt(k));
+        d3.select(oldSelection).attr("r", oldR);
     }
 
     globalStationsData.forEach(node => node.isConnectedState = false);
@@ -653,7 +654,8 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
 
     const currentTransform = d3.zoomTransform(svg.node());
     const k = currentTransform.k;
-    d3.select(circleDOM).attr("r", Math.max(0.6, 4 / Math.sqrt(k)));
+    const activeR = window.isTopologyMode ? 18 : Math.max(0.6, 4 / Math.sqrt(k));
+    d3.select(circleDOM).attr("r", activeR);
 
     const stationCode = d.stationCode || d['車站代碼'] || d.id || "";
     const stationName = getStationName(d);
@@ -666,12 +668,20 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
 
     if (k > 8.0) updateLabelForceSimulation(k);
 
-    const coords = getCoords(d);
-    if (coords) {
-        const projectedCoords = projection([coords.lon, coords.lat]);
-        svg.transition()
-            .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
+    if (window.isTopologyMode) {
+        if (d.topoX !== undefined && d.topoY !== undefined) {
+            svg.transition()
+                .duration(750)
+                .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(1.5).translate(-d.topoX, -d.topoY));
+        }
+    } else {
+        const coords = getCoords(d);
+        if (coords) {
+            const projectedCoords = projection([coords.lon, coords.lat]);
+            svg.transition()
+                .duration(750)
+                .call(zoom.transform, d3.zoomIdentity.translate(width / 2, height / 2).scale(12).translate(-projectedCoords[0], -projectedCoords[1]));
+        }
     }
 }
 
