@@ -1508,16 +1508,25 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         d3.select(oldSelection).classed("active", false);
         d3.select(oldSelection.parentNode).classed("active", false);
 
-        d3.select(oldSelection).attr("r", Math.max(0.6, 3 / Math.sqrt(k)));
+        const oldR = window.isTopologyMode ? 15 : Math.max(0.6, 3 / Math.sqrt(k));
+        d3.select(oldSelection).attr("r", oldR);
     }
 
     globalStationsData.forEach(node => node.isConnectedState = false);
     mainGroup.selectAll(".station-group").classed("connected", false);
     mainGroup.selectAll(".station").classed("connected", false);
 
-    svg.transition()
-        .duration(750)
-        .call(zoom.transform, d3.zoomIdentity);
+    if (window.isTopologyMode) {
+        const cx = 6 * 35;
+        const cy = 50 * 35 - 20 * 35;
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+    } else {
+        svg.transition()
+            .duration(750)
+            .call(zoom.transform, d3.zoomIdentity);
+    }
 });
 
 document.addEventListener("DOMContentLoaded", () => {
