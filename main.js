@@ -49,6 +49,8 @@ const zoom = d3.zoom()
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
 
+        if (window.isTopologyMode) return;
+
         mainGroup.selectAll(".station")
             .attr("r", d => {
                 const base = (activeStationSelection && d3.select(activeStationSelection).datum() === d) ? 4 : 3;
@@ -64,6 +66,8 @@ svg.call(zoom);
 
 // 高性能靜態防重疊邊界判定算法
 function updateLabelForceSimulation(k) {
+    if (window.isTopologyMode) return;
+
     if (labelSimulation) {
         labelSimulation.stop();
         labelSimulation = null;
@@ -254,13 +258,102 @@ function drawMap(twData, stationsData) {
 
     // Topology View Toggle and Logic
     window.isTopologyMode = false;
-    window.topologyPathElement = mainGroup.append("path")
-        .attr("class", "topology-line")
-        .style("fill", "none")
-        .style("stroke", "#00f0ff")
-        .style("stroke-width", 2)
-        .style("opacity", 0)
-        .style("pointer-events", "none");
+    window.topologyLinesGroup = mainGroup.append("g")
+        .attr("id", "topology-lines-group")
+        .style("opacity", 0);
+
+    window.topologyLinesData = [];
+
+    function generateTopologyLayout() {
+        if (stationsData.length > 0 && stationsData[0].topoX !== undefined) return;
+
+        function mapSegment(startIdx, endIdx, startX, startY, endX, endY) {
+            const count = endIdx - startIdx;
+            const dx = (endX - startX) / (count > 0 ? count : 1);
+            const dy = (endY - startY) / (count > 0 ? count : 1);
+            
+            for (let i = startIdx; i <= endIdx; i++) {
+                stationsData[i].topoX = startX + dx * (i - startIdx);
+                stationsData[i].topoY = startY + dy * (i - startIdx);
+            }
+            if (count > 0) {
+                topologyLinesData.push({x1: startX, y1: startY, x2: endX, y2: endY});
+            }
+        }
+
+        const topY = -800, bottomY = 800, leftX = -600, rightX = 600, seaX = -800;
+
+        mapSegment(0, 2, rightX, topY, rightX - 150, topY);
+        mapSegment(3, 47, rightX - 150, topY, leftX, topY + 300);
+        topologyLinesData.push({x1: stationsData[2].topoX, y1: stationsData[2].topoY, x2: stationsData[3].topoX, y2: stationsData[3].topoY});
+
+        mapSegment(48, 63, leftX - 100, topY + 400, seaX, bottomY - 400);
+        topologyLinesData.push({x1: stationsData[47].topoX, y1: stationsData[47].topoY, x2: stationsData[48].topoX, y2: stationsData[48].topoY});
+        topologyLinesData.push({x1: stationsData[63].topoX, y1: stationsData[63].topoY, x2: stationsData[85].topoX, y2: stationsData[85].topoY});
+
+        mapSegment(64, 84, leftX + 100, topY + 400, leftX + 100, bottomY - 400);
+        topologyLinesData.push({x1: stationsData[47].topoX, y1: stationsData[47].topoY, x2: stationsData[64].topoX, y2: stationsData[64].topoY});
+        topologyLinesData.push({x1: stationsData[84].topoX, y1: stationsData[84].topoY, x2: stationsData[85].topoX, y2: stationsData[85].topoY});
+
+        mapSegment(85, 158, leftX, bottomY - 300, leftX, bottomY);
+
+        mapSegment(159, 168, leftX + 100, bottomY, rightX - 100, bottomY);
+        topologyLinesData.push({x1: stationsData[158].topoX, y1: stationsData[158].topoY, x2: stationsData[159].topoX, y2: stationsData[159].topoY});
+
+        mapSegment(169, 194, rightX, bottomY - 100, rightX, topY + 500);
+        topologyLinesData.push({x1: stationsData[168].topoX, y1: stationsData[168].topoY, x2: stationsData[169].topoX, y2: stationsData[169].topoY});
+
+        mapSegment(195, 205, rightX, topY + 450, rightX, topY + 200); 
+        stationsData[207].topoX = rightX;
+        stationsData[207].topoY = topY + 150; 
+        topologyLinesData.push({x1: stationsData[194].topoX, y1: stationsData[194].topoY, x2: stationsData[195].topoX, y2: stationsData[195].topoY});
+        topologyLinesData.push({x1: stationsData[205].topoX, y1: stationsData[205].topoY, x2: stationsData[207].topoX, y2: stationsData[207].topoY});
+
+        mapSegment(208, 238, rightX - 50, topY + 100, rightX - 130, topY + 50);
+        topologyLinesData.push({x1: stationsData[207].topoX, y1: stationsData[207].topoY, x2: stationsData[208].topoX, y2: stationsData[208].topoY});
+        topologyLinesData.push({x1: stationsData[238].topoX, y1: stationsData[238].topoY, x2: stationsData[2].topoX, y2: stationsData[2].topoY});
+
+        stationsData[206].topoX = rightX + 50;
+        stationsData[206].topoY = topY + 150;
+        topologyLinesData.push({x1: stationsData[207].topoX, y1: stationsData[207].topoY, x2: stationsData[206].topoX, y2: stationsData[206].topoY});
+
+        const nX = stationsData[30].topoX + 50, nY = stationsData[30].topoY + 50;
+        mapSegment(31, 33, nX, nY, nX + 50, nY + 50);
+        topologyLinesData.push({x1: stationsData[30].topoX, y1: stationsData[30].topoY, x2: stationsData[31].topoX, y2: stationsData[31].topoY});
+        stationsData[34].topoX = stationsData[33].topoX;
+        stationsData[34].topoY = stationsData[33].topoY + 40;
+        topologyLinesData.push({x1: stationsData[33].topoX, y1: stationsData[33].topoY, x2: stationsData[34].topoX, y2: stationsData[34].topoY});
+        mapSegment(35, 42, stationsData[33].topoX + 30, stationsData[33].topoY + 30, stationsData[33].topoX + 200, stationsData[33].topoY + 200);
+        topologyLinesData.push({x1: stationsData[33].topoX, y1: stationsData[33].topoY, x2: stationsData[35].topoX, y2: stationsData[35].topoY});
+
+        const jX = stationsData[92].topoX + 50, jY = stationsData[92].topoY + 50;
+        mapSegment(93, 98, jX, jY, jX + 200, jY + 200);
+        topologyLinesData.push({x1: stationsData[92].topoX, y1: stationsData[92].topoY, x2: stationsData[93].topoX, y2: stationsData[93].topoY});
+
+        const sX = stationsData[124].topoX + 50, sY = stationsData[124].topoY - 50;
+        mapSegment(125, 126, sX, sY, sX + 50, sY - 50);
+        topologyLinesData.push({x1: stationsData[124].topoX, y1: stationsData[124].topoY, x2: stationsData[125].topoX, y2: stationsData[125].topoY});
+
+        const pX = stationsData[226].topoX - 50, pY = stationsData[226].topoY - 50;
+        mapSegment(227, 232, pX, pY, pX - 200, pY - 200);
+        topologyLinesData.push({x1: stationsData[226].topoX, y1: stationsData[226].topoY, x2: stationsData[227].topoX, y2: stationsData[227].topoY});
+
+        const shX = stationsData[234].topoX - 50, shY = stationsData[234].topoY + 50;
+        mapSegment(235, 236, shX, shY, shX - 50, shY + 50);
+        topologyLinesData.push({x1: stationsData[234].topoX, y1: stationsData[234].topoY, x2: stationsData[235].topoX, y2: stationsData[235].topoY});
+
+        stationsData.forEach(d => d.isAllowed = true);
+
+        const lines = topologyLinesGroup.selectAll("line").data(topologyLinesData);
+        lines.enter().append("line")
+            .attr("x1", d => d.x1)
+            .attr("y1", d => d.y1)
+            .attr("x2", d => d.x2)
+            .attr("y2", d => d.y2)
+            .style("stroke", "#00f0ff")
+            .style("stroke-width", 2)
+            .style("opacity", 0.5);
+    }
 
     window.toggleTopologyMode = function() {
         isTopologyMode = !isTopologyMode;
@@ -275,35 +368,12 @@ function drawMap(twData, stationsData) {
     };
 
     function enableTopologyView() {
+        generateTopologyLayout();
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
-        
-        const spacingX = 80;
-        const spacingY = 80;
-        const totalItems = stationsData.length;
-        const itemsPerRow = Math.max(5, Math.floor(width / spacingX));
-        
-        let pathData = [];
-        
-        stationsData.forEach((d, i) => {
-            const row = Math.floor(i / itemsPerRow);
-            let col = i % itemsPerRow;
-            
-            // Zig-zag to create a continuous connected path
-            if (row % 2 === 1) {
-                col = itemsPerRow - 1 - col;
-            }
-            
-            d.topoX = (col * spacingX) + (width - (itemsPerRow - 1) * spacingX) / 2;
-            d.topoY = (row * spacingY) + 100;
-            
-            pathData.push([d.topoX, d.topoY]);
-            d.isAllowed = true;
-        });
 
-        // Set the SVG viewport bounding box manually since D3 zoom might be active
         svg.transition().duration(750).call(
             zoom.transform, 
-            d3.zoomIdentity.translate(0, 0).scale(1)
+            d3.zoomIdentity.translate(width/2, height/2).scale(0.3)
         );
 
         const stationGroups = mainGroup.selectAll(".station-group");
@@ -312,23 +382,22 @@ function drawMap(twData, stationsData) {
             .attr("transform", d => `translate(${d.topoX}, ${d.topoY})`);
             
         stationGroups.selectAll(".station").transition().duration(750)
-            .attr("r", 6)
-            .style("fill", "#00f0ff");
+            .attr("r", 15)
+            .style("fill", "#00f0ff")
+            .style("stroke", "#0d1526")
+            .style("stroke-width", 3);
 
         mainGroup.selectAll(".station-label")
             .style("visibility", "visible")
             .style("pointer-events", "none")
             .transition().duration(750)
             .style("opacity", 1)
-            .attr("x", 0)
-            .attr("y", -14)
-            .style("font-size", "10px");
+            .attr("x", 20)
+            .attr("y", 5)
+            .style("font-size", "24px")
+            .style("font-weight", "bold");
 
-        const lineGen = d3.line().x(d => d[0]).y(d => d[1]);
-        topologyPathElement
-            .attr("d", lineGen(pathData))
-            .transition().duration(750)
-            .style("opacity", 0.5);
+        topologyLinesGroup.transition().duration(750).style("opacity", 1);
     }
 
     function disableTopologyView() {
@@ -346,11 +415,11 @@ function drawMap(twData, stationsData) {
             
         stationGroups.selectAll(".station").transition().duration(750)
             .attr("r", 4)
-            .style("fill", "#ef4444");
+            .style("fill", "#ef4444")
+            .style("stroke", "none");
             
-        topologyPathElement.transition().duration(500).style("opacity", 0);
+        topologyLinesGroup.transition().duration(500).style("opacity", 0);
         
-        // Let the label tick simulation handle restoring labels
         if (!activeStationSelection) {
             mainGroup.selectAll(".station-label").style("opacity", 0);
         }
