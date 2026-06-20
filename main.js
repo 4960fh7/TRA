@@ -44,12 +44,16 @@ let labelSimulation = null;
 
 // 縮放設定行為邏輯
 const zoom = d3.zoom()
-    .scaleExtent([1, 40])
+    .scaleExtent([0.1, 40])
     .on("zoom", (event) => {
         mainGroup.attr("transform", event.transform);
         const k = event.transform.k;
 
-        if (window.isTopologyMode) return;
+        if (window.isTopologyMode) {
+            mainGroup.selectAll(".station-label").style("opacity", 1);
+            updateLabelForceSimulation(k);
+            return;
+        }
 
         mainGroup.selectAll(".station")
             .attr("r", d => {
@@ -66,26 +70,44 @@ svg.call(zoom);
 
 // 高性能靜態防重疊邊界判定算法
 function updateLabelForceSimulation(k) {
-    if (window.isTopologyMode) return;
-
     if (labelSimulation) {
         labelSimulation.stop();
         labelSimulation = null;
     }
 
-    const fontSize = Math.max(2.5, 9 / Math.sqrt(k));
-    const activeCircleRadius = 4 / Math.sqrt(k);
-    const standardCircleRadius = 3 / Math.sqrt(k);
+    let activeCircleRadius;
+    let standardCircleRadius;
+    let fontSize;
+
+    if (window.isTopologyMode) {
+        activeCircleRadius = 18;
+        standardCircleRadius = 15;
+        fontSize = Math.max(12, 12 / Math.sqrt(k)); 
+    } else {
+        activeCircleRadius = 4 / Math.sqrt(k);
+        standardCircleRadius = 3 / Math.sqrt(k);
+        fontSize = Math.max(2.5, 9 / Math.sqrt(k));
+    }
 
     const labels = mainGroup.selectAll(".station-label")
-        .style("font-size", `${fontSize}px`);
+        .style("font-size", `${fontSize}px`)
+        .style("font-weight", window.isTopologyMode ? "bold" : "normal");
 
     const allocatedBoxes = [];
 
     let nodes = globalStationsData.map(d => {
-        const coords = getCoords(d);
-        if (!coords) return null;
-        const pos = projection([coords.lon, coords.lat]);
+        let posX, posY;
+        if (window.isTopologyMode) {
+            if (d.topoX === undefined) return null;
+            posX = d.topoX;
+            posY = d.topoY;
+        } else {
+            const coords = getCoords(d);
+            if (!coords) return null;
+            const pos = projection([coords.lon, coords.lat]);
+            posX = pos[0];
+            posY = pos[1];
+        }
 
         const isCurrentActive = activeStationSelection && d3.select(activeStationSelection).datum() === d;
         const r = isCurrentActive ? activeCircleRadius : standardCircleRadius;
@@ -96,8 +118,8 @@ function updateLabelForceSimulation(k) {
 
         return {
             data: d,
-            geoX: pos[0],
-            geoY: pos[1],
+            geoX: posX,
+            geoY: posY,
             name: name,
             r: r,
             width: estWidth,
@@ -107,7 +129,7 @@ function updateLabelForceSimulation(k) {
         };
     }).filter(n => n !== null);
 
-    const searchRadius = 40 / Math.pow(k, 0.8);
+    const searchRadius = window.isTopologyMode ? (80 / Math.pow(k, 0.8)) : (40 / Math.pow(k, 0.8));
 
     // 1. 計算每個站點是否為區域最大值 (Local Maximum)
     nodes.forEach(node => {
@@ -142,7 +164,7 @@ function updateLabelForceSimulation(k) {
     });
 
     // 2. 結合全域 Top N (Global Maximum) 與 區域最大值
-    const maxAllowed = Math.floor(25 * Math.pow(k, 1.3));
+    const maxAllowed = window.isTopologyMode ? Math.floor(40 * Math.pow(k, 1.0)) : Math.floor(25 * Math.pow(k, 1.3));
     let allowedCount = 0;
 
     nodes.forEach(node => {
@@ -186,8 +208,8 @@ function updateLabelForceSimulation(k) {
 
         if (node.isLocalMax) {
             for (let slot of slotDirections) {
-                const paddingX = 4 / k;
-                const paddingY = 2 / k;
+                const paddingX = window.isTopologyMode ? 12 : (4 / k);
+                const paddingY = window.isTopologyMode ? 10 : (2 / k);
 
                 let cx = node.geoX;
                 let cy = node.geoY;
@@ -203,7 +225,7 @@ function updateLabelForceSimulation(k) {
                     data: node.data
                 };
 
-                if (!checkOverlap(box, allocatedBoxes, k)) {
+                if (!checkOverlap(box, allocatedBoxes, k, window.isTopologyMode)) {
                     node.offsetX = cx - node.geoX;
                     node.offsetY = cy - node.geoY;
                     allocatedBoxes.push(box);
@@ -230,9 +252,9 @@ function updateLabelForceSimulation(k) {
         });
 }
 
-function checkOverlap(box, allocatedBoxes, k) {
-    const paddingX = 4 / k;
-    const paddingY = 2 / k;
+function checkOverlap(box, allocatedBoxes, k, isTopologyMode) {
+    const paddingX = isTopologyMode ? 4 : (4 / k);
+    const paddingY = isTopologyMode ? 2 : (2 / k);
 
     for (let b of allocatedBoxes) {
         if (!(box.x2 + paddingX < b.x1 ||
@@ -417,11 +439,7 @@ function drawMap(twData, stationsData) {
             .style("visibility", "visible")
             .style("pointer-events", "none")
             .transition().duration(750)
-            .style("opacity", 1)
-            .attr("x", 20)
-            .attr("y", 5)
-            .style("font-size", "24px")
-            .style("font-weight", "bold");
+            .style("opacity", 1);
 
         topologyLinesGroup.transition().duration(750).style("opacity", 1);
     }
