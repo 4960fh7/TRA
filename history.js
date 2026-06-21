@@ -273,6 +273,7 @@ async function fetchData(showError = true) {
                         },
                         pointRadius: 4,
                         pointHoverRadius: 6,
+                        pointBorderWidth: 0,
                         clip: false
                     }]
                 },
