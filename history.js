@@ -20,11 +20,12 @@ function parseTime(timeStr) {
 }
 
 document.getElementById('fetch-btn').addEventListener('click', async () => {
-    const dateStr = document.getElementById('date-input').value.trim();
-    if (!dateStr || dateStr.length !== 4) {
-        alert("請輸入正確的日期格式，例如 0601");
+    const dateVal = document.getElementById('date-input').value;
+    if (!dateVal) {
+        alert("請選擇日期");
         return;
     }
+    const dateStr = dateVal.substring(5).replace('-', '');
     
     const wrapper = document.getElementById('charts-wrapper');
     wrapper.innerHTML = "<p style='color: #00f0ff;'>資料載入中，請稍候...</p>";
@@ -41,11 +42,35 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
             return;
         }
 
+        let maxDelay = 0;
+        const processedData = [];
+
         data.forEach(train => {
             if (!train.data || train.data.length === 0) return;
             
+            const uniqueData = [];
+            const seenStations = new Set();
+            for (let i = 0; i < train.data.length; i++) {
+                const d = train.data[i];
+                if (seenStations.has(d.StationID)) continue;
+                seenStations.add(d.StationID);
+                uniqueData.push(d);
+                if (d.Delay > maxDelay) {
+                    maxDelay = d.Delay;
+                }
+            }
+            
+            if (uniqueData.length > 0) {
+                processedData.push({ ...train, data: uniqueData });
+            }
+        });
+
+        const yAxisMax = Math.ceil(maxDelay * 1.1) || 10;
+
+        processedData.forEach(train => {
             const container = document.createElement('div');
             container.className = 'chart-container';
+            container.id = `chart-train-${train.No}`;
             
             const title = document.createElement('h2');
             title.className = 'chart-title';
@@ -131,6 +156,8 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                             }
                         },
                         y: {
+                            min: 0,
+                            max: yAxisMax,
                             title: {
                                 display: true,
                                 text: '誤點時間 (分)',
@@ -150,12 +177,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                     },
                     plugins: {
                         legend: {
-                            labels: {
-                                color: '#e2e8f0',
-                                font: {
-                                    family: "'Courier New', Courier, monospace"
-                                }
-                            }
+                            display: false
                         },
                         tooltip: {
                             backgroundColor: 'rgba(13, 21, 38, 0.9)',
@@ -177,6 +199,22 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
         
     } catch(e) {
         wrapper.innerHTML = `<p style='color: #ef4444;'>錯誤: ${e.message}</p>`;
+    }
+});
+
+document.getElementById('search-btn').addEventListener('click', () => {
+    const trainNo = document.getElementById('train-search-input').value.trim();
+    if (!trainNo) return;
+    const target = document.getElementById(`chart-train-${trainNo}`);
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        target.style.transition = 'box-shadow 0.3s ease';
+        target.style.boxShadow = '0 0 20px #00f0ff';
+        setTimeout(() => {
+            target.style.boxShadow = 'none';
+        }, 2000);
+    } else {
+        alert("找不到指定的車次圖表");
     }
 });
 

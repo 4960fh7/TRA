@@ -91,9 +91,12 @@
 
     <div id="history-app-container">
         <div class="date-selector-container">
-            <label for="date-input" style="font-weight: bold; color: #d0ffe6;">選擇日期 (MMDD):</label>
-            <input type="text" id="date-input" class="date-input" placeholder="例如: 0601">
+            <label for="date-input" style="font-weight: bold; color: #d0ffe6;">選擇日期:</label>
+            <input type="date" id="date-input" class="date-input">
             <button id="fetch-btn" class="fetch-btn">查詢</button>
+            <label for="train-search-input" style="font-weight: bold; color: #d0ffe6; margin-left: 20px;">搜尋車次:</label>
+            <input type="text" id="train-search-input" class="date-input" placeholder="例如: 408">
+            <button id="search-btn" class="fetch-btn">跳轉</button>
         </div>
         <div id="charts-wrapper"></div>
     </div>
