@@ -20,17 +20,6 @@
             color: #e2e8f0;
         }
 
-        .date-selector-container {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 20px;
-            padding: 10px;
-            background: #0d1b2a;
-            border: 1px solid #162238;
-            border-radius: 4px;
-        }
-
         .date-input {
             background: #060a12;
             border: 1px solid #00f0ff;
@@ -93,22 +82,22 @@
             <h1>台鐵列車分析</h1>
         </div>
         <div class="search-wrap">
+            <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">選擇日期:</label>
+            <input type="date" id="date-input" class="date-input" style="padding: 6px 10px;">
+            <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">查詢</button>
+            
+            <label for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋車次:</label>
+            <div style="position: relative;">
+                <input type="text" id="train-search-input" class="date-input" placeholder="例如: 408" autocomplete="off" style="width: 120px; padding: 6px 10px;">
+                <div id="train-suggestions" class="suggestions-dropdown" style="width: 300px;"></div>
+            </div>
+            <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">跳轉</button>
+            
             <button onclick="window.location.href='index.html'" class="reset-btn">列車動態</button>
         </div>
     </div>
 
     <div id="history-app-container">
-        <div class="date-selector-container">
-            <label for="date-input" style="font-weight: bold; color: #d0ffe6;">選擇日期:</label>
-            <input type="date" id="date-input" class="date-input">
-            <button id="fetch-btn" class="fetch-btn">查詢</button>
-            <label for="train-search-input" style="font-weight: bold; color: #d0ffe6; margin-left: 20px;">搜尋車次:</label>
-            <div style="position: relative;">
-                <input type="text" id="train-search-input" class="date-input" placeholder="例如: 408" autocomplete="off">
-                <div id="train-suggestions" class="suggestions-dropdown" style="width: 400px;"></div>
-            </div>
-            <button id="search-btn" class="fetch-btn">跳轉</button>
-        </div>
 
         <div class="chart-container" id="overview-chart-container" style="display: none;">
             <h2 class="chart-title">所有列車總覽</h2>
