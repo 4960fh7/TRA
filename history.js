@@ -35,10 +35,10 @@ async function init() {
     try {
         const now = new Date();
         const logicalToday = new Date(now.getTime() - 5 * 3600 * 1000);
-        
+
         const targetDate = new Date(logicalToday);
         targetDate.setDate(targetDate.getDate() - 3);
-        
+
         const yyyy = targetDate.getFullYear();
         const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
         const dd = String(targetDate.getDate()).padStart(2, '0');
@@ -52,7 +52,7 @@ async function init() {
     } catch (e) {
         console.error("Failed to load stations.json", e);
     }
-    
+
     // Auto-fetch data on load
     await fetchData(false);
 }
@@ -115,11 +115,11 @@ async function fetchData(showError = true) {
                 // If time drops by more than 6 hours, it crossed midnight into the next day
                 if (rawTime < baseTime - 6 * 3600) {
                     d._absTime = rawTime + 24 * 3600;
-                } 
+                }
                 // If time jumps by more than 18 hours, it's a leftover record from yesterday
                 else if (rawTime > baseTime + 18 * 3600) {
                     d._absTime = rawTime - 24 * 3600;
-                } 
+                }
                 else {
                     d._absTime = rawTime;
                 }
@@ -143,7 +143,7 @@ async function fetchData(showError = true) {
             groups.forEach((g, index) => {
                 if (seenStations.has(g.StationID)) return;
                 seenStations.add(g.StationID);
-                
+
                 if (index === 0) {
                     uniqueData.push(g.records[g.records.length - 1]);
                 } else {
@@ -181,20 +181,20 @@ async function fetchData(showError = true) {
 
             const title = document.createElement('h2');
             title.className = 'chart-title';
-            
+
             let titleHTML = `<span style="color: ${neonColor}; text-shadow: 0 0 8px ${neonColor};">${getTrainTypeName(tType, train.No)}</span>`;
             if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
                 const sData = trainData.data || [];
                 const startTime = sData.length > 0 ? sData[0].dep : "";
                 const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
-                
+
                 let startStr = startTime ? `${startTime} ` : "";
                 let endStr = endTime ? `${endTime} ` : "";
-                
+
                 titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
             }
             title.innerHTML = titleHTML;
-            
+
             container.appendChild(title);
 
             let firstTime = parseTime(train.data[0].Update);
@@ -263,15 +263,14 @@ async function fetchData(showError = true) {
                         backgroundColor: 'transparent',
                         borderWidth: 2,
                         tension: 0.1,
-                        pointBackgroundColor: function(context) {
+                        pointBackgroundColor: function (context) {
                             if (context.raw === undefined) return '#00ffaa';
                             const delay = context.raw.y;
                             if (delay === 0) return '#00ffaa';
                             if (delay <= 5) return '#ff9900';
                             if (delay <= 20) return '#ff0055';
-                            return '#ce6be0';
+                            return '#cc38e6';
                         },
-                        pointBorderColor: '#fff',
                         pointRadius: 4,
                         pointHoverRadius: 6,
                         clip: false
@@ -453,16 +452,16 @@ searchInput.addEventListener('input', () => {
             const trainData = window.trainTypeMap[t.No];
             const tType = trainData?.train || "";
             const neonColor = colorPalette[tType] || "#64748b";
-            
+
             let displayName = `<span style="color: ${neonColor};">${getTrainTypeName(tType, t.No)}</span>`;
             if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
                 const sData = trainData.data || [];
                 const startTime = sData.length > 0 ? sData[0].dep : "";
                 const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
-                
+
                 let startStr = startTime ? `${startTime} ` : "";
                 let endStr = endTime ? `${endTime} ` : "";
-                
+
                 displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
             }
             return `<div class="suggestion-item" data-no="${t.No}">${displayName}</div>`;
