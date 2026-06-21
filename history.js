@@ -33,11 +33,15 @@ function getTrainTypeName(train, number) {
 
 async function init() {
     try {
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yyyy = yesterday.getFullYear();
-        const mm = String(yesterday.getMonth() + 1).padStart(2, '0');
-        const dd = String(yesterday.getDate()).padStart(2, '0');
+        const now = new Date();
+        const logicalToday = new Date(now.getTime() - 5 * 3600 * 1000);
+        
+        const targetDate = new Date(logicalToday);
+        targetDate.setDate(targetDate.getDate() - 3);
+        
+        const yyyy = targetDate.getFullYear();
+        const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
+        const dd = String(targetDate.getDate()).padStart(2, '0');
         document.getElementById('date-input').value = `${yyyy}-${mm}-${dd}`;
 
         const res = await fetch('stations.json');
