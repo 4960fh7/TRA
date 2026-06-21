@@ -241,7 +241,8 @@ async function fetchData(showError = true) {
                 tension: 0,
                 pointRadius: 0,
                 pointHoverRadius: 0,
-                pointHitRadius: 5
+                pointHitRadius: 5,
+                clip: false
             });
 
             new Chart(canvas, {
@@ -257,10 +258,19 @@ async function fetchData(showError = true) {
                         pointBackgroundColor: '#ff0055',
                         pointBorderColor: '#fff',
                         pointRadius: 4,
-                        pointHoverRadius: 6
+                        pointHoverRadius: 6,
+                        clip: false
                     }]
                 },
                 options: {
+                    layout: {
+                        padding: {
+                            top: 10,
+                            bottom: 15,
+                            left: 10,
+                            right: 20
+                        }
+                    },
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
