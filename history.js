@@ -52,6 +52,9 @@ async function init() {
     } catch (e) {
         console.error("Failed to load stations.json", e);
     }
+    
+    // Auto-fetch data on load
+    await fetchData(false);
 }
 
 function parseTime(timeStr) {
