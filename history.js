@@ -187,9 +187,9 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                 borderColor: neonColor,
                 backgroundColor: 'transparent',
                 borderWidth: 1,
-                tension: 0.1,
+                tension: 0,
                 pointRadius: 0,
-                pointHoverRadius: 4
+                pointHoverRadius: 0
             });
             
             new Chart(canvas, {
@@ -289,8 +289,15 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
             type: 'line',
             data: { datasets: overviewDatasets },
             options: {
+                animation: false,
+                normalized: true,
                 responsive: true,
                 maintainAspectRatio: false,
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                },
                 scales: {
                     x: {
                         type: 'linear',
@@ -317,8 +324,6 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                 plugins: {
                     legend: { display: false },
                     tooltip: {
-                        mode: 'nearest',
-                        intersect: false,
                         backgroundColor: 'rgba(13, 21, 38, 0.9)',
                         titleColor: '#00f0ff',
                         bodyColor: '#e2e8f0',

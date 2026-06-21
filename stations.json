@@ -2430,6 +2430,15 @@
         "level": 4
     },
     {
+        "stationCode": "5170",
+        "stationName": "枋野",
+        "stationEName": "Fangye",
+        "name": "枋野",
+        "ename": "Fangye",
+        "stationAddrTw": "屏東縣獅子鄉內獅村內獅巷 88 號",
+        "stationAddrEn": "No. 88, Neishi Ln., Shizi Township, Pingtung County"
+    },
+    {
         "stationCode": "5190",
         "stationName": "大武",
         "stationEName": "Dawu",
