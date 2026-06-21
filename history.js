@@ -65,31 +65,31 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
     }
     const dateStr = dateVal.substring(5).replace('-', '');
     const fullDateStr = dateVal.replace(/-/g, '');
-    
+
     const wrapper = document.getElementById('charts-wrapper');
     wrapper.innerHTML = "<p style='color: #00f0ff;'>資料載入中，請稍候...</p>";
     document.getElementById('overview-chart-container').style.display = 'none';
-    
+
     try {
         const [resTdx, resSchedule] = await Promise.allSettled([
             fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStr}.json`),
             fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${fullDateStr}.json`)
         ]);
-        
+
         if (resTdx.status === 'rejected' || !resTdx.value.ok) throw new Error("資料獲取失敗，請確認該日期有歷史資料。");
         const data = await resTdx.value.json();
-        
+
         let scheduleMap = {};
         if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
             try {
                 const sData = await resSchedule.value.json();
                 sData.forEach(t => { scheduleMap[t.number] = t.train; });
-            } catch(e) {}
+            } catch (e) { }
         }
         window.trainTypeMap = scheduleMap;
-        
+
         wrapper.innerHTML = "";
-        
+
         if (!data || data.length === 0) {
             wrapper.innerHTML = "<p style='color: #ef4444;'>無此日期的資料</p>";
             return;
@@ -100,87 +100,110 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
 
         data.forEach(train => {
             if (!train.data || train.data.length === 0) return;
-            
+
             const uniqueData = [];
             const seenStations = new Set();
+            let originStationId = null;
+            let originLastRecord = null;
+
             for (let i = 0; i < train.data.length; i++) {
                 const d = train.data[i];
-                if (seenStations.has(d.StationID)) continue;
-                seenStations.add(d.StationID);
-                uniqueData.push(d);
+                if (i === 0) originStationId = d.StationID;
+
+                if (d.StationID === originStationId && !seenStations.has(originStationId)) {
+                    originLastRecord = d;
+                } else {
+                    if (!seenStations.has(originStationId) && originLastRecord) {
+                        uniqueData.push(originLastRecord);
+                        seenStations.add(originStationId);
+                    }
+                    if (!seenStations.has(d.StationID)) {
+                        uniqueData.push(d);
+                        seenStations.add(d.StationID);
+                    }
+                }
+            }
+
+            if (uniqueData.length === 0 && originLastRecord) {
+                uniqueData.push(originLastRecord);
+            }
+
+            uniqueData.forEach(d => {
                 if (d.Delay > maxDelay) {
                     maxDelay = d.Delay;
                 }
-            }
-            
+            });
+
             if (uniqueData.length > 0) {
                 processedData.push({ ...train, data: uniqueData });
             }
         });
 
+        processedData.sort((a, b) => parseInt(a.No, 10) - parseInt(b.No, 10));
+
         const yAxisMax = Math.ceil(maxDelay * 1.1) || 10;
         window.processedTrains = processedData;
-        
+
         const overviewDatasets = [];
 
         processedData.forEach(train => {
             const tType = window.trainTypeMap[train.No] || "";
             const neonColor = colorPalette[tType] || "#00f0ff";
-            
+
             const container = document.createElement('div');
             container.className = 'chart-container';
             container.id = `chart-train-${train.No}`;
             container.style.overflow = 'hidden';
-            
+
             const title = document.createElement('h2');
             title.className = 'chart-title';
             title.style.color = neonColor;
             title.style.textShadow = `0 0 8px ${neonColor}`;
-            title.textContent = `車次: ${getTrainTypeName(tType, train.No)}`;
+            title.textContent = `${getTrainTypeName(tType, train.No)}`;
             container.appendChild(title);
-            
+
             let firstTime = parseTime(train.data[0].Update);
-            
+
             const chartData = [];
             const xTicks = [];
             const timeToStation = {};
-            
+
             train.data.forEach(d => {
                 let sName = stationsMap[d.StationID] || d.StationID;
                 let currentTime = parseTime(d.Update);
-                
+
                 // Handle cross midnight
                 if (currentTime < firstTime - 12 * 3600) {
                     currentTime += 24 * 3600;
                 }
-                
+
                 let timeSinceDep = (currentTime - firstTime) / 60; // in minutes
-                
+
                 chartData.push({ x: timeSinceDep, y: d.Delay });
                 timeToStation[timeSinceDep] = sName;
                 xTicks.push(timeSinceDep);
             });
-            
+
             let maxTime = Math.max(...xTicks);
             let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
-            
+
             const scrollContainer = document.createElement('div');
             scrollContainer.style.overflowX = 'auto';
             scrollContainer.style.overflowY = 'hidden';
             scrollContainer.style.height = 'calc(100% - 40px)';
             scrollContainer.style.width = '100%';
-            
+
             const canvasWrapper = document.createElement('div');
             canvasWrapper.style.position = 'relative';
             canvasWrapper.style.height = '100%';
             canvasWrapper.style.width = `${targetWidthPercent}%`;
-            
+
             const canvas = document.createElement('canvas');
             canvasWrapper.appendChild(canvas);
             scrollContainer.appendChild(canvasWrapper);
             container.appendChild(scrollContainer);
             wrapper.appendChild(container);
-            
+
             overviewDatasets.push({
                 label: getTrainTypeName(tType, train.No),
                 data: chartData,
@@ -189,9 +212,10 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                 borderWidth: 1,
                 tension: 0,
                 pointRadius: 0,
-                pointHoverRadius: 0
+                pointHoverRadius: 0,
+                pointHitRadius: 5
             });
-            
+
             new Chart(canvas, {
                 type: 'line',
                 data: {
@@ -235,7 +259,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                                 color: '#94a3b8',
                                 maxRotation: 45,
                                 minRotation: 45,
-                                callback: function(value) {
+                                callback: function (value) {
                                     return timeToStation[value] || value;
                                 }
                             }
@@ -271,7 +295,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                             borderColor: '#1e293b',
                             borderWidth: 1,
                             callbacks: {
-                                title: function(context) {
+                                title: function (context) {
                                     let xVal = context[0].parsed.x;
                                     return '車站: ' + (timeToStation[xVal] || xVal);
                                 }
@@ -281,7 +305,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                 }
             });
         });
-        
+
         // Draw overview chart
         document.getElementById('overview-chart-container').style.display = 'block';
         if (window.overviewChart) window.overviewChart.destroy();
@@ -294,9 +318,8 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: {
-                    mode: 'nearest',
-                    axis: 'x',
-                    intersect: false
+                    mode: 'point',
+                    intersect: true
                 },
                 scales: {
                     x: {
@@ -306,7 +329,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                         grid: { color: 'rgba(208, 255, 230, 0.1)' },
                         ticks: {
                             color: '#94a3b8',
-                            callback: function(value) {
+                            callback: function (value) {
                                 const h = Math.floor(value / 60);
                                 const m = Math.floor(value % 60);
                                 return `${h}:${m.toString().padStart(2, '0')}`;
@@ -329,15 +352,19 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
                         bodyColor: '#e2e8f0',
                         borderColor: '#1e293b',
                         borderWidth: 1,
+                        displayColors: true,
                         callbacks: {
-                            title: function(context) { return '車次: ' + context[0].dataset.label; }
+                            title: function () { return ''; },
+                            label: function (context) {
+                                return context.dataset.label;
+                            }
                         }
                     }
                 }
             }
         });
-        
-    } catch(e) {
+
+    } catch (e) {
         wrapper.innerHTML = `<p style='color: #ef4444;'>錯誤: ${e.message}</p>`;
     }
 });
@@ -351,8 +378,8 @@ searchInput.addEventListener('input', () => {
         suggestionsBox.style.display = 'none';
         return;
     }
-    
-    const matches = window.processedTrains.filter(t => String(t.No).includes(query)).slice(0, 15);
+
+    const matches = window.processedTrains.filter(t => String(t.No).includes(query));
     if (matches.length > 0) {
         suggestionsBox.innerHTML = matches.map(t => {
             const tType = window.trainTypeMap[t.No] || "";
@@ -360,7 +387,7 @@ searchInput.addEventListener('input', () => {
             return `<div class="suggestion-item" data-no="${t.No}">${displayName}</div>`;
         }).join('');
         suggestionsBox.style.display = 'block';
-        
+
         suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
                 searchInput.value = item.getAttribute('data-no');
