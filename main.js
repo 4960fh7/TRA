@@ -1077,6 +1077,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
 
             if (isCurrentlyActive && isSchedulePanelOpen) {
                 appContainer.classList.remove("multi-split-mode");
+                mainGroup.selectAll(".station-group").classed("train-stop", false);
             } else {
                 card.classList.add("expanded");
                 appContainer.classList.add("multi-split-mode");
