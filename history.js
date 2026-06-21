@@ -57,10 +57,10 @@ function parseTime(timeStr) {
     return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
 }
 
-document.getElementById('fetch-btn').addEventListener('click', async () => {
+async function fetchData(showError = true) {
     const dateVal = document.getElementById('date-input').value;
     if (!dateVal) {
-        alert("請選擇日期");
+        if (showError) alert("請選擇日期");
         return;
     }
     const dateStr = dateVal.substring(5).replace('-', '');
@@ -101,32 +101,40 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
         data.forEach(train => {
             if (!train.data || train.data.length === 0) return;
 
-            const uniqueData = [];
-            const seenStations = new Set();
-            let originStationId = null;
-            let originLastRecord = null;
+            // 1. Sort data chronologically to handle out-of-order TDX records
+            let baseTime = parseTime(train.data[0].Update);
+            train.data.forEach(d => {
+                d._absTime = parseTime(d.Update);
+                if (d._absTime < baseTime - 12 * 3600) {
+                    d._absTime += 24 * 3600;
+                }
+            });
+            train.data.sort((a, b) => a._absTime - b._absTime);
 
+            // 2. Group by consecutive stations
+            const groups = [];
             for (let i = 0; i < train.data.length; i++) {
                 const d = train.data[i];
-                if (i === 0) originStationId = d.StationID;
-
-                if (d.StationID === originStationId && !seenStations.has(originStationId)) {
-                    originLastRecord = d;
+                if (groups.length === 0 || groups[groups.length - 1].StationID !== d.StationID) {
+                    groups.push({ StationID: d.StationID, records: [d] });
                 } else {
-                    if (!seenStations.has(originStationId) && originLastRecord) {
-                        uniqueData.push(originLastRecord);
-                        seenStations.add(originStationId);
-                    }
-                    if (!seenStations.has(d.StationID)) {
-                        uniqueData.push(d);
-                        seenStations.add(d.StationID);
-                    }
+                    groups[groups.length - 1].records.push(d);
                 }
             }
 
-            if (uniqueData.length === 0 && originLastRecord) {
-                uniqueData.push(originLastRecord);
-            }
+            // 3. Keep last record of origin, and first record of subsequent stations
+            const uniqueData = [];
+            const seenStations = new Set();
+            groups.forEach((g, index) => {
+                if (seenStations.has(g.StationID)) return;
+                seenStations.add(g.StationID);
+                
+                if (index === 0) {
+                    uniqueData.push(g.records[g.records.length - 1]);
+                } else {
+                    uniqueData.push(g.records[0]);
+                }
+            });
 
             uniqueData.forEach(d => {
                 if (d.Delay > maxDelay) {
@@ -148,7 +156,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
 
         processedData.forEach(train => {
             const tType = window.trainTypeMap[train.No] || "";
-            const neonColor = colorPalette[tType] || "#00f0ff";
+            const neonColor = colorPalette[tType] || "#64748b";
 
             const container = document.createElement('div');
             container.className = 'chart-container';
@@ -365,7 +373,22 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
         });
 
     } catch (e) {
-        wrapper.innerHTML = `<p style='color: #ef4444;'>錯誤: ${e.message}</p>`;
+        if (showError) {
+            wrapper.innerHTML = `<p style='color: #ef4444;'>錯誤: ${e.message}</p>`;
+        } else {
+            wrapper.innerHTML = "";
+            document.getElementById('overview-chart-container').style.display = 'none';
+        }
+    }
+}
+
+document.getElementById('fetch-btn').addEventListener('click', () => fetchData(true));
+
+document.getElementById('date-input').addEventListener('change', () => fetchData(false));
+
+document.getElementById('date-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        fetchData(true);
     }
 });
 
@@ -390,8 +413,10 @@ searchInput.addEventListener('input', () => {
 
         suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
             item.addEventListener('click', () => {
-                searchInput.value = item.getAttribute('data-no');
+                const trainNo = item.getAttribute('data-no');
+                searchInput.value = trainNo;
                 suggestionsBox.style.display = 'none';
+                jumpToTrain(trainNo);
             });
         });
     } else {
@@ -405,8 +430,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-document.getElementById('search-btn').addEventListener('click', () => {
-    const trainNo = searchInput.value.trim();
+function jumpToTrain(trainNo) {
     if (!trainNo) return;
     const target = document.getElementById(`chart-train-${trainNo}`);
     if (target) {
@@ -418,6 +442,17 @@ document.getElementById('search-btn').addEventListener('click', () => {
         }, 2000);
     } else {
         alert("找不到指定的車次圖表");
+    }
+}
+
+document.getElementById('search-btn').addEventListener('click', () => {
+    jumpToTrain(searchInput.value.trim());
+});
+
+searchInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        jumpToTrain(searchInput.value.trim());
+        suggestionsBox.style.display = 'none';
     }
 });
 
