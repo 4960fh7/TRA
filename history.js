@@ -220,6 +220,7 @@ async function fetchData(showError = true) {
             let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
 
             const scrollContainer = document.createElement('div');
+            scrollContainer.className = 'history-chart-scroll-container';
             scrollContainer.style.overflowX = 'auto';
             scrollContainer.style.overflowY = 'hidden';
             scrollContainer.style.height = 'calc(100% - 40px)';
@@ -487,6 +488,7 @@ function jumpToTrain(trainNo) {
         setTimeout(() => {
             target.style.boxShadow = 'none';
         }, 2000);
+        document.getElementById('train-search-input').value = '';
     } else {
         alert("找不到指定的車次圖表");
     }

@@ -644,7 +644,8 @@ svg {
 #unified-train-list::-webkit-scrollbar,
 .suggestions-dropdown::-webkit-scrollbar,
 #schedule-stops-container::-webkit-scrollbar,
-#history-app-container::-webkit-scrollbar {
+#history-app-container::-webkit-scrollbar,
+.history-chart-scroll-container::-webkit-scrollbar {
     height: 6px;
     width: 6px;
 }
@@ -652,7 +653,8 @@ svg {
 #unified-train-list::-webkit-scrollbar-thumb,
 .suggestions-dropdown::-webkit-scrollbar-thumb,
 #schedule-stops-container::-webkit-scrollbar-thumb,
-#history-app-container::-webkit-scrollbar-thumb {
+#history-app-container::-webkit-scrollbar-thumb,
+.history-chart-scroll-container::-webkit-scrollbar-thumb {
     background: #555;
     border-radius: 10px;
 }
@@ -660,7 +662,8 @@ svg {
 #unified-train-list::-webkit-scrollbar-track,
 .suggestions-dropdown::-webkit-scrollbar-track,
 #schedule-stops-container::-webkit-scrollbar-track,
-#history-app-container::-webkit-scrollbar-track {
+#history-app-container::-webkit-scrollbar-track,
+.history-chart-scroll-container::-webkit-scrollbar-track {
     background: transparent;
 }
 
