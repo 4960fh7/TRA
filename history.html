@@ -19,6 +19,7 @@
             background-color: #060a12;
             color: #e2e8f0;
         }
+
         .date-selector-container {
             display: flex;
             align-items: center;
@@ -29,6 +30,7 @@
             border: 1px solid #162238;
             border-radius: 4px;
         }
+
         .date-input {
             background: #060a12;
             border: 1px solid #00f0ff;
@@ -40,6 +42,7 @@
             box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
             border-radius: 2px;
         }
+
         .fetch-btn {
             background: #162238;
             border: 1px solid #00f0ff;
@@ -53,11 +56,13 @@
             border-radius: 2px;
             font-weight: bold;
         }
+
         .fetch-btn:hover {
             box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
             background: #00f0ff;
             color: #060a12;
         }
+
         .chart-container {
             width: 100%;
             height: 400px;
@@ -71,6 +76,7 @@
             border-radius: 4px;
             position: relative;
         }
+
         .chart-title {
             color: #00f0ff;
             margin-top: 0;
@@ -99,18 +105,18 @@
             <label for="train-search-input" style="font-weight: bold; color: #d0ffe6; margin-left: 20px;">搜尋車次:</label>
             <div style="position: relative;">
                 <input type="text" id="train-search-input" class="date-input" placeholder="例如: 408" autocomplete="off">
-                <div id="train-suggestions" class="suggestions-dropdown" style="width: 200px;"></div>
+                <div id="train-suggestions" class="suggestions-dropdown" style="width: 400px;"></div>
             </div>
             <button id="search-btn" class="fetch-btn">跳轉</button>
         </div>
-        
+
         <div class="chart-container" id="overview-chart-container" style="display: none;">
             <h2 class="chart-title">所有列車總覽</h2>
             <div style="position: relative; height: calc(100% - 40px); width: 100%;">
                 <canvas id="overview-canvas"></canvas>
             </div>
         </div>
-        
+
         <div id="charts-wrapper"></div>
     </div>
 
