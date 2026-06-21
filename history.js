@@ -263,7 +263,14 @@ async function fetchData(showError = true) {
                         backgroundColor: 'transparent',
                         borderWidth: 2,
                         tension: 0.1,
-                        pointBackgroundColor: '#ff0055',
+                        pointBackgroundColor: function(context) {
+                            if (context.raw === undefined) return '#00ffaa';
+                            const delay = context.raw.y;
+                            if (delay === 0) return '#00ffaa';
+                            if (delay <= 5) return '#ff9900';
+                            if (delay <= 20) return '#ff0055';
+                            return '#ce6be0';
+                        },
                         pointBorderColor: '#fff',
                         pointRadius: 4,
                         pointHoverRadius: 6,
