@@ -101,18 +101,20 @@ async function fetchData(showError = true) {
         data.forEach(train => {
             if (!train.data || train.data.length === 0) return;
 
-            // 1. Robust chronological sort handling cross-midnight
+            // 1. Sort data chronologically relative to the first record
+            let baseTime = parseTime(train.data[0].Update);
             train.data.forEach(d => {
-                d._rawTime = parseTime(d.Update);
-            });
-            const minTime = Math.min(...train.data.map(d => d._rawTime));
-            const maxTimeVal = Math.max(...train.data.map(d => d._rawTime));
-            const crossMidnight = (maxTimeVal - minTime) > 12 * 3600;
-
-            train.data.forEach(d => {
-                d._absTime = d._rawTime;
-                if (crossMidnight && d._rawTime < 12 * 3600) {
-                    d._absTime += 24 * 3600;
+                let rawTime = parseTime(d.Update);
+                // If time drops by more than 6 hours, it crossed midnight into the next day
+                if (rawTime < baseTime - 6 * 3600) {
+                    d._absTime = rawTime + 24 * 3600;
+                } 
+                // If time jumps by more than 18 hours, it's a leftover record from yesterday
+                else if (rawTime > baseTime + 18 * 3600) {
+                    d._absTime = rawTime - 24 * 3600;
+                } 
+                else {
+                    d._absTime = rawTime;
                 }
             });
             train.data.sort((a, b) => a._absTime - b._absTime);
