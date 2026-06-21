@@ -83,7 +83,7 @@ async function fetchData(showError = true) {
         if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
             try {
                 const sData = await resSchedule.value.json();
-                sData.forEach(t => { scheduleMap[t.number] = t.train; });
+                sData.forEach(t => { scheduleMap[t.number] = t; });
             } catch (e) { }
         }
         window.trainTypeMap = scheduleMap;
@@ -163,7 +163,8 @@ async function fetchData(showError = true) {
         const overviewDatasets = [];
 
         processedData.forEach(train => {
-            const tType = window.trainTypeMap[train.No] || "";
+            const trainData = window.trainTypeMap[train.No];
+            const tType = trainData?.train || "";
             const neonColor = colorPalette[tType] || "#64748b";
 
             const container = document.createElement('div');
@@ -173,9 +174,20 @@ async function fetchData(showError = true) {
 
             const title = document.createElement('h2');
             title.className = 'chart-title';
-            title.style.color = neonColor;
-            title.style.textShadow = `0 0 8px ${neonColor}`;
-            title.textContent = `${getTrainTypeName(tType, train.No)}`;
+            
+            let titleHTML = `<span style="color: ${neonColor}; text-shadow: 0 0 8px ${neonColor};">${getTrainTypeName(tType, train.No)}</span>`;
+            if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
+                const sData = trainData.data || [];
+                const startTime = sData.length > 0 ? sData[0].dep : "";
+                const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
+                
+                let startStr = startTime ? `${startTime} ` : "";
+                let endStr = endTime ? `${endTime} ` : "";
+                
+                titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
+            }
+            title.innerHTML = titleHTML;
+            
             container.appendChild(title);
 
             let firstTime = parseTime(train.data[0].Update);
@@ -413,8 +425,21 @@ searchInput.addEventListener('input', () => {
     const matches = window.processedTrains.filter(t => String(t.No).includes(query));
     if (matches.length > 0) {
         suggestionsBox.innerHTML = matches.map(t => {
-            const tType = window.trainTypeMap[t.No] || "";
-            const displayName = getTrainTypeName(tType, t.No);
+            const trainData = window.trainTypeMap[t.No];
+            const tType = trainData?.train || "";
+            const neonColor = colorPalette[tType] || "#64748b";
+            
+            let displayName = `<span style="color: ${neonColor};">${getTrainTypeName(tType, t.No)}</span>`;
+            if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
+                const sData = trainData.data || [];
+                const startTime = sData.length > 0 ? sData[0].dep : "";
+                const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
+                
+                let startStr = startTime ? `${startTime} ` : "";
+                let endStr = endTime ? `${endTime} ` : "";
+                
+                displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
+            }
             return `<div class="suggestion-item" data-no="${t.No}">${displayName}</div>`;
         }).join('');
         suggestionsBox.style.display = 'block';
