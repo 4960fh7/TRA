@@ -101,11 +101,17 @@ async function fetchData(showError = true) {
         data.forEach(train => {
             if (!train.data || train.data.length === 0) return;
 
-            // 1. Sort data chronologically to handle out-of-order TDX records
-            let baseTime = parseTime(train.data[0].Update);
+            // 1. Robust chronological sort handling cross-midnight
             train.data.forEach(d => {
-                d._absTime = parseTime(d.Update);
-                if (d._absTime < baseTime - 12 * 3600) {
+                d._rawTime = parseTime(d.Update);
+            });
+            const minTime = Math.min(...train.data.map(d => d._rawTime));
+            const maxTimeVal = Math.max(...train.data.map(d => d._rawTime));
+            const crossMidnight = (maxTimeVal - minTime) > 12 * 3600;
+
+            train.data.forEach(d => {
+                d._absTime = d._rawTime;
+                if (crossMidnight && d._rawTime < 12 * 3600) {
                     d._absTime += 24 * 3600;
                 }
             });
