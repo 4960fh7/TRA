@@ -49,6 +49,9 @@ async function init() {
         stations.forEach(s => {
             stationsMap[s.stationCode] = s.stationName;
         });
+        
+        // Add special station '枋野' which is not in stations.json
+        stationsMap['5170'] = '枋野';
     } catch (e) {
         console.error("Failed to load stations.json", e);
     }
