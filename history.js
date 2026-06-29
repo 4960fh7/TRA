@@ -281,37 +281,39 @@ function renderTrainCharts() {
         let maxTime = Math.max(...xTicks);
         let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
 
-        const scrollContainer = document.createElement('div');
-        scrollContainer.className = 'history-chart-scroll-container';
-        scrollContainer.style.display = 'flex';
-        scrollContainer.style.overflowX = 'auto';
-        scrollContainer.style.overflowY = 'hidden';
-        scrollContainer.style.height = 'calc(100% - 40px)';
-        scrollContainer.style.width = '100%';
+        const outerWrapper = document.createElement('div');
+        outerWrapper.style.display = 'flex';
+        outerWrapper.style.height = 'calc(100% - 40px)';
+        outerWrapper.style.width = '100%';
 
         const yAxisWrapper = document.createElement('div');
-        yAxisWrapper.style.position = 'sticky';
-        yAxisWrapper.style.left = '0';
-        yAxisWrapper.style.zIndex = '10';
         yAxisWrapper.style.width = '60px';
         yAxisWrapper.style.flexShrink = '0';
         yAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
         yAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+        yAxisWrapper.style.zIndex = '10';
         const yCanvas = document.createElement('canvas');
         yAxisWrapper.appendChild(yCanvas);
+
+        const scrollContainer = document.createElement('div');
+        scrollContainer.className = 'history-chart-scroll-container';
+        scrollContainer.style.flexGrow = '1';
+        scrollContainer.style.overflowX = 'auto';
+        scrollContainer.style.overflowY = 'hidden';
 
         const canvasWrapper = document.createElement('div');
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
         canvasWrapper.style.minWidth = `${targetWidthPercent}%`;
-        canvasWrapper.style.flexShrink = '0';
         
         const canvas = document.createElement('canvas');
         canvasWrapper.appendChild(canvas);
         
-        scrollContainer.appendChild(yAxisWrapper);
         scrollContainer.appendChild(canvasWrapper);
-        container.appendChild(scrollContainer);
+        
+        outerWrapper.appendChild(yAxisWrapper);
+        outerWrapper.appendChild(scrollContainer);
+        container.appendChild(outerWrapper);
         wrapper.appendChild(container);
 
         overviewDatasets.push({
@@ -540,38 +542,40 @@ function renderStationCharts() {
     barTitle.textContent = '各車站平均誤點時間排名';
     barContainer.appendChild(barTitle);
 
-    const barScroll = document.createElement('div');
-    barScroll.className = 'history-chart-scroll-container';
-    barScroll.style.display = 'flex';
-    barScroll.style.overflowX = 'auto';
-    barScroll.style.overflowY = 'hidden';
-    barScroll.style.height = 'calc(100% - 40px)';
-    barScroll.style.width = '100%';
+    const barOuter = document.createElement('div');
+    barOuter.style.display = 'flex';
+    barOuter.style.height = 'calc(100% - 40px)';
+    barOuter.style.width = '100%';
 
     const barYAxisWrapper = document.createElement('div');
-    barYAxisWrapper.style.position = 'sticky';
-    barYAxisWrapper.style.left = '0';
-    barYAxisWrapper.style.zIndex = '10';
     barYAxisWrapper.style.width = '60px';
     barYAxisWrapper.style.flexShrink = '0';
     barYAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
     barYAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+    barYAxisWrapper.style.zIndex = '10';
     const barYCanvas = document.createElement('canvas');
     barYAxisWrapper.appendChild(barYCanvas);
+
+    const barScroll = document.createElement('div');
+    barScroll.className = 'history-chart-scroll-container';
+    barScroll.style.flexGrow = '1';
+    barScroll.style.overflowX = 'auto';
+    barScroll.style.overflowY = 'hidden';
 
     const minWidth = avgDelayData.length * 30;
     const barCanvasWrapper = document.createElement('div');
     barCanvasWrapper.style.position = 'relative';
     barCanvasWrapper.style.height = '100%';
     barCanvasWrapper.style.minWidth = `max(100%, ${minWidth}px)`;
-    barCanvasWrapper.style.flexShrink = '0';
 
     const barCanvas = document.createElement('canvas');
     barCanvasWrapper.appendChild(barCanvas);
     
-    barScroll.appendChild(barYAxisWrapper);
     barScroll.appendChild(barCanvasWrapper);
-    barContainer.appendChild(barScroll);
+    
+    barOuter.appendChild(barYAxisWrapper);
+    barOuter.appendChild(barScroll);
+    barContainer.appendChild(barOuter);
     wrapper.appendChild(barContainer);
 
     const maxBarDelay = avgDelayData.length > 0 ? Math.ceil(avgDelayData[0].avg * 1.2) || 10 : 10;
@@ -674,39 +678,41 @@ function renderStationCharts() {
         title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(車站代碼: ${sid})</span> <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
         container.appendChild(title);
 
-        const scrollContainer = document.createElement('div');
-        scrollContainer.className = 'history-chart-scroll-container';
-        scrollContainer.style.display = 'flex';
-        scrollContainer.style.overflowX = 'auto';
-        scrollContainer.style.overflowY = 'hidden';
-        scrollContainer.style.height = 'calc(100% - 40px)';
-        scrollContainer.style.width = '100%';
+        const outerWrapper = document.createElement('div');
+        outerWrapper.style.display = 'flex';
+        outerWrapper.style.height = 'calc(100% - 40px)';
+        outerWrapper.style.width = '100%';
 
         const yAxisWrapper = document.createElement('div');
-        yAxisWrapper.style.position = 'sticky';
-        yAxisWrapper.style.left = '0';
-        yAxisWrapper.style.zIndex = '10';
         yAxisWrapper.style.width = '60px';
         yAxisWrapper.style.flexShrink = '0';
         yAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
         yAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+        yAxisWrapper.style.zIndex = '10';
         const yCanvas = document.createElement('canvas');
         yCanvas.className = 'y-axis-canvas';
         yAxisWrapper.appendChild(yCanvas);
+
+        const scrollContainer = document.createElement('div');
+        scrollContainer.className = 'history-chart-scroll-container';
+        scrollContainer.style.flexGrow = '1';
+        scrollContainer.style.overflowX = 'auto';
+        scrollContainer.style.overflowY = 'hidden';
 
         const canvasWrapper = document.createElement('div');
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
         canvasWrapper.style.minWidth = '200%';
-        canvasWrapper.style.flexShrink = '0';
-
+        
         const canvas = document.createElement('canvas');
         canvas.className = 'main-chart-canvas';
         canvasWrapper.appendChild(canvas);
         
-        scrollContainer.appendChild(yAxisWrapper);
         scrollContainer.appendChild(canvasWrapper);
-        container.appendChild(scrollContainer);
+        
+        outerWrapper.appendChild(yAxisWrapper);
+        outerWrapper.appendChild(scrollContainer);
+        container.appendChild(outerWrapper);
         wrapper.appendChild(container);
 
         observer.observe(container);
