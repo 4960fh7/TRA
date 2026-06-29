@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>台鐵列車分析</title>
+    <title>臺鐵誤點分析</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
@@ -79,20 +79,26 @@
 <body>
     <div class="header">
         <div class="header-title-group">
-            <h1>台鐵列車分析</h1>
+            <h1>臺鐵誤點分析</h1>
         </div>
         <div class="search-wrap">
-            <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">選擇日期:</label>
+            <div class="view-mode-toggle" style="margin-right: 15px; display: flex; gap: 10px; align-items: center; color: #d0ffe6; font-size: 14px; background: #0d1b2a; padding: 4px 10px; border: 1px solid #162238; border-radius: 4px;">
+                <label style="cursor: pointer;"><input type="radio" name="viewMode" value="train" checked> 各車次</label>
+                <label style="cursor: pointer;"><input type="radio" name="viewMode" value="station"> 各車站</label>
+            </div>
+            
+            <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">日期:</label>
             <input type="date" id="date-input" class="date-input" style="padding: 6px 10px;">
             <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">查詢</button>
-            
-            <label for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋車次:</label>
+
+            <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋:</label>
             <div style="position: relative;">
-                <input type="text" id="train-search-input" class="date-input" placeholder="例如: 408" autocomplete="off" style="width: 120px; padding: 6px 10px;">
+                <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車次 (例如: 408)" autocomplete="off"
+                    style="width: 140px; padding: 6px 10px;">
                 <div id="train-suggestions" class="suggestions-dropdown" style="width: 300px;"></div>
             </div>
             <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">跳轉</button>
-            
+
             <button onclick="window.location.href='index.html'" class="reset-btn">列車動態</button>
         </div>
     </div>
