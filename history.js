@@ -283,18 +283,33 @@ function renderTrainCharts() {
 
         const scrollContainer = document.createElement('div');
         scrollContainer.className = 'history-chart-scroll-container';
+        scrollContainer.style.display = 'flex';
         scrollContainer.style.overflowX = 'auto';
         scrollContainer.style.overflowY = 'hidden';
         scrollContainer.style.height = 'calc(100% - 40px)';
         scrollContainer.style.width = '100%';
 
+        const yAxisWrapper = document.createElement('div');
+        yAxisWrapper.style.position = 'sticky';
+        yAxisWrapper.style.left = '0';
+        yAxisWrapper.style.zIndex = '10';
+        yAxisWrapper.style.width = '60px';
+        yAxisWrapper.style.flexShrink = '0';
+        yAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
+        yAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+        const yCanvas = document.createElement('canvas');
+        yAxisWrapper.appendChild(yCanvas);
+
         const canvasWrapper = document.createElement('div');
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
-        canvasWrapper.style.width = `${targetWidthPercent}%`;
-
+        canvasWrapper.style.minWidth = `${targetWidthPercent}%`;
+        canvasWrapper.style.flexShrink = '0';
+        
         const canvas = document.createElement('canvas');
         canvasWrapper.appendChild(canvas);
+        
+        scrollContainer.appendChild(yAxisWrapper);
         scrollContainer.appendChild(canvasWrapper);
         container.appendChild(scrollContainer);
         wrapper.appendChild(container);
@@ -313,6 +328,29 @@ function renderTrainCharts() {
         });
 
         container._renderChart = () => {
+            new Chart(yCanvas, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    layout: { padding: { top: 10, bottom: 15, left: 5, right: 5 } },
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    scales: {
+                        x: {
+                            min: 0, max: 1, grid: { display: false }, border: { display: false },
+                            ticks: { color: 'transparent', maxRotation: 45, minRotation: 45, callback: () => ' ' },
+                            title: { display: true, text: ' ', font: { size: 14 } }
+                        },
+                        y: {
+                            min: 0, max: window.yAxisMax,
+                            title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                            grid: { display: false }, border: { display: false },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    }
+                }
+            });
+
             new Chart(canvas, {
                 type: 'line',
                 data: {
@@ -339,7 +377,7 @@ function renderTrainCharts() {
                 },
                 options: {
                     layout: {
-                        padding: { top: 10, bottom: 15, left: 10, right: 20 }
+                        padding: { top: 10, bottom: 15, left: 0, right: 20 }
                     },
                     responsive: true,
                     maintainAspectRatio: false,
@@ -358,9 +396,10 @@ function renderTrainCharts() {
                         },
                         y: {
                             min: 0, max: window.yAxisMax,
-                            title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                            title: { display: false },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                            ticks: { color: '#94a3b8' }
+                            ticks: { display: false },
+                            border: { display: false }
                         }
                     },
                     plugins: {
@@ -503,22 +542,62 @@ function renderStationCharts() {
 
     const barScroll = document.createElement('div');
     barScroll.className = 'history-chart-scroll-container';
+    barScroll.style.display = 'flex';
     barScroll.style.overflowX = 'auto';
     barScroll.style.overflowY = 'hidden';
     barScroll.style.height = 'calc(100% - 40px)';
     barScroll.style.width = '100%';
 
+    const barYAxisWrapper = document.createElement('div');
+    barYAxisWrapper.style.position = 'sticky';
+    barYAxisWrapper.style.left = '0';
+    barYAxisWrapper.style.zIndex = '10';
+    barYAxisWrapper.style.width = '60px';
+    barYAxisWrapper.style.flexShrink = '0';
+    barYAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
+    barYAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+    const barYCanvas = document.createElement('canvas');
+    barYAxisWrapper.appendChild(barYCanvas);
+
     const minWidth = avgDelayData.length * 30;
     const barCanvasWrapper = document.createElement('div');
     barCanvasWrapper.style.position = 'relative';
     barCanvasWrapper.style.height = '100%';
-    barCanvasWrapper.style.width = `max(100%, ${minWidth}px)`;
+    barCanvasWrapper.style.minWidth = `max(100%, ${minWidth}px)`;
+    barCanvasWrapper.style.flexShrink = '0';
 
     const barCanvas = document.createElement('canvas');
     barCanvasWrapper.appendChild(barCanvas);
+    
+    barScroll.appendChild(barYAxisWrapper);
     barScroll.appendChild(barCanvasWrapper);
     barContainer.appendChild(barScroll);
     wrapper.appendChild(barContainer);
+
+    const maxBarDelay = avgDelayData.length > 0 ? Math.ceil(avgDelayData[0].avg * 1.2) || 10 : 10;
+
+    new Chart(barYCanvas, {
+        type: 'line',
+        data: { datasets: [] },
+        options: {
+            layout: { padding: { top: 10, bottom: 15, left: 5, right: 5 } },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: {
+                    min: 0, max: 1, grid: { display: false }, border: { display: false },
+                    ticks: { color: 'transparent', maxRotation: 45, minRotation: 45, callback: () => ' ' },
+                    title: { display: true, text: ' ', font: { size: 14 } }
+                },
+                y: {
+                    min: 0, max: maxBarDelay,
+                    title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                    grid: { display: false }, border: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
+            }
+        }
+    });
 
     new Chart(barCanvas, {
         type: 'bar',
@@ -538,6 +617,7 @@ function renderStationCharts() {
             }]
         },
         options: {
+            layout: { padding: { top: 10, bottom: 15, left: 0, right: 20 } },
             responsive: true,
             maintainAspectRatio: false,
             scales: {
@@ -546,9 +626,11 @@ function renderStationCharts() {
                     grid: { display: false }
                 },
                 y: {
-                    title: { display: true, text: '平均誤點 (分)', color: '#d0ffe6' },
-                    ticks: { color: '#94a3b8' },
-                    grid: { color: 'rgba(208, 255, 230, 0.1)' }
+                    min: 0, max: maxBarDelay,
+                    title: { display: false },
+                    ticks: { display: false },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                    border: { display: false }
                 }
             },
             plugins: {
@@ -594,18 +676,35 @@ function renderStationCharts() {
 
         const scrollContainer = document.createElement('div');
         scrollContainer.className = 'history-chart-scroll-container';
+        scrollContainer.style.display = 'flex';
         scrollContainer.style.overflowX = 'auto';
         scrollContainer.style.overflowY = 'hidden';
         scrollContainer.style.height = 'calc(100% - 40px)';
         scrollContainer.style.width = '100%';
 
+        const yAxisWrapper = document.createElement('div');
+        yAxisWrapper.style.position = 'sticky';
+        yAxisWrapper.style.left = '0';
+        yAxisWrapper.style.zIndex = '10';
+        yAxisWrapper.style.width = '60px';
+        yAxisWrapper.style.flexShrink = '0';
+        yAxisWrapper.style.backgroundColor = 'rgba(13, 21, 38, 0.95)';
+        yAxisWrapper.style.borderRight = '1px solid rgba(208, 255, 230, 0.1)';
+        const yCanvas = document.createElement('canvas');
+        yCanvas.className = 'y-axis-canvas';
+        yAxisWrapper.appendChild(yCanvas);
+
         const canvasWrapper = document.createElement('div');
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
-        canvasWrapper.style.width = '200%';
+        canvasWrapper.style.minWidth = '200%';
+        canvasWrapper.style.flexShrink = '0';
 
         const canvas = document.createElement('canvas');
+        canvas.className = 'main-chart-canvas';
         canvasWrapper.appendChild(canvas);
+        
+        scrollContainer.appendChild(yAxisWrapper);
         scrollContainer.appendChild(canvasWrapper);
         container.appendChild(scrollContainer);
         wrapper.appendChild(container);
@@ -615,10 +714,34 @@ function renderStationCharts() {
 }
 
 function renderSingleStationChart(sid, points, container) {
-    const canvas = container.querySelector('canvas');
-    if (!canvas) return;
+    const yCanvas = container.querySelector('.y-axis-canvas');
+    const mainCanvas = container.querySelector('.main-chart-canvas');
+    if (!yCanvas || !mainCanvas) return;
 
-    new Chart(canvas, {
+    new Chart(yCanvas, {
+        type: 'line',
+        data: { datasets: [] },
+        options: {
+            layout: { padding: { top: 10, bottom: 15, left: 5, right: 5 } },
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false }, tooltip: { enabled: false } },
+            scales: {
+                x: {
+                    min: 0, max: 1, grid: { display: false }, border: { display: false },
+                    ticks: { color: 'transparent', maxRotation: 45, minRotation: 45, callback: () => ' ' },
+                    title: { display: true, text: ' ', font: { size: 14 } }
+                },
+                y: {
+                    min: 0, max: window.yAxisMax,
+                    title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                    grid: { display: false }, border: { display: false },
+                    ticks: { color: '#94a3b8' }
+                }
+            }
+        }
+    });
+
+    new Chart(mainCanvas, {
         type: 'scatter',
         data: {
             datasets: [{
@@ -638,7 +761,7 @@ function renderSingleStationChart(sid, points, container) {
         },
         options: {
             layout: {
-                padding: { top: 10, bottom: 15, left: 10, right: 20 }
+                padding: { top: 10, bottom: 15, left: 0, right: 20 }
             },
             responsive: true,
             maintainAspectRatio: false,
@@ -651,20 +774,19 @@ function renderSingleStationChart(sid, points, container) {
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     ticks: {
                         color: '#94a3b8',
-                        stepSize: 60,
                         callback: function (value) {
-                            let h = Math.floor(value / 60);
+                            let h = Math.floor(value / 60) % 24;
                             const m = Math.floor(value % 60);
-                            if (h >= 24) h -= 24;
                             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
                         }
                     }
                 },
                 y: {
                     min: 0, max: window.yAxisMax,
-                    title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                    title: { display: false },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { display: false },
+                    border: { display: false }
                 }
             },
             plugins: {
