@@ -209,6 +209,19 @@ function renderTrainCharts() {
     const wrapper = document.getElementById('charts-wrapper');
     const overviewDatasets = [];
 
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const container = entry.target;
+                if (container._renderChart) {
+                    container._renderChart();
+                    delete container._renderChart;
+                }
+                obs.unobserve(container);
+            }
+        });
+    }, { rootMargin: '200px' });
+
     window.processedTrains.forEach(train => {
         const trainData = window.trainTypeMap[train.No];
         const tType = trainData?.train || "";
@@ -292,78 +305,75 @@ function renderTrainCharts() {
             clip: false
         });
 
-        new Chart(canvas, {
-            type: 'line',
-            data: {
-                datasets: [{
-                    label: '誤點時間 (分鐘)',
-                    data: chartData,
-                    borderColor: neonColor,
-                    backgroundColor: 'transparent',
-                    borderWidth: 2,
-                    tension: 0.1,
-                    pointBackgroundColor: function (context) {
-                        if (context.raw === undefined) return '#00ffaa';
-                        const delay = context.raw.y;
-                        if (delay === 0) return '#00ffaa';
-                        if (delay <= 5) return '#ff9900';
-                        if (delay <= 20) return '#ff0055';
-                        return '#ce6be0';
-                    },
-                    pointBorderWidth: 0,
-                    pointRadius: 4,
-                    pointHoverRadius: 6,
-                    clip: false
-                }]
-            },
-            options: {
-                layout: {
-                    padding: { top: 10, bottom: 15, left: 10, right: 20 }
+        container._renderChart = () => {
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: '誤點時間 (分鐘)',
+                        data: chartData,
+                        borderColor: neonColor,
+                        backgroundColor: 'transparent',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointBackgroundColor: function (context) {
+                            if (context.raw === undefined) return '#00ffaa';
+                            const delay = context.raw.y;
+                            if (delay === 0) return '#00ffaa';
+                            if (delay <= 5) return '#ff9900';
+                            if (delay <= 20) return '#ff0055';
+                            return '#ce6be0';
+                        },
+                        pointBorderWidth: 0,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        clip: false
+                    }]
                 },
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    x: {
-                        type: 'linear',
-                        min: 0,
-                        max: Math.max(480, maxTime),
-                        title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
-                        grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                        afterBuildTicks: axis => { axis.ticks = xTicks.map(v => ({ value: v })); },
-                        ticks: {
-                            color: '#94a3b8', maxRotation: 45, minRotation: 45,
-                            callback: function (value) { return timeToStation[value] || value; }
+                options: {
+                    layout: {
+                        padding: { top: 10, bottom: 15, left: 10, right: 20 }
+                    },
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: Math.max(480, maxTime),
+                            title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                            grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                            afterBuildTicks: axis => { axis.ticks = xTicks.map(v => ({ value: v })); },
+                            ticks: {
+                                color: '#94a3b8', maxRotation: 45, minRotation: 45,
+                                callback: function (value) { return timeToStation[value] || value; }
+                            }
+                        },
+                        y: {
+                            min: 0, max: window.yAxisMax,
+                            title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                            grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                            ticks: { color: '#94a3b8' }
                         }
                     },
-                    y: {
-                        min: 0, max: window.yAxisMax,
-                        title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
-                        grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                        ticks: { color: '#94a3b8' }
-                    }
-                },
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
-                        callbacks: {
-                            title: function (context) {
-                                const p = context[0].raw;
-                                return `${p.trainType} ${p.trainNo}`;
-                            },
-                            label: function (context) {
-                                const p = context.raw;
-                                let h = Math.floor(p.x / 60);
-                                const m = Math.floor(p.x % 60);
-                                if (h >= 24) h -= 24;
-                                const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                                return `${timeStr} 離開，誤點: ${p.y} 分鐘`;
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
+                            callbacks: {
+                                title: function (context) {
+                                    return timeToStation[context[0].raw.x] || '';
+                                },
+                                label: function (context) {
+                                    return `誤點: ${context.raw.y} 分鐘`;
+                                }
                             }
                         }
                     }
                 }
-            }
-        });
+            });
+        };
+        observer.observe(container);
     });
 
     document.getElementById('overview-chart-container').style.display = 'block';
@@ -521,11 +531,8 @@ function renderSingleStationChart(sid, points, container) {
                 data: points,
                 backgroundColor: function (context) {
                     if (context.raw === undefined) return '#00ffaa';
-                    const delay = context.raw.y;
-                    if (delay === 0) return '#00ffaa';
-                    if (delay <= 5) return '#ff9900';
-                    if (delay <= 20) return '#ff0055';
-                    return '#ce6be0';
+                    const tType = context.raw.trainType;
+                    return colorPalette[tType] || '#64748b';
                 },
                 borderColor: 'transparent',
                 borderWidth: 0,
@@ -580,7 +587,7 @@ function renderSingleStationChart(sid, points, container) {
                             const m = Math.floor(p.x % 60);
                             if (h >= 24) h -= 24;
                             const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
-                            return `${timeStr} 離開，誤點: ${p.y} 分鐘`;
+                            return `誤點: ${p.y} 分鐘`;
                         }
                     }
                 }
