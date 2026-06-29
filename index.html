@@ -12,12 +12,15 @@
 
 <body>
     <div class="header">
-        <div class="header-title-group">
-            <h1>臺鐵列車動態</h1>
+        <div class="header-title-group dropdown" tabindex="0">
+            <h1 class="dropdown-toggle">臺鐵列車動態 ▾</h1>
+            <div class="dropdown-content">
+                <a href="history.html">臺鐵誤點分析</a>
+            </div>
         </div>
         <div class="search-wrap">
             <button id="reset-widths-btn" class="reset-btn" style="display: none;">重設</button>
-            <button onclick="window.location.href='history.html'" class="reset-btn">歷史資料</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn hide-on-mobile">歷史資料</button>
             <div class="search-container">
                 <input type="text" id="unified-search-input" placeholder="搜尋車站或車次編號..." autocomplete="off">
                 <div id="unified-suggestions" class="suggestions-dropdown"></div>
