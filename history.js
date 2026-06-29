@@ -209,98 +209,6 @@ function renderTrainCharts() {
     const wrapper = document.getElementById('charts-wrapper');
     const overviewDatasets = [];
 
-    const stationStats = {};
-    window.processedTrains.forEach(train => {
-        train.data.forEach(d => {
-            const sid = d.StationID;
-            if (!stationStats[sid]) {
-                stationStats[sid] = { totalDelay: 0, count: 0 };
-            }
-            stationStats[sid].totalDelay += d.Delay;
-            stationStats[sid].count += 1;
-        });
-    });
-
-    const avgDelayData = [];
-    Object.keys(stationStats).forEach(sid => {
-        const avg = stationStats[sid].totalDelay / stationStats[sid].count;
-        avgDelayData.push({
-            sid: sid,
-            sName: stationsMap[sid] || sid,
-            avg: parseFloat(avg.toFixed(1))
-        });
-    });
-    
-    avgDelayData.sort((a, b) => b.avg - a.avg);
-
-    const barContainer = document.createElement('div');
-    barContainer.className = 'chart-container';
-    barContainer.id = 'avg-delay-bar-chart';
-    
-    const barTitle = document.createElement('h2');
-    barTitle.className = 'chart-title';
-    barTitle.textContent = '各車站平均誤點時間排名';
-    barContainer.appendChild(barTitle);
-
-    const barScroll = document.createElement('div');
-    barScroll.className = 'history-chart-scroll-container';
-    barScroll.style.overflowX = 'auto';
-    barScroll.style.overflowY = 'hidden';
-    barScroll.style.height = 'calc(100% - 40px)';
-    barScroll.style.width = '100%';
-
-    const minWidth = avgDelayData.length * 30;
-    const barCanvasWrapper = document.createElement('div');
-    barCanvasWrapper.style.position = 'relative';
-    barCanvasWrapper.style.height = '100%';
-    barCanvasWrapper.style.width = `max(100%, ${minWidth}px)`;
-
-    const barCanvas = document.createElement('canvas');
-    barCanvasWrapper.appendChild(barCanvas);
-    barScroll.appendChild(barCanvasWrapper);
-    barContainer.appendChild(barScroll);
-    wrapper.appendChild(barContainer);
-
-    new Chart(barCanvas, {
-        type: 'bar',
-        data: {
-            labels: avgDelayData.map(d => d.sName),
-            datasets: [{
-                label: '平均誤點 (分)',
-                data: avgDelayData.map(d => d.avg),
-                backgroundColor: avgDelayData.map(d => {
-                    if (d.avg === 0) return '#00ffaa';
-                    if (d.avg <= 5) return '#ff9900';
-                    if (d.avg <= 20) return '#ff0055';
-                    return '#ce6be0';
-                }),
-                borderWidth: 0,
-                borderRadius: 4
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 45 },
-                    grid: { display: false }
-                },
-                y: {
-                    title: { display: true, text: '平均誤點 (分)', color: '#d0ffe6' },
-                    ticks: { color: '#94a3b8' },
-                    grid: { color: 'rgba(208, 255, 230, 0.1)' }
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0'
-                }
-            }
-        }
-    });
-
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -568,6 +476,89 @@ function renderStationCharts() {
     });
 
     const stationIds = Object.keys(stationDataMap).sort();
+
+    const avgDelayData = [];
+    stationIds.forEach(sid => {
+        const points = Object.values(stationDataMap[sid]);
+        let totalDelay = 0;
+        points.forEach(p => totalDelay += p.y);
+        let avg = points.length > 0 ? (totalDelay / points.length) : 0;
+        avgDelayData.push({
+            sid: sid,
+            sName: stationsMap[sid] || sid,
+            avg: parseFloat(avg.toFixed(1))
+        });
+    });
+    
+    avgDelayData.sort((a, b) => b.avg - a.avg);
+
+    const barContainer = document.createElement('div');
+    barContainer.className = 'chart-container';
+    barContainer.id = 'avg-delay-bar-chart';
+    
+    const barTitle = document.createElement('h2');
+    barTitle.className = 'chart-title';
+    barTitle.textContent = '各車站平均誤點時間排名';
+    barContainer.appendChild(barTitle);
+
+    const barScroll = document.createElement('div');
+    barScroll.className = 'history-chart-scroll-container';
+    barScroll.style.overflowX = 'auto';
+    barScroll.style.overflowY = 'hidden';
+    barScroll.style.height = 'calc(100% - 40px)';
+    barScroll.style.width = '100%';
+
+    const minWidth = avgDelayData.length * 30;
+    const barCanvasWrapper = document.createElement('div');
+    barCanvasWrapper.style.position = 'relative';
+    barCanvasWrapper.style.height = '100%';
+    barCanvasWrapper.style.width = `max(100%, ${minWidth}px)`;
+
+    const barCanvas = document.createElement('canvas');
+    barCanvasWrapper.appendChild(barCanvas);
+    barScroll.appendChild(barCanvasWrapper);
+    barContainer.appendChild(barScroll);
+    wrapper.appendChild(barContainer);
+
+    new Chart(barCanvas, {
+        type: 'bar',
+        data: {
+            labels: avgDelayData.map(d => d.sName),
+            datasets: [{
+                label: '平均誤點 (分)',
+                data: avgDelayData.map(d => d.avg),
+                backgroundColor: avgDelayData.map(d => {
+                    if (d.avg === 0) return '#00ffaa';
+                    if (d.avg <= 5) return '#ff9900';
+                    if (d.avg <= 20) return '#ff0055';
+                    return '#ce6be0';
+                }),
+                borderWidth: 0,
+                borderRadius: 4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    ticks: { color: '#94a3b8', maxRotation: 45, minRotation: 45 },
+                    grid: { display: false }
+                },
+                y: {
+                    title: { display: true, text: '平均誤點 (分)', color: '#d0ffe6' },
+                    ticks: { color: '#94a3b8' },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0'
+                }
+            }
+        }
+    });
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
