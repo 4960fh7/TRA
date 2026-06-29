@@ -24,6 +24,7 @@ function getTrainTypeName(train, number) {
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
+        4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
         6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
     };
@@ -52,7 +53,7 @@ async function init() {
         stations.forEach(s => {
             stationsMap[s.stationCode] = s.stationName;
         });
-        
+
         // Add special station '枋野' which is not in stations.json
         stationsMap['5170'] = '枋野';
     } catch (e) {
@@ -189,7 +190,7 @@ function renderCharts() {
     const wrapper = document.getElementById('charts-wrapper');
     wrapper.innerHTML = "";
     document.getElementById('overview-chart-container').style.display = 'none';
-    
+
     if (window.overviewChart) {
         window.overviewChart.destroy();
         window.overviewChart = null;
@@ -301,7 +302,7 @@ function renderTrainCharts() {
                     backgroundColor: 'transparent',
                     borderWidth: 2,
                     tension: 0.1,
-                    pointBackgroundColor: function(context) {
+                    pointBackgroundColor: function (context) {
                         if (context.raw === undefined) return '#00ffaa';
                         const delay = context.raw.y;
                         if (delay === 0) return '#00ffaa';
@@ -309,7 +310,7 @@ function renderTrainCharts() {
                         if (delay <= 20) return '#ff0055';
                         return '#ce6be0';
                     },
-                    pointBorderColor: '#fff',
+                    pointBorderWidth: 0,
                     pointRadius: 4,
                     pointHoverRadius: 6,
                     clip: false
@@ -346,9 +347,9 @@ function renderTrainCharts() {
                     tooltip: {
                         backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
                         callbacks: {
-                            title: function (context) { 
+                            title: function (context) {
                                 const p = context[0].raw;
-                                return `${p.trainType} ${p.trainNo}`; 
+                                return `${p.trainType} ${p.trainNo}`;
                             },
                             label: function (context) {
                                 const p = context.raw;
@@ -363,6 +364,228 @@ function renderTrainCharts() {
                 }
             }
         });
+    });
+
+    document.getElementById('overview-chart-container').style.display = 'block';
+    const overviewCanvas = document.getElementById('overview-canvas');
+    if (window.overviewChart) {
+        window.overviewChart.destroy();
+    }
+    window.overviewChart = new Chart(overviewCanvas, {
+        type: 'line',
+        data: { datasets: overviewDatasets },
+        options: {
+            animation: false,
+            normalized: true,
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'point',
+                intersect: true
+            },
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: 0,
+                    title: { display: true, text: '發車後時間 (時:分)', color: '#d0ffe6' },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                    ticks: {
+                        color: '#94a3b8',
+                        callback: function (value) {
+                            const h = Math.floor(value / 60);
+                            const m = Math.floor(value % 60);
+                            return `${h}:${m.toString().padStart(2, '0')}`;
+                        }
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: window.yAxisMax,
+                    title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6' },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                    ticks: { color: '#94a3b8' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(13, 21, 38, 0.9)',
+                    titleColor: '#00f0ff',
+                    bodyColor: '#e2e8f0',
+                    borderColor: '#1e293b',
+                    borderWidth: 1,
+                    displayColors: true,
+                    callbacks: {
+                        title: function () { return ''; },
+                        label: function (context) {
+                            return context.dataset.label;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderStationCharts() {
+    const wrapper = document.getElementById('charts-wrapper');
+    const stationDataMap = {};
+
+    window.processedTrains.forEach(train => {
+        const trainData = window.trainTypeMap[train.No];
+        const tType = trainData?.train || "";
+
+        train.data.forEach(d => {
+            const sid = d.StationID;
+            if (!stationDataMap[sid]) {
+                stationDataMap[sid] = [];
+            }
+
+            let timeParts = (d.Update || "").split(":");
+            if (timeParts.length !== 3) return;
+            let minutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
+
+            if (minutes < 5 * 60) {
+                minutes += 24 * 60;
+            }
+
+            stationDataMap[sid].push({
+                x: minutes,
+                y: d.Delay,
+                trainNo: train.No,
+                trainType: tType
+            });
+        });
+    });
+
+    const stationIds = Object.keys(stationDataMap).sort();
+
+    const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const container = entry.target;
+                const sid = container.getAttribute('data-sid');
+                renderSingleStationChart(sid, stationDataMap[sid], container);
+                obs.unobserve(container);
+            }
+        });
+    }, { rootMargin: '200px' });
+
+    stationIds.forEach(sid => {
+        const sName = stationsMap[sid] || sid;
+
+        const container = document.createElement('div');
+        container.className = 'chart-container';
+        container.id = `chart-station-${sid}`;
+        container.style.overflow = 'hidden';
+        container.style.minHeight = '300px';
+        container.setAttribute('data-sname', sName);
+        container.setAttribute('data-sid', sid);
+
+        const title = document.createElement('h2');
+        title.className = 'chart-title';
+        title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(車站代碼: ${sid})</span>`;
+        container.appendChild(title);
+
+        const scrollContainer = document.createElement('div');
+        scrollContainer.className = 'history-chart-scroll-container';
+        scrollContainer.style.overflowX = 'auto';
+        scrollContainer.style.overflowY = 'hidden';
+        scrollContainer.style.height = 'calc(100% - 40px)';
+        scrollContainer.style.width = '100%';
+
+        const canvasWrapper = document.createElement('div');
+        canvasWrapper.style.position = 'relative';
+        canvasWrapper.style.height = '100%';
+        canvasWrapper.style.width = '200%';
+
+        const canvas = document.createElement('canvas');
+        canvasWrapper.appendChild(canvas);
+        scrollContainer.appendChild(canvasWrapper);
+        container.appendChild(scrollContainer);
+        wrapper.appendChild(container);
+
+        observer.observe(container);
+    });
+}
+
+function renderSingleStationChart(sid, points, container) {
+    const canvas = container.querySelector('canvas');
+    if (!canvas) return;
+
+    new Chart(canvas, {
+        type: 'scatter',
+        data: {
+            datasets: [{
+                label: '誤點時間 (分鐘)',
+                data: points,
+                backgroundColor: function (context) {
+                    if (context.raw === undefined) return '#00ffaa';
+                    const delay = context.raw.y;
+                    if (delay === 0) return '#00ffaa';
+                    if (delay <= 5) return '#ff9900';
+                    if (delay <= 20) return '#ff0055';
+                    return '#ce6be0';
+                },
+                borderColor: 'transparent',
+                borderWidth: 0,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                clip: false
+            }]
+        },
+        options: {
+            layout: {
+                padding: { top: 10, bottom: 15, left: 10, right: 20 }
+            },
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    type: 'linear',
+                    min: 300,
+                    max: 1500,
+                    title: { display: true, text: '當天時間', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                    ticks: {
+                        color: '#94a3b8',
+                        stepSize: 60,
+                        callback: function (value) {
+                            let h = Math.floor(value / 60);
+                            const m = Math.floor(value % 60);
+                            if (h >= 24) h -= 24;
+                            return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                        }
+                    }
+                },
+                y: {
+                    min: 0, max: window.yAxisMax,
+                    title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                    grid: { color: 'rgba(208, 255, 230, 0.1)' },
+                    ticks: { color: '#94a3b8' }
+                }
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
+                    callbacks: {
+                        title: function (context) {
+                            const p = context[0].raw;
+                            return `${p.trainType} ${p.trainNo}`;
+                        },
+                        label: function (context) {
+                            const p = context.raw;
+                            let h = Math.floor(p.x / 60);
+                            const m = Math.floor(p.x % 60);
+                            if (h >= 24) h -= 24;
+                            const timeStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+                            return `${timeStr} 離開，誤點: ${p.y} 分鐘`;
+                        }
+                    }
+                }
+            }
+        }
     });
 }
 
@@ -388,7 +611,7 @@ document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
         }
         searchInput.value = '';
         document.getElementById('train-suggestions').style.display = 'none';
-        
+
         if (window.processedTrains && window.processedTrains.length > 0) {
             renderCharts();
         }
@@ -401,7 +624,7 @@ const suggestionsBox = document.getElementById('train-suggestions');
 searchInput.addEventListener('input', () => {
     const query = searchInput.value.trim();
     suggestionsBox.style.display = 'none';
-    
+
     if (!query) return;
 
     if (window.currentViewMode === 'train') {
@@ -435,7 +658,7 @@ searchInput.addEventListener('input', () => {
                 uniqueStations.push({ id: sid, name: sName });
             }
         });
-        
+
         if (uniqueStations.length > 0) {
             suggestionsBox.innerHTML = uniqueStations.map(s => {
                 return `<div class="suggestion-item" data-id="${s.id}"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span></div>`;

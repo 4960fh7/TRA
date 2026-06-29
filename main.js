@@ -89,7 +89,7 @@ function updateLabelForceSimulation(k) {
     let fontSize;
 
     if (window.isTopologyMode) {
-        fontSize = Math.max(12, 12 / Math.sqrt(k)); 
+        fontSize = Math.max(12, 12 / Math.sqrt(k));
     } else {
         fontSize = Math.max(2.5, 9 / Math.sqrt(k));
     }
@@ -328,7 +328,7 @@ function drawMap(twData, stationsData) {
     function generateTopologyLayout() {
         if (stationsData.length > 0 && stationsData[0].topoX !== undefined) return;
 
-        const S = 35; 
+        const S = 35;
         const offsetX = 0;
         const offsetY = -20 * S;
 
@@ -338,8 +338,8 @@ function drawMap(twData, stationsData) {
 
         function makeArr(start, end) {
             let arr = [];
-            if (start <= end) { for(let i=start; i<=end; i++) arr.push(i); } 
-            else { for(let i=start; i>=end; i--) arr.push(i); }
+            if (start <= end) { for (let i = start; i <= end; i++) arr.push(i); }
+            else { for (let i = start; i >= end; i--) arr.push(i); }
             return arr;
         }
 
@@ -351,16 +351,16 @@ function drawMap(twData, stationsData) {
                 stationsData[stations[0]].topoY = p(startGridX, startGridY).y;
                 return;
             }
-            for(let i=0; i<=count; i++) {
+            for (let i = 0; i <= count; i++) {
                 let t = i / count;
                 let gx = startGridX + t * (endGridX - startGridX);
                 let gy = startGridY + t * (endGridY - startGridY);
                 stationsData[stations[i]].topoX = p(gx, gy).x;
                 stationsData[stations[i]].topoY = p(gx, gy).y;
             }
-            for(let i=0; i<count; i++) {
+            for (let i = 0; i < count; i++) {
                 let idx1 = stations[i];
-                let idx2 = stations[i+1];
+                let idx2 = stations[i + 1];
                 topologyLinesData.push({
                     x1: stationsData[idx1].topoX, y1: stationsData[idx1].topoY,
                     x2: stationsData[idx2].topoX, y2: stationsData[idx2].topoY
@@ -369,26 +369,26 @@ function drawMap(twData, stationsData) {
         }
 
         function addLineAbs(x1, y1, x2, y2) {
-            topologyLinesData.push({x1, y1, x2, y2});
+            topologyLinesData.push({ x1, y1, x2, y2 });
         }
 
         function drawBranch(stationsArr, junctionIdx, dirX, dirY) {
             let jX = stationsData[junctionIdx].topoX;
             let jY = stationsData[junctionIdx].topoY;
-            
+
             // Match the spacing of the Left Coast (Mountain Line)
             let stepSize = (100 / (leftCoast.length - 1)) * S;
-            
+
             let count = stationsArr.length;
-            for(let i=0; i<count; i++) {
+            for (let i = 0; i < count; i++) {
                 stationsData[stationsArr[i]].topoX = jX + dirX * (i + 1) * stepSize;
                 stationsData[stationsArr[i]].topoY = jY + dirY * (i + 1) * stepSize;
             }
-            
+
             addLineAbs(jX, jY, stationsData[stationsArr[0]].topoX, stationsData[stationsArr[0]].topoY);
-            for(let i=0; i<count-1; i++) {
-                addLineAbs(stationsData[stationsArr[i]].topoX, stationsData[stationsArr[i]].topoY, 
-                           stationsData[stationsArr[i+1]].topoX, stationsData[stationsArr[i+1]].topoY);
+            for (let i = 0; i < count - 1; i++) {
+                addLineAbs(stationsData[stationsArr[i]].topoX, stationsData[stationsArr[i]].topoY,
+                    stationsData[stationsArr[i + 1]].topoX, stationsData[stationsArr[i + 1]].topoY);
             }
         }
 
@@ -411,24 +411,24 @@ function drawMap(twData, stationsData) {
         let y_start = stationsData[47].topoY;
         let y_end = stationsData[85].topoY;
         let seaX = p(-2.5, 0).x;
-        
+
         let seaStations = makeArr(48, 63);
         let seaCount = seaStations.length;
-        
+
         addLineAbs(stationsData[47].topoX, y_start, seaX, y_start);
         addLineAbs(seaX, y_end, stationsData[85].topoX, y_end);
-        
-        for(let i=0; i<seaCount; i++) {
+
+        for (let i = 0; i < seaCount; i++) {
             let t = (i + 1) / (seaCount + 1);
             stationsData[seaStations[i]].topoX = seaX;
             stationsData[seaStations[i]].topoY = y_start + t * (y_end - y_start);
         }
         addLineAbs(seaX, y_start, stationsData[seaStations[0]].topoX, stationsData[seaStations[0]].topoY);
-        for(let i=0; i<seaCount-1; i++) {
-            addLineAbs(stationsData[seaStations[i]].topoX, stationsData[seaStations[i]].topoY, 
-                       stationsData[seaStations[i+1]].topoX, stationsData[seaStations[i+1]].topoY);
+        for (let i = 0; i < seaCount - 1; i++) {
+            addLineAbs(stationsData[seaStations[i]].topoX, stationsData[seaStations[i]].topoY,
+                stationsData[seaStations[i + 1]].topoX, stationsData[seaStations[i + 1]].topoY);
         }
-        addLineAbs(stationsData[seaStations[seaCount-1]].topoX, stationsData[seaStations[seaCount-1]].topoY, seaX, y_end);
+        addLineAbs(stationsData[seaStations[seaCount - 1]].topoX, stationsData[seaStations[seaCount - 1]].topoY, seaX, y_end);
 
         // 6. Branches
         drawBranch([1, 0], 2, 0, -1);
@@ -453,7 +453,7 @@ function drawMap(twData, stationsData) {
             .style("opacity", 0.5);
     }
 
-    window.toggleTopologyMode = function() {
+    window.toggleTopologyMode = function () {
         isTopologyMode = !isTopologyMode;
         const btn = document.getElementById("topology-toggle-btn");
         if (isTopologyMode) {
@@ -478,19 +478,19 @@ function drawMap(twData, stationsData) {
             } else {
                 const cx = 6 * 35;
                 const cy = 50 * 35 - 20 * 35;
-                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width / 2 - cx * 0.25, height / 2 - cy * 0.25).scale(0.25));
             }
         } else {
             const cx = 6 * 35;
             const cy = 50 * 35 - 20 * 35;
-            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width / 2 - cx * 0.25, height / 2 - cy * 0.25).scale(0.25));
         }
 
         const stationGroups = mainGroup.selectAll(".station-group");
-        
+
         stationGroups.transition().duration(750)
             .attr("transform", d => `translate(${d.topoX}, ${d.topoY})`);
-            
+
         stationGroups.selectAll(".station").transition().duration(750)
             .attr("r", d => getStationRadius(d, false, true))
             .style("fill", "#00f0ff")
@@ -508,9 +508,9 @@ function drawMap(twData, stationsData) {
 
     function disableTopologyView() {
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 1);
-        
+
         const stationGroups = mainGroup.selectAll(".station-group");
-        
+
         stationGroups.transition().duration(750)
             .attr("transform", d => {
                 const coords = getCoords(d);
@@ -518,15 +518,15 @@ function drawMap(twData, stationsData) {
                 const pos = projection([coords.lon, coords.lat]);
                 return `translate(${pos[0]}, ${pos[1]})`;
             });
-            
+
         stationGroups.selectAll(".station").transition().duration(750)
             .attr("r", d => getStationRadius(d, false, false))
             .style("fill", null)
             .style("stroke", null)
             .style("stroke-width", null);
-            
+
         topologyLinesGroup.transition().duration(500).style("opacity", 0);
-        
+
         if (!activeStationSelection) {
             mainGroup.selectAll(".station-label").style("opacity", 0);
             svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
@@ -937,6 +937,7 @@ function getTrainTypeName(train, number) {
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
+        4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
         6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
     };
@@ -1596,7 +1597,7 @@ document.getElementById("close-panel-btn").addEventListener("click", () => {
         const cy = 50 * 35 - 20 * 35;
         svg.transition()
             .duration(750)
-            .call(zoom.transform, d3.zoomIdentity.translate(width/2 - cx * 0.25, height/2 - cy * 0.25).scale(0.25));
+            .call(zoom.transform, d3.zoomIdentity.translate(width / 2 - cx * 0.25, height / 2 - cy * 0.25).scale(0.25));
     } else {
         svg.transition()
             .duration(750)
