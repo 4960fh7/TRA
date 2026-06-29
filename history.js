@@ -50,8 +50,10 @@ async function init() {
 
         const res = await fetch('stations.json');
         const stations = await res.json();
+        window.stationsLevelMap = {};
         stations.forEach(s => {
             stationsMap[s.stationCode] = s.stationName;
+            window.stationsLevelMap[s.stationCode] = s.level;
         });
 
         // Add special station '枋野' which is not in stations.json
@@ -257,9 +259,11 @@ function renderTrainCharts() {
         const timeToStation = {};
 
         let totalDelay = 0;
+        let stationNodes = [];
 
         train.data.forEach(d => {
-            let sName = stationsMap[d.StationID] || d.StationID;
+            let sid = d.StationID;
+            let sName = stationsMap[sid] || sid;
             let currentTime = parseTime(d.Update);
 
             if (currentTime < firstTime - 12 * 3600) {
@@ -272,7 +276,50 @@ function renderTrainCharts() {
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
             totalDelay += d.Delay;
+            
+            let level = (window.stationsLevelMap && window.stationsLevelMap[sid] !== undefined) ? window.stationsLevelMap[sid] : 999;
+            stationNodes.push({ time: timeSinceDep, name: sName, level: level, sid: sid });
         });
+        
+        stationNodes.sort((a, b) => a.time - b.time);
+        let level0Nodes = stationNodes.filter(n => n.level === 0);
+        let finalSelection = [];
+        let lastSelectedTime = -999;
+
+        for (let i = 0; i < stationNodes.length; i++) {
+            let node = stationNodes[i];
+            if (node.level === 0) {
+                finalSelection.push(node);
+                lastSelectedTime = node.time;
+                continue;
+            }
+            
+            let tooCloseToLevel0 = level0Nodes.some(l0 => Math.abs(l0.time - node.time) < 10);
+            if (tooCloseToLevel0) continue;
+            
+            if (node.time - lastSelectedTime >= 10) {
+                let windowEnd = Math.max(node.time, lastSelectedTime + 15);
+                let candidates = [];
+                for (let j = i; j < stationNodes.length; j++) {
+                    let cand = stationNodes[j];
+                    if (cand.time > windowEnd) break;
+                    let candTooClose = level0Nodes.some(l0 => Math.abs(l0.time - cand.time) < 10);
+                    if (!candTooClose) {
+                        candidates.push(cand);
+                    }
+                }
+                
+                if (candidates.length > 0) {
+                    candidates.sort((a, b) => a.level - b.level || a.time - b.time);
+                    let best = candidates[0];
+                    finalSelection.push(best);
+                    lastSelectedTime = best.time;
+                    i = stationNodes.indexOf(best);
+                }
+            }
+        }
+        
+        let displayTicks = finalSelection.map(n => n.time);
 
         let avgDelay = train.data.length > 0 ? (totalDelay / train.data.length).toFixed(1) : 0;
         titleHTML += ` <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
@@ -390,7 +437,7 @@ function renderTrainCharts() {
                             max: Math.max(480, maxTime),
                             title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                            afterBuildTicks: axis => { axis.ticks = xTicks.map(v => ({ value: v })); },
+                            afterBuildTicks: axis => { axis.ticks = displayTicks.map(v => ({ value: v })); },
                             ticks: {
                                 color: '#94a3b8', maxRotation: 45, minRotation: 45,
                                 callback: function (value) { return timeToStation[value] || value; }
