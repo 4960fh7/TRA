@@ -305,12 +305,12 @@ function renderTrainCharts() {
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
         canvasWrapper.style.minWidth = `${targetWidthPercent}%`;
-        
+
         const canvas = document.createElement('canvas');
         canvasWrapper.appendChild(canvas);
-        
+
         scrollContainer.appendChild(canvasWrapper);
-        
+
         outerWrapper.appendChild(yAxisWrapper);
         outerWrapper.appendChild(scrollContainer);
         container.appendChild(outerWrapper);
@@ -345,7 +345,7 @@ function renderTrainCharts() {
                         },
                         y: {
                             min: 0, max: window.yAxisMax,
-                            title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                            title: { display: false },
                             grid: { display: false }, border: { display: false },
                             ticks: { color: '#94a3b8' }
                         }
@@ -530,13 +530,13 @@ function renderStationCharts() {
             avg: parseFloat(avg.toFixed(1))
         });
     });
-    
+
     avgDelayData.sort((a, b) => b.avg - a.avg);
 
     const barContainer = document.createElement('div');
     barContainer.className = 'chart-container';
     barContainer.id = 'avg-delay-bar-chart';
-    
+
     const barTitle = document.createElement('h2');
     barTitle.className = 'chart-title';
     barTitle.textContent = '各車站平均誤點時間排名';
@@ -570,9 +570,9 @@ function renderStationCharts() {
 
     const barCanvas = document.createElement('canvas');
     barCanvasWrapper.appendChild(barCanvas);
-    
+
     barScroll.appendChild(barCanvasWrapper);
-    
+
     barOuter.appendChild(barYAxisWrapper);
     barOuter.appendChild(barScroll);
     barContainer.appendChild(barOuter);
@@ -595,7 +595,7 @@ function renderStationCharts() {
                 },
                 y: {
                     min: 0, max: maxBarDelay,
-                    title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                    title: { display: false },
                     grid: { display: false }, border: { display: false },
                     ticks: { color: '#94a3b8' }
                 }
@@ -675,7 +675,7 @@ function renderStationCharts() {
 
         const title = document.createElement('h2');
         title.className = 'chart-title';
-        title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(車站代碼: ${sid})</span> <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
+        title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(代碼: ${sid})</span> <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
         container.appendChild(title);
 
         const outerWrapper = document.createElement('div');
@@ -703,13 +703,13 @@ function renderStationCharts() {
         canvasWrapper.style.position = 'relative';
         canvasWrapper.style.height = '100%';
         canvasWrapper.style.minWidth = '200%';
-        
+
         const canvas = document.createElement('canvas');
         canvas.className = 'main-chart-canvas';
         canvasWrapper.appendChild(canvas);
-        
+
         scrollContainer.appendChild(canvasWrapper);
-        
+
         outerWrapper.appendChild(yAxisWrapper);
         outerWrapper.appendChild(scrollContainer);
         container.appendChild(outerWrapper);
@@ -739,7 +739,7 @@ function renderSingleStationChart(sid, points, container) {
                 },
                 y: {
                     min: 0, max: window.yAxisMax,
-                    title: { display: true, text: '分', color: '#d0ffe6', font: { size: 12, family: "'Courier New', Courier, monospace" } },
+                    title: { display: false },
                     grid: { display: false }, border: { display: false },
                     ticks: { color: '#94a3b8' }
                 }
