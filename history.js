@@ -255,6 +255,8 @@ function renderTrainCharts() {
         const chartData = [];
         const xTicks = [];
         const timeToStation = {};
+        
+        let totalDelay = 0;
 
         train.data.forEach(d => {
             let sName = stationsMap[d.StationID] || d.StationID;
@@ -269,7 +271,12 @@ function renderTrainCharts() {
             chartData.push({ x: timeSinceDep, y: d.Delay });
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
+            totalDelay += d.Delay;
         });
+        
+        let avgDelay = train.data.length > 0 ? (totalDelay / train.data.length).toFixed(1) : 0;
+        titleHTML += ` <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
+        title.innerHTML = titleHTML;
 
         let maxTime = Math.max(...xTicks);
         let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
@@ -448,7 +455,7 @@ function renderStationCharts() {
         train.data.forEach(d => {
             const sid = d.StationID;
             if (!stationDataMap[sid]) {
-                stationDataMap[sid] = [];
+                stationDataMap[sid] = {};
             }
 
             let timeParts = (d.Update || "").split(":");
@@ -459,12 +466,12 @@ function renderStationCharts() {
                 minutes += 24 * 60;
             }
 
-            stationDataMap[sid].push({
+            stationDataMap[sid][train.No] = {
                 x: minutes,
                 y: d.Delay,
                 trainNo: train.No,
                 trainType: tType
-            });
+            };
         });
     });
 
@@ -475,7 +482,7 @@ function renderStationCharts() {
             if (entry.isIntersecting) {
                 const container = entry.target;
                 const sid = container.getAttribute('data-sid');
-                renderSingleStationChart(sid, stationDataMap[sid], container);
+                renderSingleStationChart(sid, Object.values(stationDataMap[sid]), container);
                 obs.unobserve(container);
             }
         });
@@ -483,6 +490,11 @@ function renderStationCharts() {
 
     stationIds.forEach(sid => {
         const sName = stationsMap[sid] || sid;
+        const points = Object.values(stationDataMap[sid]);
+        
+        let totalDelay = 0;
+        points.forEach(p => totalDelay += p.y);
+        let avgDelay = points.length > 0 ? (totalDelay / points.length).toFixed(1) : 0;
 
         const container = document.createElement('div');
         container.className = 'chart-container';
@@ -494,7 +506,7 @@ function renderStationCharts() {
 
         const title = document.createElement('h2');
         title.className = 'chart-title';
-        title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(車站代碼: ${sid})</span>`;
+        title.innerHTML = `<span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> <span style="color: #94a3b8; font-size: 0.8em;">(車站代碼: ${sid})</span> <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
         container.appendChild(title);
 
         const scrollContainer = document.createElement('div');
@@ -604,25 +616,17 @@ document.getElementById('date-input').addEventListener('keydown', (e) => {
     }
 });
 
-document.querySelectorAll('input[name="viewMode"]').forEach(radio => {
-    radio.addEventListener('change', (e) => {
-        window.currentViewMode = e.target.value;
-        const searchLabel = document.getElementById('search-label');
-        const searchInput = document.getElementById('train-search-input');
-        if (window.currentViewMode === 'station') {
-            searchLabel.textContent = '搜尋車站:';
-            searchInput.placeholder = '搜尋車站 (例如: 台北)';
-        } else {
-            searchLabel.textContent = '搜尋車次:';
-            searchInput.placeholder = '搜尋車次 (例如: 408)';
-        }
-        searchInput.value = '';
-        document.getElementById('train-suggestions').style.display = 'none';
-
-        if (window.processedTrains && window.processedTrains.length > 0) {
-            renderCharts();
-        }
-    });
+document.getElementById('view-mode-btn').addEventListener('click', () => {
+    window.currentViewMode = window.currentViewMode === 'train' ? 'station' : 'train';
+    const btn = document.getElementById('view-mode-btn');
+    btn.textContent = window.currentViewMode === 'train' ? '切換至: 各車站' : '切換至: 各車次';
+    
+    document.getElementById('train-search-input').value = '';
+    document.getElementById('train-suggestions').style.display = 'none';
+    
+    if (window.processedTrains && window.processedTrains.length > 0) {
+        renderCharts();
+    }
 });
 
 const searchInput = document.getElementById('train-search-input');
@@ -632,54 +636,64 @@ searchInput.addEventListener('input', () => {
     const query = searchInput.value.trim();
     suggestionsBox.style.display = 'none';
 
-    if (!query) return;
+    if (!query || !window.processedTrains) return;
 
-    if (window.currentViewMode === 'train') {
-        if (!window.processedTrains) return;
-        const matches = window.processedTrains.filter(t => String(t.No).includes(query));
-        if (matches.length > 0) {
-            suggestionsBox.innerHTML = matches.map(t => {
-                const trainData = window.trainTypeMap[t.No];
-                const tType = trainData?.train || "";
-                const neonColor = colorPalette[tType] || "#64748b";
-                let displayName = `<span style="color: ${neonColor};">${getTrainTypeName(tType, t.No)}</span>`;
-                if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
-                    const sData = trainData.data || [];
-                    const startTime = sData.length > 0 ? sData[0].dep : "";
-                    const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
-                    let startStr = startTime ? `${startTime} ` : "";
-                    let endStr = endTime ? `${endTime} ` : "";
-                    displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
-                }
-                return `<div class="suggestion-item" data-id="${t.No}">${displayName}</div>`;
-            }).join('');
-            suggestionsBox.style.display = 'block';
-        }
-    } else {
-        const allStationCharts = document.querySelectorAll('.chart-container[id^="chart-station-"]');
-        const uniqueStations = [];
-        allStationCharts.forEach(c => {
-            const sid = c.id.replace('chart-station-', '');
-            const sName = c.getAttribute('data-sname');
-            if (sName.includes(query) || sid.includes(query)) {
-                uniqueStations.push({ id: sid, name: sName });
-            }
-        });
+    const suggestions = [];
 
-        if (uniqueStations.length > 0) {
-            suggestionsBox.innerHTML = uniqueStations.map(s => {
-                return `<div class="suggestion-item" data-id="${s.id}"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span></div>`;
-            }).join('');
-            suggestionsBox.style.display = 'block';
+    const trainMatches = window.processedTrains.filter(t => String(t.No).includes(query));
+    trainMatches.forEach(t => {
+        const trainData = window.trainTypeMap[t.No];
+        const tType = trainData?.train || "";
+        const neonColor = colorPalette[tType] || "#64748b";
+        let displayName = `<span style="color: ${neonColor};">${getTrainTypeName(tType, t.No)}</span>`;
+        if (trainData && trainData.info && trainData.info.start && trainData.info.end) {
+            const sData = trainData.data || [];
+            const startTime = sData.length > 0 ? sData[0].dep : "";
+            const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
+            let startStr = startTime ? `${startTime} ` : "";
+            let endStr = endTime ? `${endTime} ` : "";
+            displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
         }
+        suggestions.push(`<div class="suggestion-item" data-id="${t.No}" data-type="train">${displayName} <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車次)</span></div>`);
+    });
+
+    const activeStations = new Set();
+    window.processedTrains.forEach(t => {
+        t.data.forEach(d => activeStations.add(d.StationID));
+    });
+    
+    const uniqueStations = [];
+    activeStations.forEach(sid => {
+        const sName = stationsMap[sid] || sid;
+        if (sName.includes(query) || sid.includes(query)) {
+            uniqueStations.push({ id: sid, name: sName });
+        }
+    });
+
+    uniqueStations.forEach(s => {
+        suggestions.push(`<div class="suggestion-item" data-id="${s.id}" data-type="station"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span> <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車站)</span></div>`);
+    });
+
+    if (suggestions.length > 0) {
+        suggestionsBox.innerHTML = suggestions.join('');
+        suggestionsBox.style.display = 'block';
     }
 
     suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
         item.addEventListener('click', () => {
             const targetId = item.getAttribute('data-id');
-            searchInput.value = item.textContent.replace(/ \(.+\)/, '');
+            const targetType = item.getAttribute('data-type');
+            
+            if (window.currentViewMode !== targetType) {
+                document.getElementById('view-mode-btn').click();
+            }
+            
+            searchInput.value = item.textContent.replace(/ \(車次\)| \(車站\)/g, '').replace(/ \(.+\)$/, '').trim();
             suggestionsBox.style.display = 'none';
-            jumpToTarget(targetId);
+            
+            setTimeout(() => {
+                jumpToTarget(targetId);
+            }, 100);
         });
     });
 });
