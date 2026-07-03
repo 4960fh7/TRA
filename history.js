@@ -435,7 +435,7 @@ function renderTrainCharts() {
                             type: 'linear',
                             min: 0,
                             max: Math.max(480, maxTime),
-                            title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "inherit" } },
+                            title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
                             afterBuildTicks: axis => { axis.ticks = displayTicks.map(v => ({ value: v })); },
                             ticks: {
@@ -823,7 +823,7 @@ function renderSingleStationChart(sid, points, container) {
                     type: 'linear',
                     min: 300,
                     max: 1500,
-                    title: { display: true, text: '當天時間', color: '#d0ffe6', font: { size: 14, family: "inherit" } },
+                    title: { display: true, text: '當天時間', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     ticks: {
                         color: '#94a3b8',
