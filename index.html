@@ -20,7 +20,7 @@
             <button onclick="window.location.href='history.html'" class="reset-btn">歷史資料</button>
             <div class="search-container">
                 <input type="text" id="unified-search-input" placeholder="搜尋車站或車次編號..." autocomplete="off">
-                <div id="unified-suggestions" class="suggestions-dropdown"></div>
+                <div id="unified-suggestions" class="suggestions-dropdown custom-scrollbar"></div>
             </div>
         </div>
     </div>
@@ -48,7 +48,7 @@
                     <div class="dir-indicator ccw-ind">逆行</div>
                     <div class="dir-indicator cw-ind">順行</div>
                 </div>
-                <div id="unified-train-list">
+                <div id="unified-train-list" class="custom-scrollbar">
                     <p class="placeholder-text">選擇車站以顯示資訊...</p>
                 </div>
             </div>
@@ -65,7 +65,7 @@
                 </div>
             </div>
             <hr>
-            <div id="schedule-stops-container">
+            <div id="schedule-stops-container" class="custom-scrollbar">
                 <p class="placeholder-text">選擇列車以顯示停靠站...</p>
             </div>
         </div>

@@ -9,6 +9,7 @@
     src: url('GlowSansSC-Compressed-Regular.otf') format('opentype');
     font-weight: normal;
     font-style: normal;
+    font-display: swap;
 }
 
 body {
@@ -215,14 +216,14 @@ body {
 }
 
 #app-container.split-mode.multi-split-mode #info-panel {
-    right: var(--schedule-width) !important;
+    right: var(--schedule-width);
     width: calc(var(--split-info-width) - var(--schedule-width));
     max-width: calc(var(--split-info-width) - var(--schedule-width));
     min-width: calc(var(--split-info-width) - var(--schedule-width));
 }
 
 #app-container.split-mode.multi-split-mode #schedule-panel {
-    right: 0 !important;
+    right: 0;
     width: var(--schedule-width);
     max-width: var(--schedule-width);
     min-width: var(--schedule-width);
@@ -268,7 +269,7 @@ svg {
 }
 
 #app-container.split-mode #info-panel {
-    right: 0 !important;
+    right: 0;
     width: var(--split-info-width);
     max-width: var(--split-info-width);
     min-width: var(--split-info-width);
@@ -294,29 +295,29 @@ svg {
     background: rgba(0, 240, 255, 0.4);
 }
 
-#info-panel-meta-container {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
+#app-container #info-panel-meta-container {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
 
     /* 核心修改：強制容器佔滿側邊欄 100% 的水平可用寬度 */
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 100% !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 100%;
 
     /* 防止內距 (Padding) 將容器撐寬破壞佈局 */
-    box-sizing: border-box !important;
-    margin: 0 0 10px 0 !important;
+    box-sizing: border-box;
+    margin: 0 0 10px 0;
 }
 
-.info-panel-header-actions {
+#app-container .info-panel-header-actions {
     width: 60%;
-    max-width: 60% !important;
-    display: flex !important;
-    justify-content: flex-end !important;
+    max-width: 60%;
+    display: flex;
+    justify-content: flex-end;
     /* 讓內部的關閉按鈕靠最右側對齊 */
-    box-sizing: border-box !important;
+    box-sizing: border-box;
 }
 
 .close-btn {
@@ -338,29 +339,29 @@ svg {
     box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
 }
 
-#station-details {
+#app-container #station-details {
     width: 40%;
-    max-width: 40% !important;
-    box-sizing: border-box !important;
+    max-width: 40%;
+    box-sizing: border-box;
 }
 
-#station-details h2 {
-    margin: 0 0 4px 0 !important;
-    padding: 0 !important;
+#app-container #station-details h2 {
+    margin: 0 0 4px 0;
+    padding: 0;
 }
 
-#station-details p {
+#app-container #station-details p {
     color: #94a3b8;
     font-size: 12px;
     margin: 2px 0;
     text-align: left;
 }
 
-#info-panel hr {
-    width: 100% !important;
+#app-container #info-panel hr {
+    width: 100%;
     border: none;
-    border-top: 1px dashed rgba(0, 240, 255, 0.3) !important;
-    margin: 4px 0 16px 0 !important;
+    border-top: 1px dashed rgba(0, 240, 255, 0.3);
+    margin: 4px 0 16px 0;
 }
 
 /* Timetable Dashboard Containers */
@@ -572,33 +573,33 @@ svg {
    ======================================================= */
 
 /* 狀態 A：選取中的主要車站 -> 紅色 (Circle & Label) */
-.station-group.active .station {
-    fill: #ff0055 !important;
+#map .station-group.active .station {
+    fill: #ff0055;
     filter: drop-shadow(0 0 6px #ff0055);
 }
 
-.station-group.active .station-label {
-    fill: #ff0055 !important;
+#map .station-group.active .station-label {
+    fill: #ff0055;
 }
 
 /* 狀態 B：與其連線交會的車站 -> 綠色 (Circle & Label) */
-.station-group.connected .station {
-    fill: #00ffaa !important;
+#map .station-group.connected .station {
+    fill: #00ffaa;
     filter: drop-shadow(0 0 5px #00ffaa);
 }
 
-.station-group.connected .station-label {
-    fill: #00ffaa !important;
+#map .station-group.connected .station-label {
+    fill: #00ffaa;
 }
 
 /* 狀態 C：列車停靠站 -> 橘色 (Circle & Label) */
-.station-group.train-stop .station {
-    fill: #ff9900 !important;
+#map .station-group.train-stop .station {
+    fill: #ff9900;
     filter: drop-shadow(0 0 5px #ff9900);
 }
 
-.station-group.train-stop .station-label {
-    fill: #ff9900 !important;
+#map .station-group.train-stop .station-label {
+    fill: #ff9900;
 }
 
 .tooltip {
@@ -641,30 +642,37 @@ svg {
     box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
 }
 
-#unified-train-list::-webkit-scrollbar,
-.suggestions-dropdown::-webkit-scrollbar,
-#schedule-stops-container::-webkit-scrollbar,
-#history-app-container::-webkit-scrollbar,
-.history-chart-scroll-container::-webkit-scrollbar {
+.custom-scrollbar::-webkit-scrollbar {
     height: 6px;
     width: 6px;
 }
 
-#unified-train-list::-webkit-scrollbar-thumb,
-.suggestions-dropdown::-webkit-scrollbar-thumb,
-#schedule-stops-container::-webkit-scrollbar-thumb,
-#history-app-container::-webkit-scrollbar-thumb,
-.history-chart-scroll-container::-webkit-scrollbar-thumb {
+.custom-scrollbar::-webkit-scrollbar-thumb {
     background: #555;
     border-radius: 10px;
 }
 
-#unified-train-list::-webkit-scrollbar-track,
-.suggestions-dropdown::-webkit-scrollbar-track,
-#schedule-stops-container::-webkit-scrollbar-track,
-#history-app-container::-webkit-scrollbar-track,
-.history-chart-scroll-container::-webkit-scrollbar-track {
+.custom-scrollbar::-webkit-scrollbar-track {
     background: transparent;
+}
+
+/* Topology Mode Transition Styles */
+.topology-mode .station-group {
+    transition: transform 0.75s;
+}
+
+.topology-mode .station {
+    transition: r 0.75s, fill 0.75s, stroke 0.75s, stroke-width 0.75s;
+}
+
+.topology-mode .station-label {
+    transition: opacity 0.75s;
+}
+
+.topology-mode-active .station {
+    fill: #00f0ff;
+    stroke: #0d1526;
+    stroke-width: 3px;
 }
 
 /* --- Multi-Split Mode System Layout Adjustments (Map: 40% | Info Panel: 40% | Schedule Panel: 20%) --- */

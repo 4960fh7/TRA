@@ -53,28 +53,35 @@ const colorPalette = {
 let labelSimulation = null;
 
 // 縮放設定行為邏輯
+let zoomAnimationFrame = null;
+
 const zoom = d3.zoom()
     .scaleExtent([0.1, 40])
     .on("zoom", (event) => {
-        mainGroup.attr("transform", event.transform);
-        const k = event.transform.k;
+        if (zoomAnimationFrame) {
+            cancelAnimationFrame(zoomAnimationFrame);
+        }
+        zoomAnimationFrame = requestAnimationFrame(() => {
+            mainGroup.attr("transform", event.transform);
+            const k = event.transform.k;
 
-        if (window.isTopologyMode) {
+            if (window.isTopologyMode) {
+                mainGroup.selectAll(".station-label").style("opacity", 1);
+                updateLabelForceSimulation(k);
+                return;
+            }
+
+            mainGroup.selectAll(".station")
+                .attr("r", d => {
+                    const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
+                    const baseR = getStationRadius(d, isActive, false);
+                    return Math.max(0.6, baseR / Math.sqrt(k));
+                })
+                .style("stroke-width", `${0.3 / k}px`);
+
             mainGroup.selectAll(".station-label").style("opacity", 1);
             updateLabelForceSimulation(k);
-            return;
-        }
-
-        mainGroup.selectAll(".station")
-            .attr("r", d => {
-                const isActive = (activeStationSelection && d3.select(activeStationSelection).datum() === d);
-                const baseR = getStationRadius(d, isActive, false);
-                return Math.max(0.6, baseR / Math.sqrt(k));
-            })
-            .style("stroke-width", `${0.3 / k}px`);
-
-        mainGroup.selectAll(".station-label").style("opacity", 1);
-        updateLabelForceSimulation(k);
+        });
     });
 
 svg.call(zoom);
@@ -466,6 +473,7 @@ function drawMap(twData, stationsData) {
     };
 
     function enableTopologyView() {
+        mainGroup.classed("topology-mode-active", true);
         generateTopologyLayout();
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
 
@@ -492,10 +500,7 @@ function drawMap(twData, stationsData) {
             .attr("transform", d => `translate(${d.topoX}, ${d.topoY})`);
 
         stationGroups.selectAll(".station").transition().duration(750)
-            .attr("r", d => getStationRadius(d, false, true))
-            .style("fill", "#00f0ff")
-            .style("stroke", "#0d1526")
-            .style("stroke-width", 3);
+            .attr("r", d => getStationRadius(d, false, true));
 
         mainGroup.selectAll(".station-label")
             .style("visibility", "visible")
@@ -507,6 +512,7 @@ function drawMap(twData, stationsData) {
     }
 
     function disableTopologyView() {
+        mainGroup.classed("topology-mode-active", false);
         mainGroup.selectAll(".county").transition().duration(500).style("opacity", 1);
 
         const stationGroups = mainGroup.selectAll(".station-group");
@@ -520,10 +526,7 @@ function drawMap(twData, stationsData) {
             });
 
         stationGroups.selectAll(".station").transition().duration(750)
-            .attr("r", d => getStationRadius(d, false, false))
-            .style("fill", null)
-            .style("stroke", null)
-            .style("stroke-width", null);
+            .attr("r", d => getStationRadius(d, false, false));
 
         topologyLinesGroup.transition().duration(500).style("opacity", 0);
 
@@ -643,9 +646,27 @@ function getStationName(d) {
 
 async function loadData() {
     try {
-        const twData = await d3.json(mapUrl);
+        const fetchWithCache = async (url, cacheKey, expiryHrs = 24) => {
+            const cached = localStorage.getItem(cacheKey);
+            if (cached) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    if (new Date().getTime() - parsed.timestamp < expiryHrs * 3600 * 1000) {
+                        return parsed.data;
+                    }
+                } catch (e) {}
+            }
+            const data = await d3.json(url);
+            localStorage.setItem(cacheKey, JSON.stringify({
+                timestamp: new Date().getTime(),
+                data: data
+            }));
+            return data;
+        };
+
+        const twData = await fetchWithCache(mapUrl, 'cache_counties_json');
         try {
-            globalStationsData = await d3.json("stations.json");
+            globalStationsData = await fetchWithCache("stations.json", 'cache_stations_json');
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
