@@ -65,6 +65,28 @@ const zoom = d3.zoom()
             mainGroup.attr("transform", event.transform);
             const k = event.transform.k;
 
+            const homeBtn = document.getElementById('home-view-btn');
+            if (homeBtn) {
+                if (window.isTopologyMode) {
+                    const defaultScale = 0.25;
+                    const cx = 6 * 35;
+                    const cy = 50 * 35 - 20 * 35;
+                    const defaultX = width / 2 - cx * 0.25;
+                    const defaultY = height / 2 - cy * 0.25;
+                    if (Math.abs(k - defaultScale) > 0.01 || Math.abs(event.transform.x - defaultX) > 1 || Math.abs(event.transform.y - defaultY) > 1) {
+                        homeBtn.style.display = 'inline-block';
+                    } else {
+                        homeBtn.style.display = 'none';
+                    }
+                } else {
+                    if (k !== 1 || event.transform.x !== 0 || event.transform.y !== 0) {
+                        homeBtn.style.display = 'inline-block';
+                    } else {
+                        homeBtn.style.display = 'none';
+                    }
+                }
+            }
+
             if (window.isTopologyMode) {
                 mainGroup.selectAll(".station-label").style("opacity", 1);
                 updateLabelForceSimulation(k);
@@ -143,10 +165,11 @@ function updateLabelForceSimulation(k) {
     }).filter(n => n !== null);
 
     const searchRadius = window.isTopologyMode ? (80 / Math.pow(k, 0.8)) : (40 / Math.pow(k, 0.8));
+    const END_STATIONS = ['基隆', '蘇澳', '菁桐', '內灣', '六家', '車埕', '沙崙'];
 
     // 1. 計算每個站點是否為區域最大值 (Local Maximum)
     nodes.forEach(node => {
-        if (node.priority === 3) {
+        if (node.priority === 3 || END_STATIONS.includes(node.name)) {
             node.isLocalMax = true;
             return;
         }
@@ -552,7 +575,19 @@ function drawMap(twData, stationsData) {
         .enter()
         .append("path")
         .attr("class", "county")
-        .attr("d", path);
+        .attr("d", path)
+        .on("click", function(event, d) {
+            if (window.isTopologyMode) return;
+            const bounds = path.bounds(d);
+            const dx = bounds[1][0] - bounds[0][0];
+            const dy = bounds[1][1] - bounds[0][1];
+            const x = (bounds[0][0] + bounds[1][0]) / 2;
+            const y = (bounds[0][1] + bounds[1][1]) / 2;
+            const scale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
+            const translate = [width / 2 - scale * x, height / 2 - scale * y];
+            
+            svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
+        });
 
     const stationGroups = mainGroup.selectAll(".station-group")
         .data(stationsData)
@@ -1349,6 +1384,24 @@ function hexToRgb(hex) {
     const num = parseInt(c, 16);
     return `${(num >> 16) & 255}, ${(num >> 8) & 255}, ${num & 255}`;
 }
+
+// Initialize autocomplete for train search on DOM Ready
+document.addEventListener('DOMContentLoaded', () => {
+    initUnifiedSearchAutocomplete();
+    
+    const homeBtn = document.getElementById('home-view-btn');
+    if (homeBtn) {
+        homeBtn.addEventListener('click', () => {
+            if (window.isTopologyMode) {
+                const cx = 6 * 35;
+                const cy = 50 * 35 - 20 * 35;
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(width / 2 - cx * 0.25, height / 2 - cy * 0.25).scale(0.25));
+            } else {
+                svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity);
+            }
+        });
+    }
+});
 
 // Unified Search Autocomplete for Stations and Trains
 function initUnifiedSearchAutocomplete() {

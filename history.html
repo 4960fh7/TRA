@@ -84,19 +84,22 @@
         <div class="search-wrap">
             <button id="view-mode-btn" class="fetch-btn" style="margin-right: 15px; padding: 6px 12px; background: #00f0ff; color: #060a12;">切換至: 各車站</button>
             
-            <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">日期:</label>
-            <input type="date" id="date-input" class="date-input" style="padding: 6px 10px;">
-            <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">查詢</button>
-
-            <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋:</label>
-            <div style="position: relative;">
-                <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
-                    style="width: 160px; padding: 6px 10px;">
-                <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 300px;"></div>
-            </div>
-            <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">跳轉</button>
-
             <button onclick="window.location.href='index.html'" class="reset-btn">列車動態</button>
+            <button id="mobile-search-toggle" class="fetch-btn mobile-only" style="margin-left: 10px;">搜尋設定 ▼</button>
+
+            <div id="mobile-search-form" class="mobile-search-form">
+                <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">日期:</label>
+                <input type="date" id="date-input" class="date-input" style="padding: 6px 10px;">
+                <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">查詢</button>
+
+                <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋:</label>
+                <div style="position: relative; width: 100%;">
+                    <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
+                        style="width: 160px; padding: 6px 10px;">
+                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 300px;"></div>
+                </div>
+                <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">跳轉</button>
+            </div>
         </div>
     </div>
 
@@ -112,6 +115,17 @@
         <div id="charts-wrapper"></div>
     </div>
 
+    <script>
+        document.getElementById('mobile-search-toggle').addEventListener('click', function() {
+            var form = document.getElementById('mobile-search-form');
+            form.classList.toggle('show');
+            if (form.classList.contains('show')) {
+                this.innerHTML = '搜尋設定 ▲';
+            } else {
+                this.innerHTML = '搜尋設定 ▼';
+            }
+        });
+    </script>
     <script src="history.js"></script>
 </body>
 
