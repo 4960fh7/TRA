@@ -567,9 +567,20 @@ function buildTimelineHtml(routeData) {
                 let wait = nextDep - prevArr;
                 if (wait < 0) wait += 24 * 60;
                 timelineHtml += `
-                    <div class="transfer-wait">
-                        ${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)<br>
-                        <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
+                    <div class="transfer-wait-item" style="display: flex; padding-bottom: 15px; position: relative;">
+                        <div style="width: 60px;"></div>
+                        <div style="flex: 1; padding-left: 15px; position: relative;">
+                            <!-- Dashed Line -->
+                            <div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 0px; border-left: 2px dashed #ff9800; z-index: 1;"></div>
+                            
+                            <!-- Down Arrow -->
+                            <div style="position: absolute; left: -5px; width: 12px; text-align: center; top: 50%; transform: translateY(-50%); color: #ff9800; font-size: 12px; background: #111a22; padding: 2px 0; z-index: 2; line-height: 1;">↓</div>
+                            
+                            <div style="color: #ff9800; font-size: 12px; line-height: 1.4;">
+                                ${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)<br>
+                                <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
+                            </div>
+                        </div>
                     </div>
                 `;
             }
@@ -583,17 +594,24 @@ function buildTimelineHtml(routeData) {
             }
 
             let dotColor = (sIndex === 0 || sIndex === stops.length - 1) ? tColor : '#64748b';
-            let borderStyle = (sIndex === stops.length - 1) ? 'transparent' : `2px solid ${tColor}`;
-
+            
             let actionText = "";
             if (sIndex === 0) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
             else if (sIndex === stops.length - 1) actionText = `抵達`;
             
+            let lineHtml = '';
+            if (sIndex < stops.length - 1) {
+                lineHtml = `<div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 2px; background: ${tColor}; z-index: 1;"></div>`;
+            } else if (tIndex < routeData.trains.length - 1) {
+                lineHtml = `<div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 0px; border-left: 2px dashed #ff9800; z-index: 1;"></div>`;
+            }
+
             timelineHtml += `
-                <div class="timeline-item" style="display: flex; margin-bottom: 15px;">
+                <div class="timeline-item" style="display: flex; padding-bottom: 15px; position: relative;">
                     <div class="timeline-time" style="width: 60px; color: #ccc; font-size: 14px; line-height: 18px;">${displayTime}</div>
-                    <div class="timeline-content" style="flex: 1; padding-left: 15px; border-left: ${borderStyle}; position: relative;">
-                        <div style="position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: ${dotColor};"></div>
+                    <div class="timeline-content" style="flex: 1; padding-left: 15px; position: relative;">
+                        ${lineHtml}
+                        <div style="position: absolute; left: -4px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: ${dotColor}; z-index: 2;"></div>
                         <div class="station-name" style="color:${(sIndex === 0 || sIndex === stops.length - 1) ? '#fff' : '#ccc'}; margin-top: 0; line-height: 18px;">${stop.station} ${actionText}</div>
                     </div>
                 </div>
