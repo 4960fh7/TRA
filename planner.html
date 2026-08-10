@@ -366,15 +366,24 @@
                 align-items: stretch;
             }
             .form-row.station-row {
-                flex-direction: column;
+                flex-direction: row;
+                gap: 5px;
             }
             .form-row.datetime-row {
                 flex-direction: row;
             }
             .swap-btn {
-                transform: rotate(90deg);
-                align-self: center;
+                transform: none;
+                align-self: flex-end;
                 margin-top: 0;
+                padding: 10px 8px;
+            }
+            .filter-option {
+                margin-bottom: 6px;
+                font-size: 13px;
+            }
+            .filter-option input[type="checkbox"] {
+                transform: scale(0.9);
             }
             .hamburger-btn {
                 display: block;
@@ -487,6 +496,9 @@
         <div id="results-container" class="results-container">
             <div style="text-align: center; color: #888; padding: 20px;">請輸入條件並點擊「規劃旅程」</div>
         </div>
+        
+        <!-- Virtual empty block for mobile scrolling -->
+        <div style="height: 120px; width: 100%; flex-shrink: 0;"></div>
     </div>
 
     <script>
