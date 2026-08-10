@@ -476,13 +476,23 @@
                         <input type="checkbox" id="filter-unreserved">
                         <label for="filter-unreserved">非對號列車（僅含區間、區間快）</label>
                     </div>
-                    <div class="filter-option" style="flex-direction: column; align-items: flex-start;">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <input type="checkbox" id="filter-transfer-station">
-                            <label for="filter-transfer-station">指定轉乘站</label>
+                    <div class="filter-option" style="flex-wrap: wrap;">
+                        <input type="checkbox" id="filter-transfer-station">
+                        <label for="filter-transfer-station" style="white-space: nowrap;">指定轉乘站</label>
+                        <div style="position: relative; flex: 1; min-width: 120px; margin-left: 8px;">
+                            <input type="text" id="filter-transfer-station-input" class="filter-station-input" style="margin-top: 0; width: 100%;" placeholder="輸入名稱" autocomplete="off" disabled>
+                            <div id="filter-transfer-suggestions" class="suggestions-dropdown-planner custom-scrollbar" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 10;"></div>
                         </div>
-                        <input type="text" id="filter-transfer-station-input" class="filter-station-input" placeholder="輸入轉乘站名稱" autocomplete="off" disabled>
-                        <div id="filter-transfer-suggestions" class="suggestions-dropdown-planner custom-scrollbar" style="position: relative; top: 0;"></div>
+                    </div>
+                    <div class="filter-option" style="flex-wrap: wrap;">
+                        <input type="checkbox" id="filter-transfer-time">
+                        <label for="filter-transfer-time" style="white-space: nowrap;">限制轉乘時間</label>
+                        <div style="display: flex; align-items: center; flex: 1; min-width: 150px; margin-left: 8px; gap: 5px;">
+                            <input type="number" id="transfer-time-min" class="filter-station-input" style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="10" min="0" disabled>
+                            <span style="color: #ccc;">~</span>
+                            <input type="number" id="transfer-time-max" class="filter-station-input" style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="180" min="0" disabled>
+                            <span style="color: #ccc;">分鐘</span>
+                        </div>
                     </div>
                 </div>
 
@@ -538,6 +548,12 @@
             document.getElementById('filter-transfer-station-input').disabled = !this.checked;
         });
 
+        // Transfer time checkbox enables/disables inputs
+        document.getElementById('filter-transfer-time').addEventListener('change', function() {
+            document.getElementById('transfer-time-min').disabled = !this.checked;
+            document.getElementById('transfer-time-max').disabled = !this.checked;
+        });
+
         // Filter count logic
         function updateFilterCount() {
             let count = 0;
@@ -546,6 +562,7 @@
             if (document.getElementById('filter-reserved').checked) count++;
             if (document.getElementById('filter-unreserved').checked) count++;
             if (document.getElementById('filter-transfer-station').checked) count++;
+            if (document.getElementById('filter-transfer-time').checked) count++;
             
             const btn = document.getElementById('settings-toggle-btn');
             if (count > 0) {
@@ -558,7 +575,7 @@
         }
 
         // Attach listeners to all filter checkboxes
-        ['filter-direct-only', 'filter-eticket', 'filter-reserved', 'filter-unreserved', 'filter-transfer-station'].forEach(id => {
+        ['filter-direct-only', 'filter-eticket', 'filter-reserved', 'filter-unreserved', 'filter-transfer-station', 'filter-transfer-time'].forEach(id => {
             document.getElementById(id).addEventListener('change', updateFilterCount);
         });
         
