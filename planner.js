@@ -51,37 +51,19 @@ function filterDominatedRoutes(routes) {
             const d1 = r1.type === '1-transfer' ? r1.options[0] : r1;
             const d2 = r2.type === '1-transfer' ? r2.options[0] : r2;
             
-            const t1 = d1.trains.map(t => t.trainInfo.number);
-            const t2 = d2.trains.map(t => t.trainInfo.number);
+            const transfers1 = r1.type === 'direct' ? 0 : (r1.type === '1-transfer' ? 1 : 2);
+            const transfers2 = r2.type === 'direct' ? 0 : (r2.type === '1-transfer' ? 1 : 2);
 
-            if (t1.length === 1 && t2.length === 2 && t1[0] === t2[1]) {
-                if (d2.actualDepMins <= d1.actualDepMins) deleted.add(j);
-            }
-            if (t1.length === 1 && t2.length === 2 && t1[0] === t2[0]) {
-                if (d2.actualArrMins >= d1.actualArrMins) deleted.add(j);
-            }
-            if (t1.length === 2 && t2.length === 2 && t1[0] === t2[0] && t1[1] !== t2[1]) {
-                if (d1.actualArrMins < d2.actualArrMins) {
+            if (transfers2 === 0) continue;
+
+            if (d1.actualDepMins >= d2.actualDepMins && d1.actualArrMins <= d2.actualArrMins && transfers1 <= transfers2) {
+                if (d1.actualDepMins === d2.actualDepMins && d1.actualArrMins === d2.actualArrMins && transfers1 === transfers2) {
+                    if (i < j) {
+                        deleted.add(j);
+                    }
+                } else {
                     deleted.add(j);
-                } else if (d1.actualArrMins === d2.actualArrMins) {
-                    if (i < j) deleted.add(j);
                 }
-            }
-            if (t1.length === 1 && t2.length === 3 && t1[0] === t2[0]) {
-                if (d2.actualArrMins >= d1.actualArrMins) deleted.add(j);
-            }
-            if (t1.length === 3 && t2.length === 3 && t1[0] === t2[0] && t1[1] === t2[1] && t1[2] !== t2[2]) {
-                if (d1.actualArrMins < d2.actualArrMins) {
-                    deleted.add(j);
-                } else if (d1.actualArrMins === d2.actualArrMins) {
-                    if (i < j) deleted.add(j);
-                }
-            }
-            if (t1.length === 3 && t2.length === 3 && t1[1] === t2[1] && t1[2] === t2[2] && t1[0] !== t2[0]) {
-                if (d2.actualDepMins <= d1.actualDepMins) deleted.add(j);
-            }
-            if (t1.length === 2 && t2.length === 3 && t1[0] === t2[0] && t1[1] === t2[2]) {
-                deleted.add(j);
             }
         }
     }
@@ -660,6 +642,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
                 for (let l = 0; l < t3.toArrIdx; l++) {
                     const hub2 = train3.data[l].x;
                     const normHub2 = normalizeStationName(hub2);
+                    if (normHub1 === normHub2) continue;
                     if (!majorStations.some(m => normalizeStationName(m) === normHub2)) continue;
                     
                     const key = normHub1 + "_" + normHub2;
