@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>臺鐵旅程規劃</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        /* Planner specific styles */
+        #planner-container {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 60px);
+            padding: 20px;
+            box-sizing: border-box;
+            gap: 20px;
+            overflow-y: auto;
+            align-items: center;
+        }
+
+        .planner-panel {
+            background: #111a22;
+            border-radius: 10px;
+            border: 1px solid #1a2a3a;
+            padding: 20px;
+            width: 100%;
+            max-width: 800px;
+            box-sizing: border-box;
+        }
+
+        .planner-form {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .form-group {
+            flex: 1;
+            position: relative;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .planner-input {
+            width: 100%;
+            padding: 10px;
+            background: #060a12;
+            border: 1px solid #1a2a3a;
+            color: #00f0ff;
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+
+        .swap-btn {
+            background: #1a2a3a;
+            border: none;
+            color: #00f0ff;
+            cursor: pointer;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            height: 40px;
+            width: 40px;
+            margin-top: 22px; /* align with inputs */
+        }
+
+        .swap-btn:hover {
+            background: #00f0ff;
+            color: #060a12;
+        }
+
+        .submit-btn {
+            background: #00f0ff;
+            color: #060a12;
+            border: none;
+            padding: 12px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: 0.3s;
+        }
+
+        .submit-btn:hover {
+            background: #00b0ff;
+        }
+
+        .results-container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .result-card {
+            background: #111a22;
+            border: 1px solid #1a2a3a;
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .result-card:hover {
+            border-color: #00f0ff;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .time-info {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        .duration-info {
+            color: #ccc;
+            font-size: 14px;
+        }
+
+        .transfer-info {
+            font-size: 14px;
+            color: #00f0ff;
+        }
+
+        .delay-text {
+            color: #ff4444;
+            margin-left: 5px;
+            font-size: 14px;
+        }
+
+        .strikethrough {
+            text-decoration: line-through;
+            color: #888;
+        }
+
+        .timeline {
+            display: none;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #1a2a3a;
+        }
+        
+        .result-card.expanded .timeline {
+            display: block;
+        }
+
+        .timeline-item {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        .timeline-time {
+            width: 60px;
+            color: #ccc;
+            font-size: 14px;
+        }
+        
+        .timeline-content {
+            flex: 1;
+            padding-left: 15px;
+            border-left: 2px solid #00f0ff;
+            position: relative;
+        }
+
+        .timeline-content::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #00f0ff;
+        }
+
+        .train-name {
+            font-weight: bold;
+            color: #00f0ff;
+        }
+
+        .station-name {
+            color: #fff;
+            margin-top: 5px;
+        }
+        
+        .transfer-wait {
+            color: #ff9800;
+            font-size: 12px;
+            margin: 10px 0 15px 0;
+            padding-left: 75px;
+            border-left: 2px dashed #ff9800;
+            position: relative;
+        }
+
+        .transfer-wait::before {
+            content: '↓';
+            position: absolute;
+            left: 20px;
+            color: #ff9800;
+        }
+
+        /* Suggestions dropdown */
+        .suggestions-dropdown-planner {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: #0a111a;
+            border: 1px solid #00f0ff;
+            border-radius: 0 0 5px 5px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 100;
+            display: none;
+        }
+
+        .suggestions-dropdown-planner.active {
+            display: block;
+        }
+        
+        .suggestion-item-planner {
+            padding: 10px;
+            cursor: pointer;
+            color: #eee;
+            border-bottom: 1px solid #1a2a3a;
+        }
+
+        .suggestion-item-planner:hover {
+            background: #1a2a3a;
+            color: #00f0ff;
+        }
+
+        .loading-text {
+            text-align: center;
+            color: #00f0ff;
+            padding: 20px;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.6; }
+            50% { opacity: 1; }
+            100% { opacity: 0.6; }
+        }
+
+        @media (max-width: 600px) {
+            .form-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .swap-btn {
+                transform: rotate(90deg);
+                align-self: center;
+                margin-top: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-title-group">
+            <h1>臺鐵旅程規劃</h1>
+        </div>
+        <div class="search-wrap">
+            <button onclick="window.location.href='index.html'" class="reset-btn">即時動態</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn">歷史資料</button>
+        </div>
+    </div>
+
+    <div id="planner-container" class="custom-scrollbar">
+        <div class="planner-panel">
+            <div class="planner-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="from-station">出發站</label>
+                        <input type="text" id="from-station" class="planner-input" placeholder="例如: 台北" autocomplete="off">
+                        <div id="from-suggestions" class="suggestions-dropdown-planner custom-scrollbar"></div>
+                    </div>
+                    <button class="swap-btn" id="swap-stations-btn" title="對調起訖站">⇄</button>
+                    <div class="form-group">
+                        <label for="to-station">抵達站</label>
+                        <input type="text" id="to-station" class="planner-input" placeholder="例如: 高雄" autocomplete="off">
+                        <div id="to-suggestions" class="suggestions-dropdown-planner custom-scrollbar"></div>
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="travel-date">日期</label>
+                        <input type="date" id="travel-date" class="planner-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="travel-time">時間</label>
+                        <input type="time" id="travel-time" class="planner-input">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
+                        <input type="checkbox" id="direct-only" style="accent-color: #00f0ff;">
+                        <label for="direct-only" style="margin: 0; cursor: pointer;">僅顯示直達車</label>
+                    </div>
+                </div>
+
+                <button id="search-plan-btn" class="submit-btn">規劃旅程</button>
+            </div>
+        </div>
+
+        <div id="results-container" class="results-container">
+            <div style="text-align: center; color: #888; padding: 20px;">請輸入條件並點擊「規劃旅程」</div>
+        </div>
+    </div>
+
+    <script src="planner.js"></script>
+</body>
+</html>
