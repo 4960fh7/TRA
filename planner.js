@@ -31,6 +31,50 @@ function getTrainColor(trainType) {
     return "#00f0ff";
 }
 
+function isFastTrain(trainType) {
+    if (!trainType) return false;
+    return ['新自強', '普悠瑪', '太魯閣', '自強'].some(t => trainType.includes(t));
+}
+
+function filterDominatedRoutes(routes) {
+    let deleted = new Set();
+    
+    for (let i = 0; i < routes.length; i++) {
+        for (let j = 0; j < routes.length; j++) {
+            if (i === j) continue;
+            if (deleted.has(i) || deleted.has(j)) continue;
+
+            const r1 = routes[i];
+            const r2 = routes[j];
+            
+            const d1 = r1.type === '1-transfer' ? r1.options[0] : r1;
+            const d2 = r2.type === '1-transfer' ? r2.options[0] : r2;
+            
+            const t1 = d1.trains.map(t => t.trainInfo.number);
+            const t2 = d2.trains.map(t => t.trainInfo.number);
+
+            if (t1.length === 1 && t2.length === 2 && t1[0] === t2[1]) {
+                if (d2.actualDepMins <= d1.actualDepMins) deleted.add(j);
+            }
+            if (t1.length === 1 && t2.length === 2 && t1[0] === t2[0]) {
+                if (d2.actualArrMins >= d1.actualArrMins) deleted.add(j);
+            }
+            if (t1.length === 2 && t2.length === 2 && t1[0] === t2[0] && t1[1] !== t2[1]) {
+                if (d1.actualArrMins < d2.actualArrMins) {
+                    deleted.add(j);
+                } else if (d1.actualArrMins === d2.actualArrMins) {
+                    if (i < j) deleted.add(j);
+                }
+            }
+            if (t1.length === 1 && t2.length === 3 && t1[0] === t2[0]) {
+                if (d2.actualArrMins >= d1.actualArrMins) deleted.add(j);
+            }
+        }
+    }
+    
+    return routes.filter((_, idx) => !deleted.has(idx));
+}
+
 // Filter logic
 function getFilters() {
     return {
@@ -251,11 +295,11 @@ async function handleSearch() {
             const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins, filters);
             routes.push(...oneTransferRoutes);
             
-            if (routes.length < 5) {
-                const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins, filters);
-                routes.push(...twoTransferRoutes);
-            }
+            const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins, filters);
+            routes.push(...twoTransferRoutes);
         }
+
+        routes = filterDominatedRoutes(routes);
 
         routes.sort((a, b) => {
             let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
@@ -544,6 +588,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
             scheduleData.forEach(train2 => {
                 if (train1.number === train2.number) return;
                 if (!isTrainAllowedByFilter(train2.train, filters)) return;
+                if (!isFastTrain(train2.train)) return;
                 const delay2 = liveBoardData[train2.number] || 0;
                 const stops2 = train2.data || [];
                 
