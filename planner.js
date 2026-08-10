@@ -69,6 +69,19 @@ function filterDominatedRoutes(routes) {
             if (t1.length === 1 && t2.length === 3 && t1[0] === t2[0]) {
                 if (d2.actualArrMins >= d1.actualArrMins) deleted.add(j);
             }
+            if (t1.length === 3 && t2.length === 3 && t1[0] === t2[0] && t1[1] === t2[1] && t1[2] !== t2[2]) {
+                if (d1.actualArrMins < d2.actualArrMins) {
+                    deleted.add(j);
+                } else if (d1.actualArrMins === d2.actualArrMins) {
+                    if (i < j) deleted.add(j);
+                }
+            }
+            if (t1.length === 3 && t2.length === 3 && t1[1] === t2[1] && t1[2] === t2[2] && t1[0] !== t2[0]) {
+                if (d2.actualDepMins <= d1.actualDepMins) deleted.add(j);
+            }
+            if (t1.length === 2 && t2.length === 3 && t1[0] === t2[0] && t1[1] === t2[2]) {
+                deleted.add(j);
+            }
         }
     }
     
@@ -301,16 +314,35 @@ async function handleSearch() {
 
         routes = filterDominatedRoutes(routes);
 
+        const sortMethod = document.getElementById('sort-method').value;
+        
         routes.sort((a, b) => {
             let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
             let bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
-            if (aArr !== bArr) return aArr - bArr;
-            
             let aDep = a.type === '1-transfer' ? a.options[0].actualDepMins : a.actualDepMins;
             let bDep = b.type === '1-transfer' ? b.options[0].actualDepMins : b.actualDepMins;
             const durA = aArr - aDep;
             const durB = bArr - bDep;
-            return durA - durB;
+            let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
+            let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
+
+            if (sortMethod === 'departure') {
+                if (aDep !== bDep) return aDep - bDep;
+                if (aArr !== bArr) return aArr - bArr;
+                return durA - durB;
+            } else if (sortMethod === 'arrival') {
+                if (aArr !== bArr) return aArr - bArr;
+                if (aDep !== bDep) return bDep - aDep;
+                return aTransfers - bTransfers;
+            } else if (sortMethod === 'duration') {
+                if (durA !== durB) return durA - durB;
+                return aDep - bDep;
+            } else if (sortMethod === 'transfers') {
+                if (aTransfers !== bTransfers) return aTransfers - bTransfers;
+                if (durA !== durB) return durA - durB;
+                return aDep - bDep;
+            }
+            return 0;
         });
 
         routes = routes.slice(0, 25);
@@ -390,7 +422,7 @@ function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
             let adjustedDepMins = depMins;
             if (depMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedDepMins += 24 * 60;
 
-            if (adjustedDepMins >= minDepartureMins) {
+            if (adjustedDepMins >= minDepartureMins && adjustedDepMins <= minDepartureMins + 8 * 60) {
                 const delay = liveBoardData[train.number] || 0;
                 
                 let actualDepMins = depMins + delay;
@@ -451,7 +483,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters) {
             let adjustedDepMins = depMins;
             if (depMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedDepMins += 24 * 60;
             
-            if (adjustedDepMins >= minDepartureMins) {
+            if (adjustedDepMins >= minDepartureMins && adjustedDepMins <= minDepartureMins + 8 * 60) {
                 fromTrains.push({ train, fromDepIdx });
             }
         }
@@ -554,6 +586,27 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
     
     const majorStations = ["八堵", "台北", "樹林", "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "斗六", "嘉義", "台南", "新左營", "高雄", "屏東", "潮州", "枋寮", "台東", "花蓮", "蘇澳新", "宜蘭", "瑞芳"];
     
+    const fastTrainLinks = {};
+    scheduleData.forEach(train2 => {
+        if (!isTrainAllowedByFilter(train2.train, filters)) return;
+        if (!isFastTrain(train2.train)) return;
+        const stops = train2.data || [];
+        const majorStops = [];
+        for (let i = 0; i < stops.length; i++) {
+            const sName = normalizeStationName(stops[i].x);
+            if (majorStations.some(m => normalizeStationName(m) === sName)) {
+                majorStops.push({ name: sName, idx: i, time: stops[i].y });
+            }
+        }
+        for (let i = 0; i < majorStops.length; i++) {
+            for (let j = i + 1; j < majorStops.length; j++) {
+                const key = majorStops[i].name + "_" + majorStops[j].name;
+                if (!fastTrainLinks[key]) fastTrainLinks[key] = [];
+                fastTrainLinks[key].push({ train: train2, depIdx: majorStops[i].idx, arrIdx: majorStops[j].idx });
+            }
+        }
+    });
+
     let fromTrains = [];
     let toTrains = [];
     
@@ -570,7 +623,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
         if (fromDepIdx !== -1) {
             const depMins = stops[fromDepIdx].y;
             let adj = depMins < 4*60 && minDepartureMins > 20*60 ? depMins + 24*60 : depMins;
-            if (adj >= minDepartureMins) fromTrains.push({ train, fromDepIdx });
+            if (adj >= minDepartureMins && adj <= minDepartureMins + 8 * 60) fromTrains.push({ train, fromDepIdx });
         }
         if (toArrIdx !== -1) toTrains.push({ train, toArrIdx });
     });
@@ -585,69 +638,60 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
             const normHub1 = normalizeStationName(hub1);
             if (!majorStations.some(m => normalizeStationName(m) === normHub1)) continue;
             
-            scheduleData.forEach(train2 => {
-                if (train1.number === train2.number) return;
-                if (!isTrainAllowedByFilter(train2.train, filters)) return;
-                if (!isFastTrain(train2.train)) return;
-                const delay2 = liveBoardData[train2.number] || 0;
-                const stops2 = train2.data || [];
+            toTrains.forEach(t3 => {
+                const train3 = t3.train;
+                if (train1.number === train3.number) return;
                 
-                let hub1DepIdx = -1;
-                for (let j = 0; j < stops2.length; j++) {
-                    if (normalizeStationName(stops2[j].x) === normHub1) { hub1DepIdx = j; break; }
-                }
-                if (hub1DepIdx === -1) return;
-                
-                const t1ArrActual = stops1[i].y + delay1;
-                let t2DepActual = stops2[hub1DepIdx].y + delay2;
-                let wait1 = t2DepActual - t1ArrActual;
-                if (wait1 < 0) wait1 += 24*60;
-                if (wait1 < 5 || wait1 > 60) return;
-                
-                for (let k = hub1DepIdx + 1; k < stops2.length; k++) {
-                    const hub2 = stops2[k].x;
+                for (let l = 0; l < t3.toArrIdx; l++) {
+                    const hub2 = train3.data[l].x;
                     const normHub2 = normalizeStationName(hub2);
+                    if (!majorStations.some(m => normalizeStationName(m) === normHub2)) continue;
                     
-                    toTrains.forEach(t3 => {
-                        const train3 = t3.train;
-                        if (train3.number === train2.number || train3.number === train1.number) return;
-                        if (!isTrainAllowedByFilter(train3.train, filters)) return;
-                        const delay3 = liveBoardData[train3.number] || 0;
-                        const stops3 = train3.data;
-                        
-                        let hub2DepIdx = -1;
-                        for (let l = 0; l < t3.toArrIdx; l++) {
-                            if (normalizeStationName(stops3[l].x) === normHub2) { hub2DepIdx = l; break; }
-                        }
-                        if (hub2DepIdx === -1) return;
-                        
-                        const t2ArrActual = stops2[k].y + delay2;
-                        let t3DepActual = stops3[hub2DepIdx].y + delay3;
-                        let wait2 = t3DepActual - t2ArrActual;
-                        if (wait2 < 0) wait2 += 24*60;
-                        if (wait2 < 5 || wait2 > 60) return;
-                        
-                        const key = `${train1.number}_${train2.number}_${train3.number}`;
-                        if (!routesMap[key]) {
-                            let totalDep = stops1[t1.fromDepIdx].y + delay1;
-                            let totalArr = stops3[t3.toArrIdx].y + delay3;
-                            if (totalArr < totalDep) totalArr += 24 * 60;
+                    const key = normHub1 + "_" + normHub2;
+                    if (fastTrainLinks[key]) {
+                        fastTrainLinks[key].forEach(link => {
+                            const train2 = link.train;
+                            if (train2.number === train1.number || train2.number === train3.number) return;
                             
-                            routesMap[key] = {
-                                type: '2-transfer',
-                                trains: [
-                                    { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, hub1) },
-                                    { trainInfo: train2, delay: delay2, stops: extractStops(train2, hub1, hub2) },
-                                    { trainInfo: train3, delay: delay3, stops: extractStops(train3, hub2, toName) }
-                                ],
-                                fromStation: fromName,
-                                toStation: toName,
-                                actualDepMins: totalDep,
-                                actualArrMins: totalArr,
-                                transferStations: [hub1, hub2]
-                            };
-                        }
-                    });
+                            const delay2 = liveBoardData[train2.number] || 0;
+                            const stops2 = train2.data;
+                            const delay3 = liveBoardData[train3.number] || 0;
+                            const stops3 = train3.data;
+                            
+                            const t1ArrActual = stops1[i].y + delay1;
+                            let t2DepActual = stops2[link.depIdx].y + delay2;
+                            let wait1 = t2DepActual - t1ArrActual;
+                            if (wait1 < 0) wait1 += 24*60;
+                            if (wait1 < 5 || wait1 > 60) return;
+                            
+                            const t2ArrActual = stops2[link.arrIdx].y + delay2;
+                            let t3DepActual = stops3[l].y + delay3;
+                            let wait2 = t3DepActual - t2ArrActual;
+                            if (wait2 < 0) wait2 += 24*60;
+                            if (wait2 < 5 || wait2 > 60) return;
+                            
+                            const routeKey = `${train1.number}_${train2.number}_${train3.number}`;
+                            if (!routesMap[routeKey]) {
+                                let totalDep = stops1[t1.fromDepIdx].y + delay1;
+                                let totalArr = stops3[t3.toArrIdx].y + delay3;
+                                if (totalArr < totalDep) totalArr += 24 * 60;
+                                
+                                routesMap[routeKey] = {
+                                    type: '2-transfer',
+                                    trains: [
+                                        { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, hub1) },
+                                        { trainInfo: train2, delay: delay2, stops: extractStops(train2, hub1, hub2) },
+                                        { trainInfo: train3, delay: delay3, stops: extractStops(train3, hub2, toName) }
+                                    ],
+                                    fromStation: fromName,
+                                    toStation: toName,
+                                    actualDepMins: totalDep,
+                                    actualArrMins: totalArr,
+                                    transferStations: [hub1, hub2]
+                                };
+                            }
+                        });
+                    }
                 }
             });
         }

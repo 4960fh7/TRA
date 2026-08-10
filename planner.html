@@ -468,6 +468,18 @@
                     </div>
                 </div>
 
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="sort-method">排序方式</label>
+                        <select id="sort-method" class="planner-input" style="padding: 10px; height: 44px;">
+                            <option value="departure">依出發時間 (越早出發優先)</option>
+                            <option value="arrival">依抵達時間 (越早抵達優先)</option>
+                            <option value="duration">依總時長 (耗時越短優先)</option>
+                            <option value="transfers">依轉乘次數 (直達優先)</option>
+                        </select>
+                    </div>
+                </div>
+
                 <button id="search-plan-btn" class="submit-btn">規劃旅程</button>
             </div>
         </div>
