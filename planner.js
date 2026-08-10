@@ -551,7 +551,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
 }
 
 function buildTimelineHtml(routeData) {
-    let timelineHtml = '<div class="timeline" style="display: block; margin-top: 15px; padding-top: 15px; border-top: 1px solid #1a2a3a;">';
+    let timelineHtml = '<div class="timeline" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px solid #1a2a3a;">';
     
     routeData.trains.forEach((segment, tIndex) => {
         const trainInfo = segment.trainInfo;
@@ -559,6 +559,7 @@ function buildTimelineHtml(routeData) {
         const stops = segment.stops;
         if (!stops || stops.length === 0) return;
         
+        // Transfer wait section (between segments)
         if (tIndex > 0) {
             const prevSegment = routeData.trains[tIndex - 1];
             if (prevSegment.stops && prevSegment.stops.length > 0) {
@@ -567,16 +568,10 @@ function buildTimelineHtml(routeData) {
                 let wait = nextDep - prevArr;
                 if (wait < 0) wait += 24 * 60;
                 timelineHtml += `
-                    <div class="transfer-wait-item" style="display: flex; padding-bottom: 15px; position: relative;">
+                    <div style="display: flex; padding: 2px 0 2px 0;">
                         <div style="width: 60px;"></div>
-                        <div style="flex: 1; padding-left: 15px; position: relative;">
-                            <!-- Dashed Line -->
-                            <div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 0px; border-left: 2px dashed #ff9800; z-index: 1;"></div>
-                            
-                            <!-- Down Arrow -->
-                            <div style="position: absolute; left: -5px; width: 12px; text-align: center; top: 50%; transform: translateY(-50%); color: #ff9800; font-size: 12px; background: #111a22; padding: 2px 0; z-index: 2; line-height: 1;">↓</div>
-                            
-                            <div style="color: #ff9800; font-size: 12px; line-height: 1.4;">
+                        <div style="flex: 1; padding-left: 15px; position: relative; border-left: 2px dashed #ff9800;">
+                            <div style="color: #ff9800; font-size: 12px; line-height: 1.5; padding: 4px 0;">
                                 ${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)<br>
                                 <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
                             </div>
@@ -586,33 +581,38 @@ function buildTimelineHtml(routeData) {
             }
         }
 
+        // Station stops
         stops.forEach((stop, sIndex) => {
             let displayTime = stop.timeStr;
             if (segment.delay > 0) {
                 const adjMins = stop.timeMins + segment.delay;
-                displayTime = `<span class="strikethrough" style="font-size:11px;">${stop.timeStr}</span> <span class="delay-text" style="color: #ff4444;">${minutesToTime(adjMins)}</span>`;
+                displayTime = `<span class="strikethrough" style="font-size:11px;">${stop.timeStr}</span> <span class="delay-text" style="color:#ff4444;">${minutesToTime(adjMins)}</span>`;
             }
 
-            let dotColor = (sIndex === 0 || sIndex === stops.length - 1) ? tColor : '#64748b';
+            const isEndpoint = (sIndex === 0 || sIndex === stops.length - 1);
+            const dotColor = isEndpoint ? tColor : '#64748b';
+            const dotSize = isEndpoint ? 10 : 7;
+            const dotOffset = isEndpoint ? -4 : -3;
+            const dotTop = isEndpoint ? 4 : 5;
+            
+            // Vertical line: solid for same-segment, dashed for transition to transfer
+            let borderLeft = 'none';
+            if (sIndex < stops.length - 1) {
+                borderLeft = `2px solid ${tColor}`;
+            } else if (tIndex < routeData.trains.length - 1) {
+                borderLeft = `2px dashed #ff9800`;
+            }
             
             let actionText = "";
             if (sIndex === 0) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
             else if (sIndex === stops.length - 1) actionText = `抵達`;
-            
-            let lineHtml = '';
-            if (sIndex < stops.length - 1) {
-                lineHtml = `<div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 2px; background: ${tColor}; z-index: 1;"></div>`;
-            } else if (tIndex < routeData.trains.length - 1) {
-                lineHtml = `<div style="position: absolute; left: 0px; top: 9px; height: calc(100% + 15px); width: 0px; border-left: 2px dashed #ff9800; z-index: 1;"></div>`;
-            }
 
             timelineHtml += `
-                <div class="timeline-item" style="display: flex; padding-bottom: 15px; position: relative;">
-                    <div class="timeline-time" style="width: 60px; color: #ccc; font-size: 14px; line-height: 18px;">${displayTime}</div>
-                    <div class="timeline-content" style="flex: 1; padding-left: 15px; position: relative;">
-                        ${lineHtml}
-                        <div style="position: absolute; left: -4px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: ${dotColor}; z-index: 2;"></div>
-                        <div class="station-name" style="color:${(sIndex === 0 || sIndex === stops.length - 1) ? '#fff' : '#ccc'}; margin-top: 0; line-height: 18px;">${stop.station} ${actionText}</div>
+                <div style="display: flex; padding: 0;">
+                    <div style="width: 60px; color: #ccc; font-size: 14px; line-height: 18px; padding: 4px 0;">${displayTime}</div>
+                    <div style="flex: 1; padding-left: 15px; position: relative; border-left: ${borderLeft};">
+                        <div style="position: absolute; left: ${dotOffset}px; top: ${dotTop}px; width: ${dotSize}px; height: ${dotSize}px; border-radius: 50%; background: ${dotColor}; z-index: 2;"></div>
+                        <div style="color:${isEndpoint ? '#fff' : '#ccc'}; line-height: 18px; padding: 4px 0;">${stop.station} ${actionText}</div>
                     </div>
                 </div>
             `;

@@ -170,7 +170,6 @@
 
         .timeline-item {
             display: flex;
-            margin-bottom: 15px;
         }
 
         .timeline-time {
@@ -182,19 +181,7 @@
         .timeline-content {
             flex: 1;
             padding-left: 15px;
-            border-left: 2px solid #00f0ff;
             position: relative;
-        }
-
-        .timeline-content::before {
-            content: '';
-            position: absolute;
-            left: -6px;
-            top: 0;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #00f0ff;
         }
 
         .train-name {
@@ -204,23 +191,6 @@
 
         .station-name {
             color: #fff;
-            margin-top: 5px;
-        }
-        
-        .transfer-wait {
-            color: #ff9800;
-            font-size: 12px;
-            margin: 10px 0 15px 0;
-            padding-left: 75px;
-            border-left: 2px dashed #ff9800;
-            position: relative;
-        }
-
-        .transfer-wait::before {
-            content: '↓';
-            position: absolute;
-            left: 20px;
-            color: #ff9800;
         }
 
         /* Suggestions dropdown */
