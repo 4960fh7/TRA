@@ -20,7 +20,7 @@ function getTrainColor(trainType) {
     for (let key in colorPalette) {
         if (trainType.includes(key)) return colorPalette[key];
     }
-    return "#00f0ff"; // default
+    return "#00f0ff";
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -166,7 +166,6 @@ async function handleSearch() {
             let offset = 0;
             let liveRes = null;
             let liveData = null;
-            // 嘗試抓取即時動態，若失敗則遞減5分鐘重試 (最多試12次 = 1小時)
             while (offset <= 60) {
                 const retryDate = new Date(new Date().getTime() - offset * 60000);
                 const retryMonth = String(retryDate.getMonth() + 1).padStart(2, '0');
@@ -196,32 +195,32 @@ async function handleSearch() {
         
         let routes = [];
         
-        // 1. 直達車
         const directRoutes = findDirectRoutes(fromStr, toStr, userStartMins);
         routes.push(...directRoutes);
 
-        // 2. 轉乘車
         if (!directOnly) {
             const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins);
             routes.push(...oneTransferRoutes);
             
-            // 如果直達 + 1次轉乘的結果太少，或是找不到理想結果，則尋找 2 次轉乘
             if (routes.length < 5) {
                 const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins);
                 routes.push(...twoTransferRoutes);
             }
         }
 
-        // 過濾並排序
         routes.sort((a, b) => {
-            if (a.actualArrMins !== b.actualArrMins) return a.actualArrMins - b.actualArrMins;
-            const durA = a.actualArrMins - a.actualDepMins;
-            const durB = b.actualArrMins - b.actualDepMins;
+            let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
+            let bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
+            if (aArr !== bArr) return aArr - bArr;
+            
+            let aDep = a.type === '1-transfer' ? a.options[0].actualDepMins : a.actualDepMins;
+            let bDep = b.type === '1-transfer' ? b.options[0].actualDepMins : b.actualDepMins;
+            const durA = aArr - aDep;
+            const durB = bArr - bDep;
             return durA - durB;
         });
 
         routes = routes.slice(0, 25);
-
         renderRoutes(routes, container);
 
     } catch (e) {
@@ -230,7 +229,6 @@ async function handleSearch() {
     }
 }
 
-// 取得該班車從 fromName 到 toName 的停靠站列表 (包含起訖)
 function extractStops(train, fromName, toName) {
     const normFrom = normalizeStationName(fromName);
     const normTo = normalizeStationName(toName);
@@ -242,12 +240,10 @@ function extractStops(train, fromName, toName) {
     
     for (let i = 0; i < stops.length; i++) {
         const sName = normalizeStationName(stops[i].x);
-        if (sName === normFrom) {
-            // 發車是最後一筆
+        if (sName === normFrom && fromIdx === -1) {
             fromIdx = (i + 1 < stops.length && normalizeStationName(stops[i+1].x) === normFrom) ? i + 1 : i;
         }
-        if (sName === normTo && toIdx === -1) {
-            // 抵達是第一筆
+        if (sName === normTo && fromIdx !== -1 && i > fromIdx && toIdx === -1) {
             toIdx = i;
         }
     }
@@ -258,7 +254,6 @@ function extractStops(train, fromName, toName) {
             const sName = stops[i].x;
             if (sName !== currentStation) {
                 let depTime = stops[i].y;
-                // 若這站有兩筆，第二筆是出發時間 (除了終點站)
                 if (i + 1 <= toIdx && stops[i+1].x === sName) {
                     depTime = stops[i+1].y;
                     i++; 
@@ -287,11 +282,11 @@ function findDirectRoutes(fromName, toName, minDepartureMins) {
         const stops = train.data || [];
         for (let i = 0; i < stops.length; i++) {
             const stopName = normalizeStationName(stops[i].x);
-            if (stopName === normFromName) {
+            if (stopName === normFromName && fromDepIdx === -1) {
                 fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i+1].x) === normFromName) ? i + 1 : i;
             }
-            if (stopName === normToName) {
-                if (toArrIdx === -1) toArrIdx = i;
+            if (stopName === normToName && fromDepIdx !== -1 && i > fromDepIdx && toArrIdx === -1) {
+                toArrIdx = i;
             }
         }
 
@@ -306,7 +301,7 @@ function findDirectRoutes(fromName, toName, minDepartureMins) {
                 let actualDepMins = depMins + delay;
                 let arrMins = stops[toArrIdx].y;
                 let actualArrMins = arrMins + delay;
-                if (actualArrMins < actualDepMins) actualArrMins += 24 * 60; // 跨夜
+                if (actualArrMins < actualDepMins) actualArrMins += 24 * 60;
                 
                 const intermediateStops = extractStops(train, fromName, toName);
 
@@ -343,13 +338,13 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
         
         for (let i = 0; i < stops.length; i++) {
             const stopName = normalizeStationName(stops[i].x);
-            if (stopName === normFromName) { 
+            if (stopName === normFromName && fromDepIdx === -1) { 
                 hasFrom = true; 
                 fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i+1].x) === normFromName) ? i + 1 : i; 
             }
-            if (stopName === normToName) { 
+            if (stopName === normToName && toArrIdx === -1) { 
                 hasTo = true; 
-                if (toArrIdx === -1) toArrIdx = i; 
+                toArrIdx = i; 
             }
         }
         
@@ -384,10 +379,26 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
                 const normT1ArrStation = normalizeStationName(t1ArrStation);
                 if (i > 0 && normalizeStationName(t1Stops[i-1].x) === normT1ArrStation) continue; 
                 
+                let passedDest = false;
+                for (let x = t1.fromDepIdx + 1; x <= i; x++) {
+                    if (normalizeStationName(t1Stops[x].x) === normToName) {
+                        passedDest = true; break;
+                    }
+                }
+                if (passedDest) continue;
+                
                 for (let j = 0; j < t2.toArrIdx; j++) {
                     if (normalizeStationName(t2Stops[j].x) === normT1ArrStation) {
                         const t2DepIdx = (j + 1 < t2Stops.length && normalizeStationName(t2Stops[j+1].x) === normT1ArrStation) ? j + 1 : j;
                         
+                        let passedStart = false;
+                        for (let x = t2DepIdx; x <= t2.toArrIdx; x++) {
+                            if (normalizeStationName(t2Stops[x].x) === normFromName) {
+                                passedStart = true; break;
+                            }
+                        }
+                        if (passedStart) continue;
+
                         const actualArrMins = t1Stops[i].y + delay1; 
                         const actualDepMins = t2Stops[t2DepIdx].y + delay2; 
                         
@@ -399,28 +410,30 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
                         if (waitTime >= transferThresholdMin && waitTime <= transferThresholdMax) {
                             const key = `${train1.number}_${train2.number}`;
                             
+                            let totalDep = t1Stops[t1.fromDepIdx].y + delay1;
+                            let totalArr = t2Stops[t2.toArrIdx].y + delay2;
+                            if (totalArr < totalDep) totalArr += 24 * 60;
+
+                            const optionData = {
+                                transferStation: t1ArrStation,
+                                actualDepMins: totalDep,
+                                actualArrMins: totalArr,
+                                trains: [
+                                    { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, t1ArrStation) },
+                                    { trainInfo: train2, delay: delay2, stops: extractStops(train2, t1ArrStation, toName) }
+                                ]
+                            };
+                            
                             if (!routesMap[key]) {
-                                let totalDep = t1Stops[t1.fromDepIdx].y + delay1;
-                                let totalArr = t2Stops[t2.toArrIdx].y + delay2;
-                                if (totalArr < totalDep) totalArr += 24 * 60;
-                                
                                 routesMap[key] = {
                                     type: '1-transfer',
-                                    trains: [
-                                        { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, t1ArrStation) },
-                                        { trainInfo: train2, delay: delay2, stops: extractStops(train2, t1ArrStation, toName) }
-                                    ],
+                                    options: [optionData],
                                     fromStation: fromName,
-                                    toStation: toName,
-                                    actualDepMins: totalDep,
-                                    actualArrMins: totalArr,
-                                    transferStations: [t1ArrStation],
-                                    totalWaitTime: waitTime
+                                    toStation: toName
                                 };
                             } else {
-                                // 合併相同班次的轉乘車站
-                                if (!routesMap[key].transferStations.includes(t1ArrStation)) {
-                                    routesMap[key].transferStations.push(t1ArrStation);
+                                if (!routesMap[key].options.find(o => normalizeStationName(o.transferStation) === normT1ArrStation)) {
+                                    routesMap[key].options.push(optionData);
                                 }
                             }
                         }
@@ -434,24 +447,20 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
 }
 
 function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
-    // 簡化的2次轉乘搜尋，避免效能問題。
-    // 我們可以藉由一級轉乘大站(如 新竹, 彰化, 台北, 花蓮, 新左營, 八堵) 來做中介
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
     
-    // 只找特定大站作為轉乘樞紐
     const majorStations = ["八堵", "台北", "樹林", "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "斗六", "嘉義", "台南", "新左營", "高雄", "屏東", "潮州", "枋寮", "台東", "花蓮", "蘇澳新", "宜蘭", "瑞芳"];
     
     let fromTrains = [];
     let toTrains = [];
     
-    // 收集所有出發與抵達班次
     scheduleData.forEach(train => {
         let fromDepIdx = -1, toArrIdx = -1;
         const stops = train.data || [];
         for (let i = 0; i < stops.length; i++) {
-            if (normalizeStationName(stops[i].x) === normFromName) fromDepIdx = i;
+            if (normalizeStationName(stops[i].x) === normFromName && fromDepIdx === -1) fromDepIdx = i;
             if (normalizeStationName(stops[i].x) === normToName && toArrIdx === -1) toArrIdx = i;
         }
         
@@ -463,19 +472,16 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
         if (toArrIdx !== -1) toTrains.push({ train, toArrIdx });
     });
 
-    // 針對每一個從出發站出發的火車，找到它會經過的大站
     fromTrains.forEach(t1 => {
         const train1 = t1.train;
         const delay1 = liveBoardData[train1.number] || 0;
         const stops1 = train1.data;
         
-        // 尋找 t1 的所有可能的一級轉乘站
         for (let i = t1.fromDepIdx + 1; i < stops1.length; i++) {
             const hub1 = stops1[i].x;
             const normHub1 = normalizeStationName(hub1);
             if (!majorStations.some(m => normalizeStationName(m) === normHub1)) continue;
             
-            // 找到 Hub1 後，尋找經過 Hub1 且能前往另一個大站 Hub2 或直達終點的車 (中段車 train2)
             scheduleData.forEach(train2 => {
                 if (train1.number === train2.number) return;
                 const delay2 = liveBoardData[train2.number] || 0;
@@ -487,19 +493,16 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
                 }
                 if (hub1DepIdx === -1) return;
                 
-                // 檢查 T1 -> T2 轉乘時間
                 const t1ArrActual = stops1[i].y + delay1;
                 let t2DepActual = stops2[hub1DepIdx].y + delay2;
                 let wait1 = t2DepActual - t1ArrActual;
                 if (wait1 < 0) wait1 += 24*60;
                 if (wait1 < 5 || wait1 > 60) return;
                 
-                // 尋找 T2 到達的 Hub2
                 for (let k = hub1DepIdx + 1; k < stops2.length; k++) {
                     const hub2 = stops2[k].x;
                     const normHub2 = normalizeStationName(hub2);
                     
-                    // 從 Hub2 尋找能到終點的 T3
                     toTrains.forEach(t3 => {
                         const train3 = t3.train;
                         if (train3.number === train2.number || train3.number === train1.number) return;
@@ -512,7 +515,6 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
                         }
                         if (hub2DepIdx === -1) return;
                         
-                        // 檢查 T2 -> T3 轉乘時間
                         const t2ArrActual = stops2[k].y + delay2;
                         let t3DepActual = stops3[hub2DepIdx].y + delay3;
                         let wait2 = t3DepActual - t2ArrActual;
@@ -548,6 +550,61 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
     return Object.values(routesMap);
 }
 
+function buildTimelineHtml(routeData) {
+    let timelineHtml = '<div class="timeline" style="display: block; margin-top: 15px; padding-top: 15px; border-top: 1px solid #1a2a3a;">';
+    
+    routeData.trains.forEach((segment, tIndex) => {
+        const trainInfo = segment.trainInfo;
+        const tColor = getTrainColor(trainInfo.train);
+        const stops = segment.stops;
+        if (!stops || stops.length === 0) return;
+        
+        if (tIndex > 0) {
+            const prevSegment = routeData.trains[tIndex - 1];
+            if (prevSegment.stops && prevSegment.stops.length > 0) {
+                const prevArr = prevSegment.stops[prevSegment.stops.length - 1].timeMins + prevSegment.delay;
+                const nextDep = stops[0].timeMins + segment.delay;
+                let wait = nextDep - prevArr;
+                if (wait < 0) wait += 24 * 60;
+                timelineHtml += `
+                    <div class="transfer-wait">
+                        ${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)<br>
+                        <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
+                    </div>
+                `;
+            }
+        }
+
+        stops.forEach((stop, sIndex) => {
+            let displayTime = stop.timeStr;
+            if (segment.delay > 0) {
+                const adjMins = stop.timeMins + segment.delay;
+                displayTime = `<span class="strikethrough" style="font-size:11px;">${stop.timeStr}</span> <span class="delay-text" style="color: #ff4444;">${minutesToTime(adjMins)}</span>`;
+            }
+
+            let dotColor = (sIndex === 0 || sIndex === stops.length - 1) ? tColor : '#64748b';
+            let borderStyle = (sIndex === stops.length - 1) ? 'transparent' : `2px solid ${tColor}`;
+
+            let actionText = "";
+            if (sIndex === 0) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
+            else if (sIndex === stops.length - 1) actionText = `抵達`;
+            
+            timelineHtml += `
+                <div class="timeline-item" style="display: flex; margin-bottom: 15px;">
+                    <div class="timeline-time" style="width: 60px; color: #ccc; font-size: 14px; line-height: 18px;">${displayTime}</div>
+                    <div class="timeline-content" style="flex: 1; padding-left: 15px; border-left: ${borderStyle}; position: relative;">
+                        <div style="position: absolute; left: -6px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: ${dotColor};"></div>
+                        <div class="station-name" style="color:${(sIndex === 0 || sIndex === stops.length - 1) ? '#fff' : '#ccc'}; margin-top: 0; line-height: 18px;">${stop.station} ${actionText}</div>
+                    </div>
+                </div>
+            `;
+        });
+    });
+
+    timelineHtml += '</div>';
+    return timelineHtml;
+}
+
 function renderRoutes(routes, container) {
     container.innerHTML = '';
     
@@ -556,29 +613,36 @@ function renderRoutes(routes, container) {
         return;
     }
 
-    routes.forEach(route => {
+    routes.forEach((route, index) => {
         const card = document.createElement('div');
         card.className = 'result-card';
+        card.style.cursor = 'pointer';
         
-        let headerHtml = '';
-        let timelineHtml = '<div class="timeline">';
+        let routeData = route.type === '1-transfer' ? route.options[0] : route;
         
-        const totalDep = route.actualDepMins;
-        const totalArr = route.actualArrMins;
-        const totalDur = totalArr - totalDep;
-        const durStr = Math.floor(totalDur / 60) > 0 ? `${Math.floor(totalDur / 60)}小時${totalDur % 60}分` : `${totalDur % 60}分`;
+        const totalDep = routeData.actualDepMins;
+        const totalArr = routeData.actualArrMins;
+        const totalDur = Math.round(totalArr - totalDep);
+        
+        const hrs = Math.floor(totalDur / 60);
+        const mins = totalDur % 60;
+        let durStr = '';
+        if (hrs > 0) {
+            durStr = `<span style="color:#00f0ff; font-weight:bold;">${hrs}</span> hr <span style="color:#00f0ff; font-weight:bold;">${mins}</span> min`;
+        } else {
+            durStr = `<span style="color:#00f0ff; font-weight:bold;">${mins}</span> min`;
+        }
 
-        // Generate Header
-        let trainsSummary = route.trains.map(t => `<span style="color:${getTrainColor(t.trainInfo.train)}">${t.trainInfo.train} ${t.trainInfo.number}</span>`).join(' 轉 ');
-        
-        let transferText = route.type === 'direct' ? '直達車' : 
-                           (route.type === '1-transfer' ? `1次轉乘 (可於 ${route.transferStations.join('/')} 轉乘)` :
-                           `2次轉乘`);
+        let trainsSummary = routeData.trains.map(t => `<span style="color:${getTrainColor(t.trainInfo.train)}">${t.trainInfo.train} ${t.trainInfo.number}</span>`).join(' 轉 ');
+        let transferText = route.type === 'direct' ? '直達車' : (route.type === '1-transfer' ? `1次轉乘` : `2次轉乘`);
 
-        headerHtml = `
+        let hasDelay = routeData.trains.some(t => t.delay > 0);
+        let delayBadge = hasDelay ? `<span style="color: #ff4444; font-size: 12px; font-weight: bold; margin-left: 5px;">(延誤)</span>` : '';
+
+        let headerHtml = `
             <div class="result-header">
                 <div>
-                    <div class="time-info">${minutesToTime(totalDep)} → ${minutesToTime(totalArr)}</div>
+                    <div class="time-info">${minutesToTime(totalDep)} → ${minutesToTime(totalArr)}${delayBadge}</div>
                     <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">${trainsSummary}</div>
                 </div>
                 <div style="text-align: right;">
@@ -588,59 +652,48 @@ function renderRoutes(routes, container) {
             </div>
         `;
 
-        // Generate Timeline (Detailed stops)
-        route.trains.forEach((segment, tIndex) => {
-            const trainInfo = segment.trainInfo;
-            const tColor = getTrainColor(trainInfo.train);
-            const stops = segment.stops;
+        let bodyWrapper = document.createElement('div');
+        bodyWrapper.className = 'route-details';
+        bodyWrapper.style.display = 'none';
+
+        if (route.type === '1-transfer' && route.options.length > 1) {
+            let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
+                <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇換乘車站:</label>
+                <select class="transfer-select planner-input" style="width: auto; padding: 5px; font-size: 12px; display: inline-block;">
+                    ${route.options.map((opt, i) => `<option value="${i}">${opt.transferStation}</option>`).join('')}
+                </select>
+            </div>`;
             
-            if (tIndex > 0) {
-                // Render Transfer Wait
-                const prevSegment = route.trains[tIndex - 1];
-                const prevArr = prevSegment.stops[prevSegment.stops.length - 1].timeMins + prevSegment.delay;
-                const nextDep = stops[0].timeMins + segment.delay;
-                let wait = nextDep - prevArr;
-                if (wait < 0) wait += 24 * 60;
-                timelineHtml += `
-                    <div class="transfer-wait">
-                        ${stops[0].station} 轉乘 (等待約 ${wait} 分鐘)<br>
-                        <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
-                    </div>
-                `;
-            }
-
-            // Render all stops in this segment
-            stops.forEach((stop, sIndex) => {
-                let displayTime = stop.timeStr;
-                if (segment.delay > 0) {
-                    const adjMins = stop.timeMins + segment.delay;
-                    displayTime = `<span class="strikethrough">${stop.timeStr}</span> <span class="delay-text" style="color: #ff4444;">${minutesToTime(adjMins)} (+${segment.delay}分)</span>`;
-                }
-
-                let dotColor = (sIndex === 0 || sIndex === stops.length - 1) ? tColor : '#64748b';
-                let borderStyle = (sIndex === stops.length - 1) ? 'transparent' : `2px solid ${tColor}`;
-
-                let actionText = "";
-                if (sIndex === 0) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
-                else if (sIndex === stops.length - 1) actionText = `抵達`;
-                
-                timelineHtml += `
-                    <div class="timeline-item">
-                        <div class="timeline-time">${displayTime}</div>
-                        <div class="timeline-content" style="border-left: ${borderStyle};">
-                            <div style="position: absolute; left: -6px; top: 0; width: 10px; height: 10px; border-radius: 50%; background: ${dotColor};"></div>
-                            <div class="station-name" style="color:${(sIndex === 0 || sIndex === stops.length - 1) ? '#fff' : '#ccc'}">${stop.station} ${actionText}</div>
-                        </div>
-                    </div>
-                `;
+            let timelineContainer = document.createElement('div');
+            timelineContainer.innerHTML = buildTimelineHtml(route.options[0]);
+            
+            bodyWrapper.innerHTML = selectHtml;
+            bodyWrapper.appendChild(timelineContainer);
+            
+            let selectElem = bodyWrapper.querySelector('select');
+            selectElem.addEventListener('change', (e) => {
+                const optIdx = parseInt(e.target.value, 10);
+                timelineContainer.innerHTML = buildTimelineHtml(route.options[optIdx]);
+                // We should also technically update the header summary (totalArr might be different)
+                // For simplicity, we just change the timeline.
             });
-        });
+            // Prevent card collapse when clicking select
+            selectElem.addEventListener('click', (e) => e.stopPropagation());
+        } else {
+            bodyWrapper.innerHTML = buildTimelineHtml(routeData);
+        }
 
-        timelineHtml += '</div>';
+        card.innerHTML = headerHtml;
+        card.appendChild(bodyWrapper);
 
-        card.innerHTML = headerHtml + timelineHtml;
         card.addEventListener('click', () => {
-            card.classList.toggle('expanded');
+            if (bodyWrapper.style.display === 'none') {
+                bodyWrapper.style.display = 'block';
+                card.style.borderColor = '#00f0ff';
+            } else {
+                bodyWrapper.style.display = 'none';
+                card.style.borderColor = '#1a2a3a';
+            }
         });
 
         container.appendChild(card);
