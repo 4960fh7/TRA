@@ -77,7 +77,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     const min = String(now.getMinutes()).padStart(2, '0');
     
     document.getElementById('travel-date').value = `${yyyy}-${mm}-${dd}`;
-    document.getElementById('travel-time').value = `${hh}:${min}`;
+    
+    const hhSelect = document.getElementById('travel-time-hh');
+    const mmSelect = document.getElementById('travel-time-mm');
+    for (let i = 0; i < 24; i++) {
+        const opt = document.createElement('option');
+        opt.value = opt.text = String(i).padStart(2, '0');
+        hhSelect.appendChild(opt);
+    }
+    for (let i = 0; i < 60; i++) {
+        const opt = document.createElement('option');
+        opt.value = opt.text = String(i).padStart(2, '0');
+        mmSelect.appendChild(opt);
+    }
+    hhSelect.value = hh;
+    mmSelect.value = min;
 
     await loadStations();
 
@@ -182,7 +196,9 @@ async function handleSearch() {
     const fromStr = document.getElementById('from-station').value.trim();
     const toStr = document.getElementById('to-station').value.trim();
     const dateStr = document.getElementById('travel-date').value;
-    const timeStr = document.getElementById('travel-time').value;
+    const hh = document.getElementById('travel-time-hh').value;
+    const mm = document.getElementById('travel-time-mm').value;
+    const timeStr = `${hh}:${mm}`;
     const filters = getFilters();
 
     if (!fromStr || !toStr) {
@@ -686,26 +702,32 @@ function buildTimelineHtml(routeData) {
     });
 
     // Render rows
-    rows.forEach((row) => {
+    // Each stop needs a line ABOVE the dot (from the previous stop) and a line BELOW the dot (to the next stop).
+    // We track what the previous row's "line going down" was so we can draw it above the current dot.
+    let prevLineDown = null; // { color, dashed } or null
+
+    rows.forEach((row, rowIdx) => {
         if (row.type === 'transfer') {
+            // Transfer row: dashed line running full height, text on the right
+            // prevLineDown from the last stop already covered the dashed line into this area,
+            // but we still need a continuous dashed line here.
             html += `
-                <div style="display: flex; align-items: stretch;">
+                <div style="display: flex; align-items: stretch; min-height: 40px;">
                     <div style="width: 56px; flex-shrink: 0;"></div>
-                    <div style="width: 18px; flex-shrink: 0; position: relative; display: flex; justify-content: center;">
-                        <div style="width: 2px; height: 100%; border-left: 2px dashed ${row.lineColor};"></div>
+                    <div style="width: 18px; flex-shrink: 0; position: relative;">
+                        <div style="position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%); width: 2px; background: repeating-linear-gradient(to bottom, ${row.lineColor} 0px, ${row.lineColor} 4px, transparent 4px, transparent 8px);"></div>
                     </div>
-                    <div style="flex: 1; padding: 3px 0 3px 10px;">
-                        <div style="color: #ff9800; font-size: 12px; line-height: 1.5;">
-                            ${row.text}<br>
-                            <span style="color:#888; font-size:11px;">${row.subtext}</span>
+                    <div style="flex: 1; padding: 4px 0 4px 10px; display: flex; align-items: center;">
+                        <div style="color: #ff9800; font-size: 12px; line-height: 1.4;">
+                            ${row.text}
                         </div>
                     </div>
                 </div>
             `;
+            // The line going down from transfer is dashed orange (to the next stop's "above" area)
+            prevLineDown = { color: row.lineColor, dashed: true };
         } else {
             // Stop row
-            const dotTop = row.isEndpoint ? 'calc(50% - 5px)' : 'calc(50% - 3.5px)';
-            
             let timeHtml = '';
             if (row.delayedTimeStr) {
                 timeHtml = `<span style="text-decoration: line-through; color: #888; font-size: 11px;">${row.timeStr}</span><br><span style="color: #ff4444; font-size: 13px;">${row.delayedTimeStr}</span>`;
@@ -713,30 +735,46 @@ function buildTimelineHtml(routeData) {
                 timeHtml = row.timeStr;
             }
 
-            let lineHtml = '';
+            // Line above dot (connecting from previous row)
+            let lineAboveHtml = '';
+            if (prevLineDown) {
+                if (prevLineDown.dashed) {
+                    lineAboveHtml = `<div style="position: absolute; left: 50%; top: 0; height: 50%; transform: translateX(-50%); width: 2px; background: repeating-linear-gradient(to bottom, ${prevLineDown.color} 0px, ${prevLineDown.color} 4px, transparent 4px, transparent 8px);"></div>`;
+                } else {
+                    lineAboveHtml = `<div style="position: absolute; left: 50%; top: 0; height: 50%; transform: translateX(-50%); width: 2px; background: ${prevLineDown.color};"></div>`;
+                }
+            }
+
+            // Line below dot (going to next row)
+            let lineBelowHtml = '';
             if (row.hasLine) {
                 if (row.lineDashed) {
-                    lineHtml = `<div style="flex: 1; border-left: 2px dashed ${row.lineColor}; min-height: 4px;"></div>`;
+                    lineBelowHtml = `<div style="position: absolute; left: 50%; top: 50%; bottom: 0; transform: translateX(-50%); width: 2px; background: repeating-linear-gradient(to bottom, ${row.lineColor} 0px, ${row.lineColor} 4px, transparent 4px, transparent 8px);"></div>`;
                 } else {
-                    lineHtml = `<div style="flex: 1; background: ${row.lineColor}; width: 2px; min-height: 4px;"></div>`;
+                    lineBelowHtml = `<div style="position: absolute; left: 50%; top: 50%; bottom: 0; transform: translateX(-50%); width: 2px; background: ${row.lineColor};"></div>`;
                 }
-            } else {
-                lineHtml = `<div style="flex: 1;"></div>`;
             }
 
             html += `
-                <div style="display: flex; align-items: stretch;">
+                <div style="display: flex; align-items: stretch; min-height: 24px;">
                     <div style="width: 56px; flex-shrink: 0; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; line-height: 1.3;">${timeHtml}</div>
-                    <div style="width: 18px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
-                        <div style="flex: 1;"></div>
-                        <div style="width: ${row.dotSize}px; height: ${row.dotSize}px; border-radius: 50%; background: ${row.dotColor}; flex-shrink: 0;"></div>
-                        ${lineHtml}
+                    <div style="width: 18px; flex-shrink: 0; position: relative;">
+                        ${lineAboveHtml}
+                        ${lineBelowHtml}
+                        <div style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: ${row.dotSize}px; height: ${row.dotSize}px; border-radius: 50%; background: ${row.dotColor}; z-index: 2;"></div>
                     </div>
-                    <div style="flex: 1; padding: 3px 0 3px 10px; display: flex; align-items: center;">
+                    <div style="flex: 1; padding: 4px 0 4px 10px; display: flex; align-items: center;">
                         <div style="color: ${row.isEndpoint ? '#fff' : '#aaa'}; font-size: ${row.isEndpoint ? '14px' : '13px'}; line-height: 1.3;">${row.station} ${row.actionText}</div>
                     </div>
                 </div>
             `;
+
+            // Track what line goes down from this row for the next row's "above" line
+            if (row.hasLine) {
+                prevLineDown = { color: row.lineColor, dashed: row.lineDashed };
+            } else {
+                prevLineDown = null;
+            }
         }
     });
 

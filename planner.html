@@ -174,14 +174,14 @@
             max-width: 800px;
             display: flex;
             flex-direction: column;
-            gap: 15px;
+            gap: 10px;
         }
 
         .result-card {
             background: #111a22;
             border: 1px solid #1a2a3a;
             border-radius: 10px;
-            padding: 15px;
+            padding: 12px;
             cursor: pointer;
             transition: 0.2s;
         }
@@ -194,7 +194,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: 6px;
         }
 
         .time-info {
@@ -435,8 +435,12 @@
                         <input type="date" id="travel-date" class="planner-input">
                     </div>
                     <div class="form-group">
-                        <label for="travel-time">時間</label>
-                        <input type="time" id="travel-time" class="planner-input" step="60">
+                        <label>時間</label>
+                        <div style="display: flex; gap: 5px; align-items: center;">
+                            <select id="travel-time-hh" class="planner-input" style="padding: 10px 5px; width: 60px; text-align: center;"></select>
+                            <span style="color: #00f0ff; font-weight: bold;">:</span>
+                            <select id="travel-time-mm" class="planner-input" style="padding: 10px 5px; width: 60px; text-align: center;"></select>
+                        </div>
                     </div>
                 </div>
 
