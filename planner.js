@@ -308,11 +308,27 @@ async function handleSearch() {
         routes.push(...directRoutes);
 
         if (!filters.directOnly) {
-            const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins, filters);
+            // Dynamically compute arrival window based on fastest direct train,
+            // or fall back to station-order heuristic.
+            const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, directRoutes);
+
+            const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins, filters, arrWindowHours);
             routes.push(...oneTransferRoutes);
 
+            // Only search 2-transfer if 1-transfer didn't already yield many results
             const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins, filters);
             routes.push(...twoTransferRoutes);
+        }
+
+        // Cap total routes before expensive O(N²) filter to avoid call stack overflow
+        // Keep the best candidates by arrival time first
+        if (routes.length > 300) {
+            routes.sort((a, b) => {
+                const aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
+                const bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
+                return aArr - bArr;
+            });
+            routes = routes.slice(0, 300);
         }
 
         routes = filterDominatedRoutes(routes);
@@ -324,6 +340,53 @@ async function handleSearch() {
         console.error(e);
         container.innerHTML = `<div style="color: #ff4444; text-align: center; padding: 20px;">錯誤: ${e.message}</div>`;
     }
+}
+
+/**
+ * Estimate how many hours after minDepartureMins we should accept arriving trains.
+ * Uses fastest direct train duration if available, otherwise station-order heuristic.
+ */
+function estimateArrivalWindowHours(fromName, toName, directRoutes) {
+    // If we have direct trains, use 2.5x the fastest one as a generous buffer,
+    // clamped between 9h and 15h.
+    if (directRoutes.length > 0) {
+        const minDuration = Math.min(
+            ...directRoutes.map(r => r.actualArrMins - r.actualDepMins)
+        );
+        const window = Math.ceil(minDuration * 2.5 + 60);
+        return Math.min(Math.max(window, 9 * 60), 15 * 60);
+    }
+
+    // No direct trains: estimate from station order along the main line.
+    // Stations listed roughly south-to-north on west coast then east coast.
+    const stationOrder = [
+        "枋寮","加祿","內獅","望嘉","林邊","佳冬","東海","潮州","南州","東港","鎮安","屏東","歸來","麟洛","西勢","竹田",
+        "客城","崁頂","後庄","新埤","佳興","南州","溪州","六塊厝","西屏東",
+        "新左營","高雄","鳳山","後庄","九曲堂","六塊厝","內惟",
+        "楠梓","橋頭","岡山","路竹","大湖","台南","南台南","永康",
+        "大橋","保安","仁德","中洲","善化","拔林","新市","歸仁","關廟","新化",
+        "嘉義","水上","南靖","後壁","新營","柳營","林鳳營","隆田","抱罕",
+        "斗六","石榴","斗南","大林","民雄","北回",
+        "彰化","員林","社頭","田中","二水","林內","石龜","西螺",
+        "台中","豐原","后里","苗栗","竹南","新竹","桃園","中壢","樹林","板橋","台北","松山","南港",
+        "汐止","七堵","八堵","基隆",
+        "瑞芳","雙溪","貢寮","福隆","宜蘭","羅東","蘇澳新",
+        "花蓮","光復","玉里","關山","台東"
+    ];
+
+    const normFrom = normalizeStationName(fromName);
+    const normTo = normalizeStationName(toName);
+    const idxFrom = stationOrder.findIndex(s => normalizeStationName(s) === normFrom);
+    const idxTo   = stationOrder.findIndex(s => normalizeStationName(s) === normTo);
+
+    if (idxFrom !== -1 && idxTo !== -1) {
+        const dist = Math.abs(idxFrom - idxTo);
+        if (dist <= 10)  return 9 * 60;   // short
+        if (dist <= 30)  return 12 * 60;  // medium
+        return 15 * 60;                   // long
+    }
+
+    return 12 * 60; // default fallback
 }
 
 function applySortingAndRender() {
@@ -469,7 +532,8 @@ function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
     return routes;
 }
 
-function findOneTransferRoutes(fromName, toName, minDepartureMins, filters) {
+function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrWindowHours) {
+    arrWindowHours = arrWindowHours || 12 * 60; // default 12h if not specified
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
@@ -506,7 +570,15 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters) {
                 fromTrains.push({ train, fromDepIdx });
             }
         }
-        if (hasTo) toTrains.push({ train, toArrIdx });
+        if (hasTo) {
+            const arrMins = stops[toArrIdx].y;
+            let adjustedArrMins = arrMins;
+            if (arrMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedArrMins += 24 * 60;
+            // Accept trains arriving within the dynamically computed window
+            if (adjustedArrMins >= minDepartureMins && adjustedArrMins <= minDepartureMins + arrWindowHours) {
+                toTrains.push({ train, toArrIdx });
+            }
+        }
     });
 
     const transferThresholdMin = filters.transferTime ? filters.transferTime.min : 5;
@@ -530,6 +602,9 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters) {
 
                 // If filter specifies a transfer station, skip others
                 if (normFilterTransfer && normT1ArrStation !== normFilterTransfer) continue;
+
+                // Skip if transfer station is same as origin or destination
+                if (normT1ArrStation === normFromName || normT1ArrStation === normToName) continue;
 
                 let passedDest = false;
                 for (let x = t1.fromDepIdx + 1; x <= i; x++) {
