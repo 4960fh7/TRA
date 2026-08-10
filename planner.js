@@ -3,6 +3,7 @@ let stationCodeToName = {};
 let stationNameToCode = {};
 let scheduleData = [];
 let liveBoardData = {};
+let currentRoutes = [];
 
 const colorPalette = {
     "普悠瑪": "#FF5252",
@@ -140,6 +141,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('search-plan-btn').addEventListener('click', handleSearch);
     document.getElementById('swap-stations-btn').addEventListener('click', swapStations);
+    
+    document.getElementById('sort-method').addEventListener('change', () => {
+        if (currentRoutes && currentRoutes.length > 0) {
+            applySortingAndRender();
+        }
+    });
     
     setupAutocomplete('from-station', 'from-suggestions');
     setupAutocomplete('to-station', 'to-suggestions');
@@ -314,44 +321,52 @@ async function handleSearch() {
 
         routes = filterDominatedRoutes(routes);
 
-        const sortMethod = document.getElementById('sort-method').value;
-        
-        routes.sort((a, b) => {
-            let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
-            let bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
-            let aDep = a.type === '1-transfer' ? a.options[0].actualDepMins : a.actualDepMins;
-            let bDep = b.type === '1-transfer' ? b.options[0].actualDepMins : b.actualDepMins;
-            const durA = aArr - aDep;
-            const durB = bArr - bDep;
-            let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
-            let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
-
-            if (sortMethod === 'departure') {
-                if (aDep !== bDep) return aDep - bDep;
-                if (aArr !== bArr) return aArr - bArr;
-                return durA - durB;
-            } else if (sortMethod === 'arrival') {
-                if (aArr !== bArr) return aArr - bArr;
-                if (aDep !== bDep) return bDep - aDep;
-                return aTransfers - bTransfers;
-            } else if (sortMethod === 'duration') {
-                if (durA !== durB) return durA - durB;
-                return aDep - bDep;
-            } else if (sortMethod === 'transfers') {
-                if (aTransfers !== bTransfers) return aTransfers - bTransfers;
-                if (durA !== durB) return durA - durB;
-                return aDep - bDep;
-            }
-            return 0;
-        });
-
-        routes = routes.slice(0, 25);
-        renderRoutes(routes, container);
+        currentRoutes = routes;
+        applySortingAndRender();
 
     } catch (e) {
         console.error(e);
         container.innerHTML = `<div style="color: #ff4444; text-align: center; padding: 20px;">錯誤: ${e.message}</div>`;
     }
+}
+
+function applySortingAndRender() {
+    const container = document.getElementById('results-container');
+    const sortMethod = document.getElementById('sort-method').value;
+    
+    let routes = [...currentRoutes]; // work on a copy to avoid mutating original repeatedly
+
+    routes.sort((a, b) => {
+        let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
+        let bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
+        let aDep = a.type === '1-transfer' ? a.options[0].actualDepMins : a.actualDepMins;
+        let bDep = b.type === '1-transfer' ? b.options[0].actualDepMins : b.actualDepMins;
+        const durA = aArr - aDep;
+        const durB = bArr - bDep;
+        let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
+        let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
+
+        if (sortMethod === 'departure') {
+            if (aDep !== bDep) return aDep - bDep;
+            if (aArr !== bArr) return aArr - bArr;
+            return durA - durB;
+        } else if (sortMethod === 'arrival') {
+            if (aArr !== bArr) return aArr - bArr;
+            if (aDep !== bDep) return bDep - aDep;
+            return aTransfers - bTransfers;
+        } else if (sortMethod === 'duration') {
+            if (durA !== durB) return durA - durB;
+            return aDep - bDep;
+        } else if (sortMethod === 'transfers') {
+            if (aTransfers !== bTransfers) return aTransfers - bTransfers;
+            if (durA !== durB) return durA - durB;
+            return aDep - bDep;
+        }
+        return 0;
+    });
+
+    routes = routes.slice(0, 25);
+    renderRoutes(routes, container);
 }
 
 function extractStops(train, fromName, toName) {
