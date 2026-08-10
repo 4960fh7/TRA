@@ -15,12 +15,57 @@ const colorPalette = {
     "區間": "#00ffff"
 };
 
+// Train types to exclude (special/tourist trains)
+const excludedTrainTypes = ["團體", "專列", "觀光", "郵輪"];
+
+function isExcludedTrain(trainType) {
+    if (!trainType) return false;
+    return excludedTrainTypes.some(t => trainType.includes(t));
+}
+
 function getTrainColor(trainType) {
     if (!trainType) return "#64748b";
     for (let key in colorPalette) {
         if (trainType.includes(key)) return colorPalette[key];
     }
     return "#00f0ff";
+}
+
+// Filter logic
+function getFilters() {
+    return {
+        directOnly: document.getElementById('filter-direct-only').checked,
+        eticket: document.getElementById('filter-eticket').checked,
+        reserved: document.getElementById('filter-reserved').checked,
+        unreserved: document.getElementById('filter-unreserved').checked,
+        transferStation: document.getElementById('filter-transfer-station').checked
+            ? document.getElementById('filter-transfer-station-input').value.trim()
+            : ''
+    };
+}
+
+function isTrainAllowedByFilter(trainType, filters) {
+    if (!trainType) return false;
+    if (isExcludedTrain(trainType)) return false;
+
+    // E-ticket filter: exclude 新自強, 太魯閣, 普悠瑪
+    if (filters.eticket) {
+        if (trainType.includes('新自強') || trainType.includes('太魯閣') || trainType.includes('普悠瑪')) {
+            return false;
+        }
+    }
+
+    // Reserved train filter: exclude 區間, 區間快
+    if (filters.reserved) {
+        if (trainType.includes('區間')) return false;
+    }
+
+    // Unreserved train filter: only 區間, 區間快
+    if (filters.unreserved) {
+        if (!trainType.includes('區間')) return false;
+    }
+
+    return true;
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -41,6 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     setupAutocomplete('from-station', 'from-suggestions');
     setupAutocomplete('to-station', 'to-suggestions');
+    setupAutocomplete('filter-transfer-station-input', 'filter-transfer-suggestions');
 });
 
 async function loadStations() {
@@ -137,7 +183,7 @@ async function handleSearch() {
     const toStr = document.getElementById('to-station').value.trim();
     const dateStr = document.getElementById('travel-date').value;
     const timeStr = document.getElementById('travel-time').value;
-    const directOnly = document.getElementById('direct-only').checked;
+    const filters = getFilters();
 
     if (!fromStr || !toStr) {
         alert("請輸入出發與抵達車站");
@@ -160,6 +206,9 @@ async function handleSearch() {
         const schedRes = await fetch(scheduleUrl);
         if (!schedRes.ok) throw new Error("無法取得該日期的時刻表");
         scheduleData = await schedRes.json();
+
+        // Filter out excluded train types from schedule
+        scheduleData = scheduleData.filter(train => !isExcludedTrain(train.train));
 
         liveBoardData = {};
         if (shouldFetchLive) {
@@ -195,15 +244,15 @@ async function handleSearch() {
         
         let routes = [];
         
-        const directRoutes = findDirectRoutes(fromStr, toStr, userStartMins);
+        const directRoutes = findDirectRoutes(fromStr, toStr, userStartMins, filters);
         routes.push(...directRoutes);
 
-        if (!directOnly) {
-            const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins);
+        if (!filters.directOnly) {
+            const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins, filters);
             routes.push(...oneTransferRoutes);
             
             if (routes.length < 5) {
-                const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins);
+                const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins, filters);
                 routes.push(...twoTransferRoutes);
             }
         }
@@ -270,12 +319,14 @@ function extractStops(train, fromName, toName) {
     return result;
 }
 
-function findDirectRoutes(fromName, toName, minDepartureMins) {
+function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
     const routes = [];
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
     
     scheduleData.forEach(train => {
+        if (!isTrainAllowedByFilter(train.train, filters)) return;
+
         let fromDepIdx = -1;
         let toArrIdx = -1;
         
@@ -323,15 +374,18 @@ function findDirectRoutes(fromName, toName, minDepartureMins) {
     return routes;
 }
 
-function findOneTransferRoutes(fromName, toName, minDepartureMins) {
+function findOneTransferRoutes(fromName, toName, minDepartureMins, filters) {
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
+    const normFilterTransfer = filters.transferStation ? normalizeStationName(filters.transferStation) : '';
     
     const fromTrains = [];
     const toTrains = [];
 
     scheduleData.forEach(train => {
+        if (!isTrainAllowedByFilter(train.train, filters)) return;
+
         const stops = train.data || [];
         let hasFrom = false, hasTo = false;
         let fromDepIdx = -1, toArrIdx = -1;
@@ -379,6 +433,9 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
                 const normT1ArrStation = normalizeStationName(t1ArrStation);
                 if (i > 0 && normalizeStationName(t1Stops[i-1].x) === normT1ArrStation) continue; 
                 
+                // If filter specifies a transfer station, skip others
+                if (normFilterTransfer && normT1ArrStation !== normFilterTransfer) continue;
+
                 let passedDest = false;
                 for (let x = t1.fromDepIdx + 1; x <= i; x++) {
                     if (normalizeStationName(t1Stops[x].x) === normToName) {
@@ -446,7 +503,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins) {
     return Object.values(routesMap);
 }
 
-function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
+function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
@@ -457,6 +514,8 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
     let toTrains = [];
     
     scheduleData.forEach(train => {
+        if (!isTrainAllowedByFilter(train.train, filters)) return;
+
         let fromDepIdx = -1, toArrIdx = -1;
         const stops = train.data || [];
         for (let i = 0; i < stops.length; i++) {
@@ -484,6 +543,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
             
             scheduleData.forEach(train2 => {
                 if (train1.number === train2.number) return;
+                if (!isTrainAllowedByFilter(train2.train, filters)) return;
                 const delay2 = liveBoardData[train2.number] || 0;
                 const stops2 = train2.data || [];
                 
@@ -506,6 +566,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
                     toTrains.forEach(t3 => {
                         const train3 = t3.train;
                         if (train3.number === train2.number || train3.number === train1.number) return;
+                        if (!isTrainAllowedByFilter(train3.train, filters)) return;
                         const delay3 = liveBoardData[train3.number] || 0;
                         const stops3 = train3.data;
                         
@@ -551,7 +612,10 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins) {
 }
 
 function buildTimelineHtml(routeData) {
-    let timelineHtml = '<div class="timeline" style="display: block; margin-top: 12px; padding-top: 12px; border-top: 1px solid #1a2a3a;">';
+    let html = '<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #1a2a3a;">';
+    
+    // Flatten all rows (stops + transfer markers) into a single list
+    let rows = [];
     
     routeData.trains.forEach((segment, tIndex) => {
         const trainInfo = segment.trainInfo;
@@ -559,7 +623,7 @@ function buildTimelineHtml(routeData) {
         const stops = segment.stops;
         if (!stops || stops.length === 0) return;
         
-        // Transfer wait section (between segments)
+        // Transfer marker between segments
         if (tIndex > 0) {
             const prevSegment = routeData.trains[tIndex - 1];
             if (prevSegment.stops && prevSegment.stops.length > 0) {
@@ -567,60 +631,117 @@ function buildTimelineHtml(routeData) {
                 const nextDep = stops[0].timeMins + segment.delay;
                 let wait = nextDep - prevArr;
                 if (wait < 0) wait += 24 * 60;
-                timelineHtml += `
-                    <div style="display: flex; padding: 2px 0 2px 0;">
-                        <div style="width: 60px;"></div>
-                        <div style="flex: 1; padding-left: 15px; position: relative; border-left: 2px dashed #ff9800;">
-                            <div style="color: #ff9800; font-size: 12px; line-height: 1.5; padding: 4px 0;">
-                                ${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)<br>
-                                <span style="color:#888; font-size:11px;">抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                rows.push({
+                    type: 'transfer',
+                    lineColor: '#ff9800',
+                    lineDashed: true,
+                    text: `${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)`,
+                    subtext: `抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}`
+                });
             }
         }
 
         // Station stops
         stops.forEach((stop, sIndex) => {
-            let displayTime = stop.timeStr;
+            const isFirst = (sIndex === 0);
+            const isLast = (sIndex === stops.length - 1);
+            const isEndpoint = isFirst || isLast;
+            
+            let timeDisplay = stop.timeStr;
+            let delayedTimeDisplay = '';
             if (segment.delay > 0) {
                 const adjMins = stop.timeMins + segment.delay;
-                displayTime = `<span class="strikethrough" style="font-size:11px;">${stop.timeStr}</span> <span class="delay-text" style="color:#ff4444;">${minutesToTime(adjMins)}</span>`;
+                delayedTimeDisplay = minutesToTime(adjMins);
             }
 
-            const isEndpoint = (sIndex === 0 || sIndex === stops.length - 1);
-            const dotColor = isEndpoint ? tColor : '#64748b';
-            const dotSize = isEndpoint ? 10 : 7;
-            const dotOffset = isEndpoint ? -4 : -3;
-            const dotTop = isEndpoint ? 4 : 5;
-            
-            // Vertical line: solid for same-segment, dashed for transition to transfer
-            let borderLeft = 'none';
-            if (sIndex < stops.length - 1) {
-                borderLeft = `2px solid ${tColor}`;
-            } else if (tIndex < routeData.trains.length - 1) {
-                borderLeft = `2px dashed #ff9800`;
-            }
-            
             let actionText = "";
-            if (sIndex === 0) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
-            else if (sIndex === stops.length - 1) actionText = `抵達`;
+            if (isFirst) actionText = `出發 <span style="font-size:11px; color:#888;">(開往 ${trainInfo.info.end})</span>`;
+            else if (isLast) actionText = `抵達`;
 
-            timelineHtml += `
-                <div style="display: flex; padding: 0;">
-                    <div style="width: 60px; color: #ccc; font-size: 14px; line-height: 18px; padding: 4px 0;">${displayTime}</div>
-                    <div style="flex: 1; padding-left: 15px; position: relative; border-left: ${borderLeft};">
-                        <div style="position: absolute; left: ${dotOffset}px; top: ${dotTop}px; width: ${dotSize}px; height: ${dotSize}px; border-radius: 50%; background: ${dotColor}; z-index: 2;"></div>
-                        <div style="color:${isEndpoint ? '#fff' : '#ccc'}; line-height: 18px; padding: 4px 0;">${stop.station} ${actionText}</div>
-                    </div>
-                </div>
-            `;
+            // Determine the line going DOWN from this row
+            let lineColor = tColor;
+            let lineDashed = false;
+            let hasLine = true;
+            if (isLast && tIndex < routeData.trains.length - 1) {
+                lineColor = '#ff9800';
+                lineDashed = true;
+            } else if (isLast) {
+                hasLine = false; // last stop of last segment - no line below
+            }
+
+            rows.push({
+                type: 'stop',
+                timeStr: timeDisplay,
+                delayedTimeStr: delayedTimeDisplay,
+                station: stop.station,
+                actionText: actionText,
+                isEndpoint: isEndpoint,
+                dotColor: isEndpoint ? tColor : '#64748b',
+                dotSize: isEndpoint ? 10 : 7,
+                hasLine: hasLine,
+                lineColor: lineColor,
+                lineDashed: lineDashed
+            });
         });
     });
 
-    timelineHtml += '</div>';
-    return timelineHtml;
+    // Render rows
+    rows.forEach((row) => {
+        if (row.type === 'transfer') {
+            html += `
+                <div style="display: flex; align-items: stretch;">
+                    <div style="width: 56px; flex-shrink: 0;"></div>
+                    <div style="width: 18px; flex-shrink: 0; position: relative; display: flex; justify-content: center;">
+                        <div style="width: 2px; height: 100%; border-left: 2px dashed ${row.lineColor};"></div>
+                    </div>
+                    <div style="flex: 1; padding: 3px 0 3px 10px;">
+                        <div style="color: #ff9800; font-size: 12px; line-height: 1.5;">
+                            ${row.text}<br>
+                            <span style="color:#888; font-size:11px;">${row.subtext}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            // Stop row
+            const dotTop = row.isEndpoint ? 'calc(50% - 5px)' : 'calc(50% - 3.5px)';
+            
+            let timeHtml = '';
+            if (row.delayedTimeStr) {
+                timeHtml = `<span style="text-decoration: line-through; color: #888; font-size: 11px;">${row.timeStr}</span><br><span style="color: #ff4444; font-size: 13px;">${row.delayedTimeStr}</span>`;
+            } else {
+                timeHtml = row.timeStr;
+            }
+
+            let lineHtml = '';
+            if (row.hasLine) {
+                if (row.lineDashed) {
+                    lineHtml = `<div style="flex: 1; border-left: 2px dashed ${row.lineColor}; min-height: 4px;"></div>`;
+                } else {
+                    lineHtml = `<div style="flex: 1; background: ${row.lineColor}; width: 2px; min-height: 4px;"></div>`;
+                }
+            } else {
+                lineHtml = `<div style="flex: 1;"></div>`;
+            }
+
+            html += `
+                <div style="display: flex; align-items: stretch;">
+                    <div style="width: 56px; flex-shrink: 0; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; line-height: 1.3;">${timeHtml}</div>
+                    <div style="width: 18px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center;">
+                        <div style="flex: 1;"></div>
+                        <div style="width: ${row.dotSize}px; height: ${row.dotSize}px; border-radius: 50%; background: ${row.dotColor}; flex-shrink: 0;"></div>
+                        ${lineHtml}
+                    </div>
+                    <div style="flex: 1; padding: 3px 0 3px 10px; display: flex; align-items: center;">
+                        <div style="color: ${row.isEndpoint ? '#fff' : '#aaa'}; font-size: ${row.isEndpoint ? '14px' : '13px'}; line-height: 1.3;">${row.station} ${row.actionText}</div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    html += '</div>';
+    return html;
 }
 
 function renderRoutes(routes, container) {
@@ -657,10 +778,29 @@ function renderRoutes(routes, container) {
         let hasDelay = routeData.trains.some(t => t.delay > 0);
         let delayBadge = hasDelay ? `<span style="color: #ff4444; font-size: 12px; font-weight: bold; margin-left: 5px;">(延誤)</span>` : '';
 
+        // Show original time and delayed time in header if delay
+        let depTimeStr = minutesToTime(totalDep);
+        let arrTimeStr = minutesToTime(totalArr);
+        let headerTimeHtml = '';
+        if (hasDelay) {
+            // Compute original times (without delay)
+            const origDep = routeData.trains[0].trainInfo.data ? routeData.trains[0].stops[0].timeMins : totalDep;
+            const lastTrain = routeData.trains[routeData.trains.length - 1];
+            const origArr = lastTrain.stops && lastTrain.stops.length > 0 ? lastTrain.stops[lastTrain.stops.length - 1].timeMins : totalArr;
+            
+            if (origDep !== totalDep || origArr !== totalArr) {
+                headerTimeHtml = `<span style="text-decoration: line-through; color: #888; font-size: 16px;">${minutesToTime(origDep)} → ${minutesToTime(origArr)}</span> <span style="color: #ff4444;">${depTimeStr} → ${arrTimeStr}</span>${delayBadge}`;
+            } else {
+                headerTimeHtml = `${depTimeStr} → ${arrTimeStr}${delayBadge}`;
+            }
+        } else {
+            headerTimeHtml = `${depTimeStr} → ${arrTimeStr}`;
+        }
+
         let headerHtml = `
             <div class="result-header">
                 <div>
-                    <div class="time-info">${minutesToTime(totalDep)} → ${minutesToTime(totalArr)}${delayBadge}</div>
+                    <div class="time-info">${headerTimeHtml}</div>
                     <div style="font-size: 14px; font-weight: bold; margin-top: 5px;">${trainsSummary}</div>
                 </div>
                 <div style="text-align: right;">
@@ -677,7 +817,7 @@ function renderRoutes(routes, container) {
         if (route.type === '1-transfer' && route.options.length > 1) {
             let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
                 <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇換乘車站:</label>
-                <select class="transfer-select planner-input" style="width: auto; padding: 5px; font-size: 12px; display: inline-block;">
+                <select class="transfer-select planner-input" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
                     ${route.options.map((opt, i) => `<option value="${i}">${opt.transferStation}</option>`).join('')}
                 </select>
             </div>`;
@@ -692,10 +832,7 @@ function renderRoutes(routes, container) {
             selectElem.addEventListener('change', (e) => {
                 const optIdx = parseInt(e.target.value, 10);
                 timelineContainer.innerHTML = buildTimelineHtml(route.options[optIdx]);
-                // We should also technically update the header summary (totalArr might be different)
-                // For simplicity, we just change the timeline.
             });
-            // Prevent card collapse when clicking select
             selectElem.addEventListener('click', (e) => e.stopPropagation());
         } else {
             bodyWrapper.innerHTML = buildTimelineHtml(routeData);

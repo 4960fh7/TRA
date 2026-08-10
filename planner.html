@@ -51,6 +51,7 @@
             margin-bottom: 5px;
             color: #ccc;
             font-size: 14px;
+            font-family: inherit;
         }
 
         .planner-input {
@@ -62,6 +63,7 @@
             border-radius: 5px;
             box-sizing: border-box;
             font-size: 16px;
+            font-family: inherit;
         }
 
         .swap-btn {
@@ -72,13 +74,14 @@
             padding: 10px;
             border-radius: 5px;
             font-size: 16px;
+            font-family: inherit;
             display: flex;
             align-items: center;
             justify-content: center;
             transition: 0.3s;
             height: 40px;
             width: 40px;
-            margin-top: 22px; /* align with inputs */
+            margin-top: 22px;
         }
 
         .swap-btn:hover {
@@ -92,6 +95,7 @@
             border: none;
             padding: 12px;
             font-size: 16px;
+            font-family: inherit;
             border-radius: 5px;
             cursor: pointer;
             font-weight: bold;
@@ -100,6 +104,69 @@
 
         .submit-btn:hover {
             background: #00b0ff;
+        }
+
+        .settings-btn {
+            background: #1a2a3a;
+            color: #ccc;
+            border: 1px solid #1a2a3a;
+            padding: 10px;
+            font-size: 14px;
+            font-family: inherit;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-align: left;
+        }
+
+        .settings-btn:hover {
+            border-color: #00f0ff;
+            color: #00f0ff;
+        }
+
+        .settings-panel {
+            display: none;
+            background: #0a1520;
+            border: 1px solid #1a2a3a;
+            border-radius: 5px;
+            padding: 15px;
+            margin-top: -5px;
+        }
+
+        .settings-panel.active {
+            display: block;
+        }
+
+        .filter-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            color: #ccc;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .filter-option input[type="checkbox"] {
+            accent-color: #00f0ff;
+        }
+
+        .filter-option label {
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .filter-station-input {
+            width: 100%;
+            padding: 6px 10px;
+            background: #060a12;
+            border: 1px solid #1a2a3a;
+            color: #00f0ff;
+            border-radius: 3px;
+            box-sizing: border-box;
+            font-size: 14px;
+            font-family: inherit;
+            margin-top: 4px;
         }
 
         .results-container {
@@ -168,31 +235,6 @@
             display: block;
         }
 
-        .timeline-item {
-            display: flex;
-        }
-
-        .timeline-time {
-            width: 60px;
-            color: #ccc;
-            font-size: 14px;
-        }
-        
-        .timeline-content {
-            flex: 1;
-            padding-left: 15px;
-            position: relative;
-        }
-
-        .train-name {
-            font-weight: bold;
-            color: #00f0ff;
-        }
-
-        .station-name {
-            color: #fff;
-        }
-
         /* Suggestions dropdown */
         .suggestions-dropdown-planner {
             position: absolute;
@@ -217,6 +259,7 @@
             cursor: pointer;
             color: #eee;
             border-bottom: 1px solid #1a2a3a;
+            font-family: inherit;
         }
 
         .suggestion-item-planner:hover {
@@ -237,15 +280,111 @@
             100% { opacity: 0.6; }
         }
 
+        /* Hamburger menu */
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #d0ffe6;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            z-index: 1100;
+        }
+
+        .nav-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1050;
+        }
+
+        .nav-overlay .nav-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .nav-overlay .nav-drawer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 220px;
+            height: 100%;
+            background: #0d1b2a;
+            border-left: 1px solid #1a2a3a;
+            display: flex;
+            flex-direction: column;
+            padding: 60px 20px 20px 20px;
+            gap: 10px;
+        }
+
+        .nav-overlay .nav-drawer .nav-link {
+            display: block;
+            background: #111a22;
+            border: 1px solid #1a2a3a;
+            color: #fff;
+            padding: 12px 16px;
+            font-family: inherit;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            text-align: left;
+            transition: 0.2s;
+        }
+
+        .nav-overlay .nav-drawer .nav-link:hover {
+            border-color: #00f0ff;
+            color: #00f0ff;
+        }
+
+        .nav-overlay .nav-drawer .nav-link.active {
+            border-color: #00f0ff;
+            color: #00f0ff;
+            background: #14283f;
+        }
+
+        .nav-overlay.open {
+            display: block;
+        }
+
+        /* Desktop: show nav buttons, hide hamburger */
+        .desktop-nav-btn {
+            /* shown by default */
+        }
+
         @media (max-width: 600px) {
             .form-row {
                 flex-direction: column;
                 align-items: stretch;
             }
+            .form-row.station-row {
+                flex-direction: column;
+            }
+            .form-row.datetime-row {
+                flex-direction: row;
+            }
             .swap-btn {
                 transform: rotate(90deg);
                 align-self: center;
                 margin-top: 0;
+            }
+            .hamburger-btn {
+                display: block;
+            }
+            .desktop-nav-btn {
+                display: none !important;
+            }
+            #planner-container {
+                padding: 15px;
+                height: calc(100vh - 50px);
             }
         }
     </style>
@@ -257,15 +396,26 @@
             <h1>臺鐵旅程規劃</h1>
         </div>
         <div class="search-wrap">
-            <button onclick="window.location.href='index.html'" class="reset-btn">即時動態</button>
-            <button onclick="window.location.href='history.html'" class="reset-btn">歷史資料</button>
+            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">即時動態</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">歷史資料</button>
+            <button class="hamburger-btn" id="hamburger-btn">☰</button>
+        </div>
+    </div>
+
+    <!-- Mobile Nav Overlay -->
+    <div class="nav-overlay" id="nav-overlay">
+        <div class="nav-backdrop" id="nav-backdrop"></div>
+        <div class="nav-drawer">
+            <button class="nav-link" onclick="window.location.href='index.html'">列車動態</button>
+            <button class="nav-link active">旅程規劃</button>
+            <button class="nav-link" onclick="window.location.href='history.html'">歷史資料</button>
         </div>
     </div>
 
     <div id="planner-container" class="custom-scrollbar">
         <div class="planner-panel">
             <div class="planner-form">
-                <div class="form-row">
+                <div class="form-row station-row">
                     <div class="form-group">
                         <label for="from-station">出發站</label>
                         <input type="text" id="from-station" class="planner-input" placeholder="例如: 台北" autocomplete="off">
@@ -279,21 +429,42 @@
                     </div>
                 </div>
                 
-                <div class="form-row">
+                <div class="form-row datetime-row">
                     <div class="form-group">
                         <label for="travel-date">日期</label>
                         <input type="date" id="travel-date" class="planner-input">
                     </div>
                     <div class="form-group">
                         <label for="travel-time">時間</label>
-                        <input type="time" id="travel-time" class="planner-input">
+                        <input type="time" id="travel-time" class="planner-input" step="60">
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group" style="display: flex; gap: 10px; align-items: center;">
-                        <input type="checkbox" id="direct-only" style="accent-color: #00f0ff;">
-                        <label for="direct-only" style="margin: 0; cursor: pointer;">僅顯示直達車</label>
+                <button class="settings-btn" id="settings-toggle-btn">⚙ 篩選設定</button>
+                <div class="settings-panel" id="settings-panel">
+                    <div class="filter-option">
+                        <input type="checkbox" id="filter-direct-only">
+                        <label for="filter-direct-only">僅顯示直達車</label>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" id="filter-eticket">
+                        <label for="filter-eticket">電子票證（不含新自強、太魯閣、普悠瑪）</label>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" id="filter-reserved">
+                        <label for="filter-reserved">對號列車（不含區間、區間快）</label>
+                    </div>
+                    <div class="filter-option">
+                        <input type="checkbox" id="filter-unreserved">
+                        <label for="filter-unreserved">非對號列車（僅含區間、區間快）</label>
+                    </div>
+                    <div class="filter-option" style="flex-direction: column; align-items: flex-start;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="checkbox" id="filter-transfer-station">
+                            <label for="filter-transfer-station">指定轉乘站</label>
+                        </div>
+                        <input type="text" id="filter-transfer-station-input" class="filter-station-input" placeholder="輸入轉乘站名稱" autocomplete="off" disabled>
+                        <div id="filter-transfer-suggestions" class="suggestions-dropdown-planner custom-scrollbar" style="position: relative; top: 0;"></div>
                     </div>
                 </div>
 
@@ -306,6 +477,33 @@
         </div>
     </div>
 
+    <script>
+        // Hamburger menu toggle
+        document.getElementById('hamburger-btn').addEventListener('click', function() {
+            document.getElementById('nav-overlay').classList.toggle('open');
+        });
+        document.getElementById('nav-backdrop').addEventListener('click', function() {
+            document.getElementById('nav-overlay').classList.remove('open');
+        });
+
+        // Settings panel toggle
+        document.getElementById('settings-toggle-btn').addEventListener('click', function() {
+            document.getElementById('settings-panel').classList.toggle('active');
+        });
+
+        // Reserved / unreserved mutual exclusion
+        document.getElementById('filter-reserved').addEventListener('change', function() {
+            if (this.checked) document.getElementById('filter-unreserved').checked = false;
+        });
+        document.getElementById('filter-unreserved').addEventListener('change', function() {
+            if (this.checked) document.getElementById('filter-reserved').checked = false;
+        });
+
+        // Transfer station checkbox enables/disables input
+        document.getElementById('filter-transfer-station').addEventListener('change', function() {
+            document.getElementById('filter-transfer-station-input').disabled = !this.checked;
+        });
+    </script>
     <script src="planner.js"></script>
 </body>
 </html>
