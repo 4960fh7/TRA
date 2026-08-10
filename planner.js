@@ -77,21 +77,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const min = String(now.getMinutes()).padStart(2, '0');
     
     document.getElementById('travel-date').value = `${yyyy}-${mm}-${dd}`;
-    
-    const hhSelect = document.getElementById('travel-time-hh');
-    const mmSelect = document.getElementById('travel-time-mm');
-    for (let i = 0; i < 24; i++) {
-        const opt = document.createElement('option');
-        opt.value = opt.text = String(i).padStart(2, '0');
-        hhSelect.appendChild(opt);
-    }
-    for (let i = 0; i < 60; i++) {
-        const opt = document.createElement('option');
-        opt.value = opt.text = String(i).padStart(2, '0');
-        mmSelect.appendChild(opt);
-    }
-    hhSelect.value = hh;
-    mmSelect.value = min;
+    document.getElementById('travel-time').value = `${hh}:${min}`;
 
     await loadStations();
 
@@ -196,9 +182,7 @@ async function handleSearch() {
     const fromStr = document.getElementById('from-station').value.trim();
     const toStr = document.getElementById('to-station').value.trim();
     const dateStr = document.getElementById('travel-date').value;
-    const hh = document.getElementById('travel-time-hh').value;
-    const mm = document.getElementById('travel-time-mm').value;
-    const timeStr = `${hh}:${mm}`;
+    const timeStr = document.getElementById('travel-time').value;
     const filters = getFilters();
 
     if (!fromStr || !toStr) {
@@ -713,7 +697,7 @@ function buildTimelineHtml(routeData) {
             // but we still need a continuous dashed line here.
             html += `
                 <div style="display: flex; align-items: stretch; min-height: 40px;">
-                    <div style="width: 56px; flex-shrink: 0;"></div>
+                    <div style="width: 56px; flex-shrink: 0; box-sizing: border-box; padding-right: 4px;"></div>
                     <div style="width: 18px; flex-shrink: 0; position: relative;">
                         <div style="position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%); width: 2px; background: repeating-linear-gradient(to bottom, ${row.lineColor} 0px, ${row.lineColor} 4px, transparent 4px, transparent 8px);"></div>
                     </div>
@@ -757,7 +741,7 @@ function buildTimelineHtml(routeData) {
 
             html += `
                 <div style="display: flex; align-items: stretch; min-height: 24px;">
-                    <div style="width: 56px; flex-shrink: 0; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; line-height: 1.3;">${timeHtml}</div>
+                    <div style="width: 56px; flex-shrink: 0; box-sizing: border-box; color: #ccc; font-size: 13px; display: flex; align-items: center; justify-content: flex-end; padding-right: 4px; line-height: 1.3;">${timeHtml}</div>
                     <div style="width: 18px; flex-shrink: 0; position: relative;">
                         ${lineAboveHtml}
                         ${lineBelowHtml}
@@ -855,7 +839,7 @@ function renderRoutes(routes, container) {
         if (route.type === '1-transfer' && route.options.length > 1) {
             let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
                 <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇換乘車站:</label>
-                <select class="transfer-select planner-input" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
+                <select class="transfer-select planner-input custom-scrollbar" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
                     ${route.options.map((opt, i) => `<option value="${i}">${opt.transferStation}</option>`).join('')}
                 </select>
             </div>`;
