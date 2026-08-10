@@ -327,6 +327,10 @@ function applySortingAndRender() {
         const durB = bArr - bDep;
         let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
         let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
+        let aTrains = a.type === '1-transfer' ? a.options[0].trains : a.trains;
+        let bTrains = b.type === '1-transfer' ? b.options[0].trains : b.trains;
+        let aStops = aTrains.reduce((sum, t) => sum + (t.stops ? t.stops.length : 0), 0);
+        let bStops = bTrains.reduce((sum, t) => sum + (t.stops ? t.stops.length : 0), 0);
 
         if (sortMethod === 'departure') {
             if (aDep !== bDep) return aDep - bDep;
@@ -342,6 +346,10 @@ function applySortingAndRender() {
         } else if (sortMethod === 'transfers') {
             if (aTransfers !== bTransfers) return aTransfers - bTransfers;
             if (durA !== durB) return durA - durB;
+            return aDep - bDep;
+        } else if (sortMethod === 'stops') {
+            if (aStops !== bStops) return aStops - bStops;
+            if (aArr !== bArr) return aArr - bArr;
             return aDep - bDep;
         }
         return 0;

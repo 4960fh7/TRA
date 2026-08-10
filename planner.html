@@ -395,6 +395,15 @@
                 padding: 15px;
                 height: calc(100vh - 50px);
             }
+            
+            /* Disable hover effects on mobile */
+            .swap-btn:hover { background: #1a2a3a; color: #00f0ff; }
+            .submit-btn:hover { background: #00f0ff; }
+            .settings-btn:hover { border-color: #1a2a3a; color: #ccc; }
+            .result-card:hover { border-color: #1a2a3a; }
+            .nav-overlay .nav-drawer .nav-link:hover { border-color: #1a2a3a; color: #fff; }
+            .nav-overlay .nav-drawer .nav-link.active:hover { border-color: #00f0ff; color: #00f0ff; }
+            .suggestion-item-planner:hover { background: transparent; color: #eee; }
         }
     </style>
 </head>
@@ -481,10 +490,11 @@
                     <div class="form-group" style="flex: 1;">
                         <label for="sort-method">排序方式</label>
                         <select id="sort-method" class="planner-input" style="padding: 10px; height: 44px;">
+                            <option value="arrival" selected>依抵達時間 (越早抵達優先)</option>
                             <option value="departure">依出發時間 (越早出發優先)</option>
-                            <option value="arrival">依抵達時間 (越早抵達優先)</option>
                             <option value="duration">依總時長 (耗時越短優先)</option>
                             <option value="transfers">依轉乘次數 (直達優先)</option>
+                            <option value="stops">依停靠站數 (停靠越少優先)</option>
                         </select>
                     </div>
                 </div>
@@ -527,6 +537,33 @@
         document.getElementById('filter-transfer-station').addEventListener('change', function() {
             document.getElementById('filter-transfer-station-input').disabled = !this.checked;
         });
+
+        // Filter count logic
+        function updateFilterCount() {
+            let count = 0;
+            if (document.getElementById('filter-direct-only').checked) count++;
+            if (document.getElementById('filter-eticket').checked) count++;
+            if (document.getElementById('filter-reserved').checked) count++;
+            if (document.getElementById('filter-unreserved').checked) count++;
+            if (document.getElementById('filter-transfer-station').checked) count++;
+            
+            const btn = document.getElementById('settings-toggle-btn');
+            if (count > 0) {
+                btn.textContent = `⚙ 篩選設定 (${count})`;
+                btn.style.color = '#00f0ff';
+            } else {
+                btn.textContent = '⚙ 篩選設定';
+                btn.style.color = '#ccc';
+            }
+        }
+
+        // Attach listeners to all filter checkboxes
+        ['filter-direct-only', 'filter-eticket', 'filter-reserved', 'filter-unreserved', 'filter-transfer-station'].forEach(id => {
+            document.getElementById(id).addEventListener('change', updateFilterCount);
+        });
+        
+        // Initial update
+        updateFilterCount();
     </script>
     <script src="planner.js"></script>
 </body>
