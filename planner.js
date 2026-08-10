@@ -188,12 +188,12 @@ async function handleSearch() {
         let routes = [];
         
         // 1. 尋找直達車
-        const directRoutes = findDirectRoutes(fromCode, toCode, userStartMins);
+        const directRoutes = findDirectRoutes(fromStr, toStr, userStartMins);
         routes.push(...directRoutes);
 
         // 2. 尋找一次轉乘 (如果 directOnly 為 false)
         if (!directOnly) {
-            const transferRoutes = findOneTransferRoutes(fromCode, toCode, userStartMins);
+            const transferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins);
             routes.push(...transferRoutes);
         }
 
@@ -219,23 +219,34 @@ async function handleSearch() {
     }
 }
 
-function findDirectRoutes(fromCode, toCode, minDepartureMins) {
+function normalizeStationName(name) {
+    if (!name) return "";
+    return name.replace(/臺/g, '台');
+}
+
+function findDirectRoutes(fromName, toName, minDepartureMins) {
     const routes = [];
+    const normFromName = normalizeStationName(fromName);
+    const normToName = normalizeStationName(toName);
     
     scheduleData.forEach(train => {
-        let fromIdx = -1;
-        let toIdx = -1;
+        let fromDepIdx = -1;
+        let toArrIdx = -1;
         
         const stops = train.data || [];
         for (let i = 0; i < stops.length; i++) {
-            if (stops[i].station === fromCode) fromIdx = i;
-            if (stops[i].station === toCode) toIdx = i;
+            const stopName = normalizeStationName(stops[i].x);
+            if (stopName === normFromName) {
+                fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i+1].x) === normFromName) ? i + 1 : i;
+            }
+            if (stopName === normToName) {
+                if (toArrIdx === -1) toArrIdx = i;
+            }
         }
 
         // 確保方向正確且從起點出發時間符合條件
-        if (fromIdx !== -1 && toIdx !== -1 && fromIdx < toIdx) {
-            const depTimeStr = stops[fromIdx].dep;
-            const depMins = timeToMinutes(depTimeStr);
+        if (fromDepIdx !== -1 && toArrIdx !== -1 && fromDepIdx < toArrIdx) {
+            const depMins = stops[fromDepIdx].y;
             
             // 跨日處理 (簡易版: 假設 00:00 - 04:00 屬於隔天凌晨)
             let adjustedDepMins = depMins;
@@ -248,10 +259,10 @@ function findDirectRoutes(fromCode, toCode, minDepartureMins) {
                 routes.push({
                     type: 'direct',
                     train1: train,
-                    fromStation: fromCode,
-                    toStation: toCode,
-                    departureTime: depTimeStr,
-                    arrivalTime: stops[toIdx].arr,
+                    fromStation: stationNameToCode[fromName] || fromName,
+                    toStation: stationNameToCode[toName] || toName,
+                    departureTime: minutesToTime(depMins),
+                    arrivalTime: minutesToTime(stops[toArrIdx].y),
                     departureDelay: delay,
                     arrivalDelay: delay,
                     transferStation: null
@@ -262,8 +273,11 @@ function findDirectRoutes(fromCode, toCode, minDepartureMins) {
     return routes;
 }
 
-function findOneTransferRoutes(fromCode, toCode, minDepartureMins) {
+function findOneTransferRoutes(fromName, toName, minDepartureMins) {
     const routes = [];
+    const normFromName = normalizeStationName(fromName);
+    const normToName = normalizeStationName(toName);
+    
     // 預先過濾出經過起點和經過終點的班次
     const fromTrains = [];
     const toTrains = [];
@@ -271,24 +285,32 @@ function findOneTransferRoutes(fromCode, toCode, minDepartureMins) {
     scheduleData.forEach(train => {
         const stops = train.data || [];
         let hasFrom = false, hasTo = false;
-        let fromIdx = -1, toIdx = -1;
+        let fromDepIdx = -1, toArrIdx = -1;
+        
         for (let i = 0; i < stops.length; i++) {
-            if (stops[i].station === fromCode) { hasFrom = true; fromIdx = i; }
-            if (stops[i].station === toCode) { hasTo = true; toIdx = i; }
+            const stopName = normalizeStationName(stops[i].x);
+            if (stopName === normFromName) { 
+                hasFrom = true; 
+                fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i+1].x) === normFromName) ? i + 1 : i; 
+            }
+            if (stopName === normToName) { 
+                hasTo = true; 
+                if (toArrIdx === -1) toArrIdx = i; 
+            }
         }
         
         if (hasFrom) {
-            const depMins = timeToMinutes(stops[fromIdx].dep);
+            const depMins = stops[fromDepIdx].y;
             let adjustedDepMins = depMins;
             if (depMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedDepMins += 24 * 60;
             
             if (adjustedDepMins >= minDepartureMins) {
-                fromTrains.push({ train, fromIdx });
+                fromTrains.push({ train, fromDepIdx });
             }
         }
         
         if (hasTo) {
-            toTrains.push({ train, toIdx });
+            toTrains.push({ train, toArrIdx });
         }
     });
 
@@ -307,19 +329,22 @@ function findOneTransferRoutes(fromCode, toCode, minDepartureMins) {
             const delay2 = liveBoardData[train2.number] || 0;
             const t2Stops = train2.data;
 
-            // 尋找轉乘站 (只看 train1 從 fromIdx 之後的停靠站，以及 train2 到 toIdx 之前的停靠站)
-            for (let i = t1.fromIdx + 1; i < t1Stops.length; i++) {
-                const t1ArrStation = t1Stops[i].station;
+            // 尋找轉乘站 (只看 train1 從 fromDepIdx 之後的停靠站，以及 train2 到 toArrIdx 之前的停靠站)
+            for (let i = t1.fromDepIdx + 1; i < t1Stops.length; i++) {
+                const t1ArrStation = t1Stops[i].x;
+                const normT1ArrStation = normalizeStationName(t1ArrStation);
+                // 到達轉乘站的時間 (取該站的第一筆)
+                if (i > 0 && normalizeStationName(t1Stops[i-1].x) === normT1ArrStation) continue; // Skip departure entry of the transfer station for t1
                 
-                for (let j = 0; j < t2.toIdx; j++) {
-                    if (t2Stops[j].station === t1ArrStation) {
-                        // 找到共同停靠站，檢查時間
-                        const arrMins = timeToMinutes(t1Stops[i].arr);
+                for (let j = 0; j < t2.toArrIdx; j++) {
+                    if (normalizeStationName(t2Stops[j].x) === normT1ArrStation) {
+                        // 找到共同停靠站
+                        const t2DepIdx = (j + 1 < t2Stops.length && normalizeStationName(t2Stops[j+1].x) === normT1ArrStation) ? j + 1 : j;
+                        
+                        const arrMins = t1Stops[i].y;
                         const actualArrMins = arrMins + delay1; // 考慮誤點
                         
-                        const depMins = timeToMinutes(t2Stops[j].dep);
-                        // 如果班次表排定出發時間比實際到達時間還早，但它也誤點的話... 
-                        // 保守起見，用預定出發時間 + 預定延誤來比對
+                        const depMins = t2Stops[t2DepIdx].y;
                         const actualDepMins = depMins + delay2; 
                         
                         let waitTime = actualDepMins - actualArrMins;
@@ -332,16 +357,16 @@ function findOneTransferRoutes(fromCode, toCode, minDepartureMins) {
                                 type: 'transfer',
                                 train1: train1,
                                 train2: train2,
-                                fromStation: fromCode,
-                                transferStation: t1ArrStation,
-                                toStation: toCode,
-                                departureTime: t1Stops[t1.fromIdx].dep,
-                                transferArrTime: t1Stops[i].arr,
-                                transferDepTime: t2Stops[j].dep,
-                                arrivalTime: t2Stops[t2.toIdx].arr,
+                                fromStation: stationNameToCode[fromName] || fromName,
+                                transferStation: stationNameToCode[t1ArrStation] || t1ArrStation,
+                                toStation: stationNameToCode[toName] || toName,
+                                departureTime: minutesToTime(t1Stops[t1.fromDepIdx].y),
+                                transferArrTime: minutesToTime(t1Stops[i].y),
+                                transferDepTime: minutesToTime(t2Stops[t2DepIdx].y),
+                                arrivalTime: minutesToTime(t2Stops[t2.toArrIdx].y),
                                 departureDelay: delay1,
                                 arrivalDelay: delay2,
-                                transferWaitActual: waitTime
+                                transferWaitActual: Math.round(waitTime)
                             });
                         }
                     }
