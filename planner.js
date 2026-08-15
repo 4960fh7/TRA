@@ -4,6 +4,7 @@ let stationNameToCode = {};
 let scheduleData = [];
 let liveBoardData = {};
 let currentRoutes = [];
+let searchAbortController = null;
 
 const colorPalette = {
     "普悠瑪": "#FF5252",
@@ -255,6 +256,13 @@ async function handleSearch() {
         return;
     }
 
+    // Abort any previous batch search still running
+    if (searchAbortController) {
+        searchAbortController.abort();
+    }
+    searchAbortController = new AbortController();
+    const abortSignal = searchAbortController.signal;
+
     const container = document.getElementById('results-container');
     container.innerHTML = '<div class="loading-text">正在查詢路線與即時動態...</div>';
 
@@ -302,41 +310,72 @@ async function handleSearch() {
 
         const userStartMins = timeToMinutes(timeStr);
 
-        let routes = [];
+        // Batch search: search in 2-hour windows for progressive results
+        const batchSize = 2 * 60; // 2 hours per batch
+        const totalWindow = 8 * 60; // 8 hours total
+        const batchCount = Math.ceil(totalWindow / batchSize); // 4 batches
 
-        const directRoutes = findDirectRoutes(fromStr, toStr, userStartMins, filters);
-        routes.push(...directRoutes);
+        currentRoutes = [];
+        let allDirectRoutes = []; // Accumulate direct routes across batches for arrWindow estimation
 
-        if (!filters.directOnly) {
-            // Dynamically compute arrival window based on fastest direct train,
-            // or fall back to station-order heuristic.
-            const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, directRoutes);
+        for (let batch = 0; batch < batchCount; batch++) {
+            // Check if search was aborted (user started a new search)
+            if (abortSignal.aborted) return;
 
-            const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, userStartMins, filters, arrWindowHours);
-            routes.push(...oneTransferRoutes);
+            const batchMinDep = userStartMins + batch * batchSize;
+            const batchMaxDep = userStartMins + (batch + 1) * batchSize;
 
-            // Only search 2-transfer if 1-transfer didn't already yield many results
-            const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, userStartMins, filters);
-            routes.push(...twoTransferRoutes);
+            let batchRoutes = [];
+
+            const directRoutes = findDirectRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+            batchRoutes.push(...directRoutes);
+            allDirectRoutes.push(...directRoutes);
+
+            if (!filters.directOnly) {
+                // Dynamically compute arrival window based on fastest direct train,
+                // or fall back to station-order heuristic.
+                const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, allDirectRoutes);
+
+                const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters, arrWindowHours);
+                batchRoutes.push(...oneTransferRoutes);
+
+                // Search 2-transfer routes
+                const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+                batchRoutes.push(...twoTransferRoutes);
+            }
+
+            // Merge batch results into currentRoutes
+            currentRoutes.push(...batchRoutes);
+
+            // Cap total routes before expensive O(N²) filter to avoid call stack overflow
+            if (currentRoutes.length > 300) {
+                currentRoutes.sort((a, b) => {
+                    const aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
+                    const bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
+                    return aArr - bArr;
+                });
+                currentRoutes = currentRoutes.slice(0, 300);
+            }
+
+            currentRoutes = filterDominatedRoutes(currentRoutes);
+
+            // Render current batch results immediately
+            if (abortSignal.aborted) return;
+            applySortingAndRender(batch < batchCount - 1); // pass isPartial flag
+
+            // Yield to browser for rendering between batches
+            if (batch < batchCount - 1) {
+                await new Promise(r => setTimeout(r, 0));
+            }
         }
 
-        // Cap total routes before expensive O(N²) filter to avoid call stack overflow
-        // Keep the best candidates by arrival time first
-        if (routes.length > 300) {
-            routes.sort((a, b) => {
-                const aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
-                const bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
-                return aArr - bArr;
-            });
-            routes = routes.slice(0, 300);
+        // Final render without loading indicator
+        if (!abortSignal.aborted) {
+            applySortingAndRender(false);
         }
-
-        routes = filterDominatedRoutes(routes);
-
-        currentRoutes = routes;
-        applySortingAndRender();
 
     } catch (e) {
+        if (abortSignal.aborted) return; // Silently ignore aborted searches
         console.error(e);
         container.innerHTML = `<div style="color: #ff4444; text-align: center; padding: 20px;">錯誤: ${e.message}</div>`;
     }
@@ -389,7 +428,7 @@ function estimateArrivalWindowHours(fromName, toName, directRoutes) {
     return 12 * 60; // default fallback
 }
 
-function applySortingAndRender() {
+function applySortingAndRender(isPartial) {
     const container = document.getElementById('results-container');
     const sortMethod = document.getElementById('sort-method').value;
 
@@ -433,7 +472,7 @@ function applySortingAndRender() {
     });
 
     routes = routes.slice(0, 25);
-    renderRoutes(routes, container);
+    renderRoutes(routes, container, isPartial);
 }
 
 function extractStops(train, fromName, toName) {
@@ -477,7 +516,7 @@ function extractStops(train, fromName, toName) {
     return result;
 }
 
-function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
+function findDirectRoutes(fromName, toName, minDepartureMins, maxDepartureMins, filters) {
     const routes = [];
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
@@ -504,7 +543,7 @@ function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
             let adjustedDepMins = depMins;
             if (depMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedDepMins += 24 * 60;
 
-            if (adjustedDepMins >= minDepartureMins && adjustedDepMins <= minDepartureMins + 8 * 60) {
+            if (adjustedDepMins >= minDepartureMins && adjustedDepMins < maxDepartureMins) {
                 const delay = liveBoardData[train.number] || 0;
 
                 let actualDepMins = depMins + delay;
@@ -532,7 +571,7 @@ function findDirectRoutes(fromName, toName, minDepartureMins, filters) {
     return routes;
 }
 
-function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrWindowHours) {
+function findOneTransferRoutes(fromName, toName, minDepartureMins, maxDepartureMins, filters, arrWindowHours) {
     arrWindowHours = arrWindowHours || 12 * 60; // default 12h if not specified
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
@@ -566,7 +605,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
             let adjustedDepMins = depMins;
             if (depMins < 4 * 60 && minDepartureMins > 20 * 60) adjustedDepMins += 24 * 60;
 
-            if (adjustedDepMins >= minDepartureMins && adjustedDepMins <= minDepartureMins + 8 * 60) {
+            if (adjustedDepMins >= minDepartureMins && adjustedDepMins < maxDepartureMins) {
                 fromTrains.push({ train, fromDepIdx });
             }
         }
@@ -606,6 +645,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
                 // Skip if transfer station is same as origin or destination
                 if (normT1ArrStation === normFromName || normT1ArrStation === normToName) continue;
 
+                // [Fix 1] Check if first segment passes through destination (would mean detour)
                 let passedDest = false;
                 for (let x = t1.fromDepIdx + 1; x <= i; x++) {
                     if (normalizeStationName(t1Stops[x].x) === normToName) {
@@ -614,10 +654,20 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
                 }
                 if (passedDest) continue;
 
+                // [Fix 1] Check if first segment passes back through origin (looping path)
+                let passedOrigin = false;
+                for (let x = t1.fromDepIdx + 1; x <= i; x++) {
+                    if (normalizeStationName(t1Stops[x].x) === normFromName) {
+                        passedOrigin = true; break;
+                    }
+                }
+                if (passedOrigin) continue;
+
                 for (let j = 0; j < t2.toArrIdx; j++) {
                     if (normalizeStationName(t2Stops[j].x) === normT1ArrStation) {
                         const t2DepIdx = (j + 1 < t2Stops.length && normalizeStationName(t2Stops[j + 1].x) === normT1ArrStation) ? j + 1 : j;
 
+                        // [Fix 1] Check if second segment passes through origin (looping path)
                         let passedStart = false;
                         for (let x = t2DepIdx; x <= t2.toArrIdx; x++) {
                             if (normalizeStationName(t2Stops[x].x) === normFromName) {
@@ -626,13 +676,17 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
                         }
                         if (passedStart) continue;
 
+                        // [Fix 1] Check if second segment passes back through destination before arriving
+                        // (i.e. goes past dest then comes back - shouldn't happen for normal trains but be safe)
+
                         const actualArrMins = t1Stops[i].y + delay1;
                         const actualDepMins = t2Stops[t2DepIdx].y + delay2;
 
+                        // [Fix 2] Simplified cross-midnight wait time calculation
                         let waitTime = actualDepMins - actualArrMins;
-                        if (waitTime < 0 && actualDepMins < 8 * 60 && actualArrMins > 16 * 60) {
-                            waitTime += 24 * 60;
-                        }
+                        if (waitTime < 0) waitTime += 24 * 60;
+                        // Cap overnight waits: if wait > 6 hours, it's likely a next-day train
+                        if (waitTime > 6 * 60) continue;
 
                         if (waitTime >= transferThresholdMin && waitTime <= transferThresholdMax) {
                             const key = `${train1.number}_${train2.number}`;
@@ -640,6 +694,9 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
                             let totalDep = t1Stops[t1.fromDepIdx].y + delay1;
                             let totalArr = t2Stops[t2.toArrIdx].y + delay2;
                             if (totalArr < totalDep) totalArr += 24 * 60;
+
+                            // [Fix 2] Guard against unreasonably long total duration (max 18 hours)
+                            if (totalArr - totalDep > 18 * 60) continue;
 
                             const optionData = {
                                 transferStation: t1ArrStation,
@@ -673,7 +730,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, filters, arrW
     return Object.values(routesMap);
 }
 
-function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
+function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureMins, filters) {
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
@@ -717,7 +774,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
         if (fromDepIdx !== -1) {
             const depMins = stops[fromDepIdx].y;
             let adj = depMins < 4 * 60 && minDepartureMins > 20 * 60 ? depMins + 24 * 60 : depMins;
-            if (adj >= minDepartureMins && adj <= minDepartureMins + 8 * 60) fromTrains.push({ train, fromDepIdx });
+            if (adj >= minDepartureMins && adj < maxDepartureMins) fromTrains.push({ train, fromDepIdx });
         }
         if (toArrIdx !== -1) toTrains.push({ train, toArrIdx });
     });
@@ -732,6 +789,27 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
             const normHub1 = normalizeStationName(hub1);
             if (!majorStations.some(m => normalizeStationName(m) === normHub1)) continue;
 
+            // [Fix 1] Skip if hub1 is same as origin or destination
+            if (normHub1 === normFromName || normHub1 === normToName) continue;
+
+            // [Fix 1] Check first segment doesn't loop back through origin
+            let seg1PassedOrigin = false;
+            for (let x = t1.fromDepIdx + 1; x < i; x++) {
+                if (normalizeStationName(stops1[x].x) === normFromName) {
+                    seg1PassedOrigin = true; break;
+                }
+            }
+            if (seg1PassedOrigin) continue;
+
+            // [Fix 1] Check first segment doesn't pass through destination
+            let seg1PassedDest = false;
+            for (let x = t1.fromDepIdx + 1; x <= i; x++) {
+                if (normalizeStationName(stops1[x].x) === normToName) {
+                    seg1PassedDest = true; break;
+                }
+            }
+            if (seg1PassedDest) continue;
+
             toTrains.forEach(t3 => {
                 const train3 = t3.train;
                 if (train1.number === train3.number) return;
@@ -741,6 +819,20 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
                     const normHub2 = normalizeStationName(hub2);
                     if (normHub1 === normHub2) continue;
                     if (!majorStations.some(m => normalizeStationName(m) === normHub2)) continue;
+
+                    // [Fix 1] Skip if hub2 is same as origin or destination
+                    if (normHub2 === normFromName || normHub2 === normToName) continue;
+
+                    // [Fix 1] Check third segment doesn't pass through origin
+                    let seg3PassedOrigin = false;
+                    const stops3Check = train3.data;
+                    const t3DepIdx = (l + 1 < stops3Check.length && normalizeStationName(stops3Check[l + 1].x) === normHub2) ? l + 1 : l;
+                    for (let x = t3DepIdx; x <= t3.toArrIdx; x++) {
+                        if (normalizeStationName(stops3Check[x].x) === normFromName) {
+                            seg3PassedOrigin = true; break;
+                        }
+                    }
+                    if (seg3PassedOrigin) continue;
 
                     const key = normHub1 + "_" + normHub2;
                     if (fastTrainLinks[key]) {
@@ -753,15 +845,29 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
                             const delay3 = liveBoardData[train3.number] || 0;
                             const stops3 = train3.data;
 
+                            // [Fix 1] Check middle segment doesn't pass through origin or destination
+                            let seg2Looping = false;
+                            for (let x = link.depIdx; x <= link.arrIdx; x++) {
+                                const sn = normalizeStationName(stops2[x].x);
+                                if (sn === normFromName || sn === normToName) {
+                                    seg2Looping = true; break;
+                                }
+                            }
+                            if (seg2Looping) return;
+
                             const t1ArrActual = stops1[i].y + delay1;
                             let t2DepActual = stops2[link.depIdx].y + delay2;
                             let wait1 = t2DepActual - t1ArrActual;
                             if (wait1 < 0) wait1 += 24 * 60;
+                            // [Fix 2] Cap overnight waits
+                            if (wait1 > 6 * 60) return;
 
                             const t2ArrActual = stops2[link.arrIdx].y + delay2;
                             let t3DepActual = stops3[l].y + delay3;
                             let wait2 = t3DepActual - t2ArrActual;
                             if (wait2 < 0) wait2 += 24 * 60;
+                            // [Fix 2] Cap overnight waits
+                            if (wait2 > 6 * 60) return;
 
                             const transferThresholdMin = filters.transferTime ? filters.transferTime.min : 5;
                             const transferThresholdMax = filters.transferTime ? filters.transferTime.max : 60;
@@ -774,6 +880,9 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, filters) {
                                 let totalDep = stops1[t1.fromDepIdx].y + delay1;
                                 let totalArr = stops3[t3.toArrIdx].y + delay3;
                                 if (totalArr < totalDep) totalArr += 24 * 60;
+
+                                // [Fix 2] Guard against unreasonably long total duration (max 18 hours)
+                                if (totalArr - totalDep > 18 * 60) return;
 
                                 routesMap[routeKey] = {
                                     type: '2-transfer',
@@ -954,11 +1063,15 @@ function buildTimelineHtml(routeData) {
     return html;
 }
 
-function renderRoutes(routes, container) {
+function renderRoutes(routes, container, isPartial) {
     container.innerHTML = '';
 
-    if (routes.length === 0) {
+    if (routes.length === 0 && !isPartial) {
         container.innerHTML = '<div style="text-align: center; color: #888; padding: 20px;">找不到符合條件的路線</div>';
+        return;
+    }
+    if (routes.length === 0 && isPartial) {
+        container.innerHTML = '<div class="loading-text">正在搜尋更多路線...</div>';
         return;
     }
 
@@ -1063,4 +1176,12 @@ function renderRoutes(routes, container) {
 
         container.appendChild(card);
     });
+
+    // [Fix 3] Show loading indicator after results when more batches are coming
+    if (isPartial) {
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading-text';
+        loadingDiv.textContent = '正在搜尋更多路線...';
+        container.appendChild(loadingDiv);
+    }
 }
