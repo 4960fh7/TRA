@@ -654,6 +654,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
             const t2Stops = train2.data;
 
             for (let i = t1.fromDepIdx + 1; i < t1Stops.length; i++) {
+                const t1ArrStation = t1Stops[i].x;
                 const normT1ArrStation = t1Stops[i].normX;
                 if (!normT1ArrStation) continue;
                 if (i > 0 && t1Stops[i - 1].normX === normT1ArrStation) continue;
