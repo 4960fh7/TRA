@@ -735,12 +735,19 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
 
-    const majorStations = ["八堵", "台北", "樹林", "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "斗六", "嘉義", "台南", "新左營", "高雄", "屏東", "潮州", "枋寮", "台東", "花蓮", "蘇澳新", "宜蘭", "瑞芳"];
+    // Added missing major hubs like 板橋, 松山, 南港, 七堵, 員林, 新營, 鳳山, 羅東, etc.
+    const majorStations = [
+        "基隆", "八堵", "七堵", "南港", "松山", "台北", "板橋", "樹林", 
+        "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "員林", 
+        "斗六", "嘉義", "新營", "台南", "新左營", "高雄", "鳳山", "屏東", "潮州", "枋寮", 
+        "台東", "關山", "池上", "玉里", "瑞穗", "光復", "花蓮", 
+        "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳"
+    ];
 
     const fastTrainLinks = {};
     scheduleData.forEach(train2 => {
         if (!isTrainAllowedByFilter(train2.train, filters)) return;
-        if (!isFastTrain(train2.train)) return;
+        // Removed `if (!isFastTrain(train2.train)) return;` to allow any train type in the middle segment
         const stops = train2.data || [];
         const majorStops = [];
         for (let i = 0; i < stops.length; i++) {
