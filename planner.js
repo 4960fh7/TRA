@@ -213,7 +213,7 @@ function setupAutocomplete(inputId, dropdownId) {
             addActive(items);
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (currentFocus > -1 && items.length > 0) {
+            if (dropdown.classList.contains('active') && currentFocus > -1 && items.length > 0) {
                 items[currentFocus].click();
             } else {
                 dropdown.classList.remove('active');
@@ -466,29 +466,29 @@ function estimateArrivalWindowHours(fromName, toName, directRoutes) {
     // No direct trains: estimate from station order along the main line.
     // Stations listed roughly south-to-north on west coast then east coast.
     const stationOrder = [
-        "枋寮","加祿","內獅","望嘉","林邊","佳冬","東海","潮州","南州","東港","鎮安","屏東","歸來","麟洛","西勢","竹田",
-        "客城","崁頂","後庄","新埤","佳興","南州","溪州","六塊厝","西屏東",
-        "新左營","高雄","鳳山","後庄","九曲堂","六塊厝","內惟",
-        "楠梓","橋頭","岡山","路竹","大湖","台南","南台南","永康",
-        "大橋","保安","仁德","中洲","善化","拔林","新市","歸仁","關廟","新化",
-        "嘉義","水上","南靖","後壁","新營","柳營","林鳳營","隆田","抱罕",
-        "斗六","石榴","斗南","大林","民雄","北回",
-        "彰化","員林","社頭","田中","二水","林內","石龜","西螺",
-        "台中","豐原","后里","苗栗","竹南","新竹","桃園","中壢","樹林","板橋","台北","松山","南港",
-        "汐止","七堵","八堵","基隆",
-        "瑞芳","雙溪","貢寮","福隆","宜蘭","羅東","蘇澳新",
-        "花蓮","光復","玉里","關山","台東"
+        "枋寮", "加祿", "內獅", "望嘉", "林邊", "佳冬", "東海", "潮州", "南州", "東港", "鎮安", "屏東", "歸來", "麟洛", "西勢", "竹田",
+        "客城", "崁頂", "後庄", "新埤", "佳興", "南州", "溪州", "六塊厝", "西屏東",
+        "新左營", "高雄", "鳳山", "後庄", "九曲堂", "六塊厝", "內惟",
+        "楠梓", "橋頭", "岡山", "路竹", "大湖", "台南", "南台南", "永康",
+        "大橋", "保安", "仁德", "中洲", "善化", "拔林", "新市", "歸仁", "關廟", "新化",
+        "嘉義", "水上", "南靖", "後壁", "新營", "柳營", "林鳳營", "隆田", "抱罕",
+        "斗六", "石榴", "斗南", "大林", "民雄", "北回",
+        "彰化", "員林", "社頭", "田中", "二水", "林內", "石龜", "西螺",
+        "台中", "豐原", "后里", "苗栗", "竹南", "新竹", "桃園", "中壢", "樹林", "板橋", "台北", "松山", "南港",
+        "汐止", "七堵", "八堵", "基隆",
+        "瑞芳", "雙溪", "貢寮", "福隆", "宜蘭", "羅東", "蘇澳新",
+        "花蓮", "光復", "玉里", "關山", "台東"
     ];
 
     const normFrom = normalizeStationName(fromName);
     const normTo = normalizeStationName(toName);
     const idxFrom = stationOrder.findIndex(s => normalizeStationName(s) === normFrom);
-    const idxTo   = stationOrder.findIndex(s => normalizeStationName(s) === normTo);
+    const idxTo = stationOrder.findIndex(s => normalizeStationName(s) === normTo);
 
     if (idxFrom !== -1 && idxTo !== -1) {
         const dist = Math.abs(idxFrom - idxTo);
-        if (dist <= 10)  return 9 * 60;   // short
-        if (dist <= 30)  return 12 * 60;  // medium
+        if (dist <= 10) return 9 * 60;   // short
+        if (dist <= 30) return 12 * 60;  // medium
         return 15 * 60;                   // long
     }
 
@@ -792,16 +792,16 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
 
     // Added missing major hubs like 板橋, 松山, 南港, 七堵, 員林, 新營, 鳳山, 羅東, etc.
     const majorStations = [
-        "基隆", "八堵", "七堵", "南港", "松山", "台北", "板橋", "樹林", 
-        "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "員林", 
-        "斗六", "嘉義", "新營", "台南", "新左營", "高雄", "鳳山", "屏東", "潮州", "枋寮", 
-        "台東", "關山", "池上", "玉里", "瑞穗", "光復", "花蓮", 
+        "基隆", "八堵", "七堵", "南港", "松山", "台北", "板橋", "樹林",
+        "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "員林",
+        "斗六", "嘉義", "新營", "台南", "新左營", "高雄", "鳳山", "屏東", "潮州", "枋寮",
+        "台東", "關山", "池上", "玉里", "瑞穗", "光復", "花蓮",
         "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳"
     ];
 
-    const allowedHubsFrom = (stationsHubData[normFromName] && stationsHubData[normFromName].length > 0) 
+    const allowedHubsFrom = (stationsHubData[normFromName] && stationsHubData[normFromName].length > 0)
         ? stationsHubData[normFromName] : majorStations;
-    const allowedHubsTo = (stationsHubData[normToName] && stationsHubData[normToName].length > 0) 
+    const allowedHubsTo = (stationsHubData[normToName] && stationsHubData[normToName].length > 0)
         ? stationsHubData[normToName] : majorStations;
 
     const fastTrainLinks = {};
@@ -1197,15 +1197,15 @@ function renderRoutes(routes, container, isPartial) {
                 <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇轉乘車站:</label>
                 <select class="transfer-select planner-input custom-scrollbar" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
                     ${route.options.map((opt, i) => {
-                        if (route.type === '1-transfer') {
-                            const wait = Math.round(opt.waitTime || 0);
-                            return `<option value="${i}">${opt.transferStation}(轉乘${wait}分鐘)</option>`;
-                        } else {
-                            const wait1 = Math.round(opt.waitTimes[0] || 0);
-                            const wait2 = Math.round(opt.waitTimes[1] || 0);
-                            return `<option value="${i}">${opt.transferStations[0]}(轉乘${wait1}分) - ${opt.transferStations[1]}(轉乘${wait2}分)</option>`;
-                        }
-                    }).join('')}
+                if (route.type === '1-transfer') {
+                    const wait = Math.round(opt.waitTime || 0);
+                    return `<option value="${i}">${opt.transferStation}(轉乘 ${wait} 分鐘)</option>`;
+                } else {
+                    const wait1 = Math.round(opt.waitTimes[0] || 0);
+                    const wait2 = Math.round(opt.waitTimes[1] || 0);
+                    return `<option value="${i}">${opt.transferStations[0]}(轉乘 ${wait1} 分鐘) - ${opt.transferStations[1]}(轉乘 ${wait2} 分鐘)</option>`;
+                }
+            }).join('')}
                 </select>
             </div>`;
 
