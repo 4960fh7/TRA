@@ -774,8 +774,12 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
         let fromDepIdx = -1, toArrIdx = -1;
         const stops = train.data || [];
         for (let i = 0; i < stops.length; i++) {
-            if (normalizeStationName(stops[i].x) === normFromName && fromDepIdx === -1) fromDepIdx = i;
-            if (normalizeStationName(stops[i].x) === normToName && toArrIdx === -1) toArrIdx = i;
+            if (normalizeStationName(stops[i].x) === normFromName && fromDepIdx === -1) {
+                fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i + 1].x) === normFromName) ? i + 1 : i;
+            }
+            if (normalizeStationName(stops[i].x) === normToName && toArrIdx === -1) {
+                toArrIdx = i;
+            }
         }
 
         if (fromDepIdx !== -1) {
@@ -877,7 +881,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
                             if (wait2 > 6 * 60) return;
 
                             const transferThresholdMin = filters.transferTime ? filters.transferTime.min : 5;
-                            const transferThresholdMax = filters.transferTime ? filters.transferTime.max : 60;
+                            const transferThresholdMax = filters.transferTime ? filters.transferTime.max : 150;
 
                             if (wait1 < transferThresholdMin || wait1 > transferThresholdMax) return;
                             if (wait2 < transferThresholdMin || wait2 > transferThresholdMax) return;
