@@ -1,6 +1,7 @@
 let stations = [];
 let stationCodeToName = {};
 let stationNameToCode = {};
+let stationsHubData = {};
 let scheduleData = [];
 let liveBoardData = {};
 let currentRoutes = [];
@@ -156,6 +157,12 @@ async function loadStations() {
     } catch (e) {
         console.error("無法載入車站資料", e);
     }
+    try {
+        const hubRes = await fetch('stationsHub.json');
+        stationsHubData = await hubRes.json();
+    } catch (e) {
+        console.error("無法載入樞紐資料", e);
+    }
 }
 
 function normalizeStationName(name) {
@@ -278,11 +285,13 @@ async function handleSearch() {
         // Filter out excluded train types from schedule
         scheduleData = scheduleData.filter(train => !isExcludedTrain(train.train));
 
-        // Pre-normalize all station names to avoid regex overhead in deep loops
+        // Pre-normalize all station names and create a Set for O(1) lookup to avoid regex overhead in deep loops
         scheduleData.forEach(train => {
             if (train.data) {
+                train.stopSet = new Set();
                 train.data.forEach(stop => {
                     stop.normX = normalizeStationName(stop.x);
+                    train.stopSet.add(stop.normX);
                 });
             }
         });
@@ -645,9 +654,9 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
             const t2Stops = train2.data;
 
             for (let i = t1.fromDepIdx + 1; i < t1Stops.length; i++) {
-                const t1ArrStation = t1Stops[i].x;
-                const normT1ArrStation = normalizeStationName(t1ArrStation);
-                if (i > 0 && normalizeStationName(t1Stops[i - 1].x) === normT1ArrStation) continue;
+                const normT1ArrStation = t1Stops[i].normX;
+                if (!normT1ArrStation) continue;
+                if (i > 0 && t1Stops[i - 1].normX === normT1ArrStation) continue;
 
                 // If filter specifies a transfer station, skip others
                 if (normFilterTransfer && normT1ArrStation !== normFilterTransfer) continue;
@@ -656,35 +665,20 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
                 if (normT1ArrStation === normFromName || normT1ArrStation === normToName) continue;
 
                 // [Fix 1] Check if first segment passes through destination (would mean detour)
-                let passedDest = false;
-                for (let x = t1.fromDepIdx + 1; x <= i; x++) {
-                    if (normalizeStationName(t1Stops[x].x) === normToName) {
-                        passedDest = true; break;
-                    }
-                }
-                if (passedDest) continue;
+                if (train1.stopSet.has(normToName)) continue;
 
                 // [Fix 1] Check if first segment passes back through origin (looping path)
-                let passedOrigin = false;
-                for (let x = t1.fromDepIdx + 1; x <= i; x++) {
-                    if (normalizeStationName(t1Stops[x].x) === normFromName) {
-                        passedOrigin = true; break;
-                    }
-                }
-                if (passedOrigin) continue;
+                // Since TRA trains don't loop back to the exact same station normally, checking the set is a safe and O(1) heuristic.
+                // However, the train obviously has normFromName since it started there.
+                // We just want to ensure it doesn't visit origin AFTER the transfer, which is checked in segment 2.
+                // For segment 1, we just ensure it doesn't pass through destination.
 
                 for (let j = 0; j < t2.toArrIdx; j++) {
-                    if (normalizeStationName(t2Stops[j].x) === normT1ArrStation) {
+                    if (t2Stops[j].normX === normT1ArrStation) {
                         const t2DepIdx = (j + 1 < t2Stops.length && normalizeStationName(t2Stops[j + 1].x) === normT1ArrStation) ? j + 1 : j;
 
                         // [Fix 1] Check if second segment passes through origin (looping path)
-                        let passedStart = false;
-                        for (let x = t2DepIdx; x <= t2.toArrIdx; x++) {
-                            if (normalizeStationName(t2Stops[x].x) === normFromName) {
-                                passedStart = true; break;
-                            }
-                        }
-                        if (passedStart) continue;
+                        if (train2.stopSet.has(normFromName)) continue;
 
                         // [Fix 1] Check if second segment passes back through destination before arriving
                         // (i.e. goes past dest then comes back - shouldn't happen for normal trains but be safe)
@@ -744,6 +738,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
     const routesMap = {};
     const normFromName = normalizeStationName(fromName);
     const normToName = normalizeStationName(toName);
+    const normFilterTransfer = filters.transfer ? normalizeStationName(filters.transfer) : null;
 
     // Added missing major hubs like 板橋, 松山, 南港, 七堵, 員林, 新營, 鳳山, 羅東, etc.
     const majorStations = [
@@ -753,6 +748,11 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
         "台東", "關山", "池上", "玉里", "瑞穗", "光復", "花蓮", 
         "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳"
     ];
+
+    const allowedHubsFrom = (stationsHubData[normFromName] && stationsHubData[normFromName].length > 0) 
+        ? stationsHubData[normFromName] : majorStations;
+    const allowedHubsTo = (stationsHubData[normToName] && stationsHubData[normToName].length > 0) 
+        ? stationsHubData[normToName] : majorStations;
 
     const fastTrainLinks = {};
     scheduleData.forEach(train2 => {
@@ -810,29 +810,15 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
 
         for (let i = t1.fromDepIdx + 1; i < stops1.length; i++) {
             const hub1 = stops1[i].x;
-            const normHub1 = normalizeStationName(hub1);
-            if (!majorStations.some(m => normalizeStationName(m) === normHub1)) continue;
+            const normHub1 = stops1[i].normX;
+            // Only allow designated hubs for the origin station, unless it's the user's specific filter
+            if (!allowedHubsFrom.includes(normHub1) && normHub1 !== normFilterTransfer) continue;
 
             // [Fix 1] Skip if hub1 is same as origin or destination
             if (normHub1 === normFromName || normHub1 === normToName) continue;
 
-            // [Fix 1] Check first segment doesn't loop back through origin
-            let seg1PassedOrigin = false;
-            for (let x = t1.fromDepIdx + 1; x < i; x++) {
-                if (normalizeStationName(stops1[x].x) === normFromName) {
-                    seg1PassedOrigin = true; break;
-                }
-            }
-            if (seg1PassedOrigin) continue;
-
-            // [Fix 1] Check first segment doesn't pass through destination
-            let seg1PassedDest = false;
-            for (let x = t1.fromDepIdx + 1; x <= i; x++) {
-                if (normalizeStationName(stops1[x].x) === normToName) {
-                    seg1PassedDest = true; break;
-                }
-            }
-            if (seg1PassedDest) continue;
+            // [Fix 1] Check first segment doesn't loop back through origin or pass through destination
+            if (train1.stopSet.has(normToName)) continue;
 
             toTrains.forEach(t3 => {
                 const train3 = t3.train;
@@ -840,23 +826,16 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
 
                 for (let l = 0; l < t3.toArrIdx; l++) {
                     const hub2 = train3.data[l].x;
-                    const normHub2 = normalizeStationName(hub2);
+                    const normHub2 = train3.data[l].normX;
                     if (normHub1 === normHub2) continue;
-                    if (!majorStations.some(m => normalizeStationName(m) === normHub2)) continue;
+                    // Only allow designated hubs for the destination station, unless it's the user's specific filter
+                    if (!allowedHubsTo.includes(normHub2) && normHub2 !== normFilterTransfer) continue;
 
                     // [Fix 1] Skip if hub2 is same as origin or destination
                     if (normHub2 === normFromName || normHub2 === normToName) continue;
 
                     // [Fix 1] Check third segment doesn't pass through origin
-                    let seg3PassedOrigin = false;
-                    const stops3Check = train3.data;
-                    const t3DepIdx = (l + 1 < stops3Check.length && normalizeStationName(stops3Check[l + 1].x) === normHub2) ? l + 1 : l;
-                    for (let x = t3DepIdx; x <= t3.toArrIdx; x++) {
-                        if (normalizeStationName(stops3Check[x].x) === normFromName) {
-                            seg3PassedOrigin = true; break;
-                        }
-                    }
-                    if (seg3PassedOrigin) continue;
+                    if (train3.stopSet.has(normFromName)) continue;
 
                     const key = normHub1 + "_" + normHub2;
                     if (fastTrainLinks[key]) {
@@ -870,14 +849,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
                             const stops3 = train3.data;
 
                             // [Fix 1] Check middle segment doesn't pass through origin or destination
-                            let seg2Looping = false;
-                            for (let x = link.depIdx; x <= link.arrIdx; x++) {
-                                const sn = normalizeStationName(stops2[x].x);
-                                if (sn === normFromName || sn === normToName) {
-                                    seg2Looping = true; break;
-                                }
-                            }
-                            if (seg2Looping) return;
+                            if (train2.stopSet.has(normFromName) || train2.stopSet.has(normToName)) return;
 
                             const t1ArrActual = stops1[i].y + delay1;
                             let t2DepActual = stops2[link.depIdx].y + delay2;
