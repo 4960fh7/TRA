@@ -50,8 +50,8 @@ function filterDominatedRoutes(routes) {
             const r1 = routes[i];
             const r2 = routes[j];
 
-            const d1 = r1.type === '1-transfer' ? r1.options[0] : r1;
-            const d2 = r2.type === '1-transfer' ? r2.options[0] : r2;
+            const d1 = r1.type !== 'direct' ? r1.options[0] : r1;
+            const d2 = r2.type !== 'direct' ? r2.options[0] : r2;
 
             const transfers1 = r1.type === 'direct' ? 0 : (r1.type === '1-transfer' ? 1 : 2);
             const transfers2 = r2.type === 'direct' ? 0 : (r2.type === '1-transfer' ? 1 : 2);
@@ -174,9 +174,12 @@ function setupAutocomplete(inputId, dropdownId) {
     const input = document.getElementById(inputId);
     const dropdown = document.getElementById(dropdownId);
 
+    let currentFocus = -1;
+
     input.addEventListener('input', () => {
         const val = normalizeStationName(input.value.trim());
         dropdown.innerHTML = '';
+        currentFocus = -1;
         if (!val) {
             dropdown.classList.remove('active');
             return;
@@ -199,6 +202,51 @@ function setupAutocomplete(inputId, dropdownId) {
             dropdown.classList.remove('active');
         }
     });
+
+    input.addEventListener('keydown', (e) => {
+        const items = dropdown.getElementsByTagName('div');
+        if (e.key === 'ArrowDown') {
+            currentFocus++;
+            addActive(items);
+        } else if (e.key === 'ArrowUp') {
+            currentFocus--;
+            addActive(items);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentFocus > -1 && items.length > 0) {
+                items[currentFocus].click();
+            } else {
+                dropdown.classList.remove('active');
+                const fromStr = document.getElementById('from-station').value.trim();
+                const toStr = document.getElementById('to-station').value.trim();
+                if (fromStr && toStr) {
+                    handleSearch();
+                } else if (!fromStr) {
+                    const fromInput = document.getElementById('from-station');
+                    fromInput.focus();
+                    fromInput.placeholder = '請輸入出發站';
+                } else if (!toStr) {
+                    const toInput = document.getElementById('to-station');
+                    toInput.focus();
+                    toInput.placeholder = '請輸入抵達站';
+                }
+            }
+        }
+    });
+
+    function addActive(items) {
+        if (!items || items.length === 0) return false;
+        removeActive(items);
+        if (currentFocus >= items.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = items.length - 1;
+        items[currentFocus].classList.add('suggestion-active');
+    }
+
+    function removeActive(items) {
+        for (let i = 0; i < items.length; i++) {
+            items[i].classList.remove('suggestion-active');
+        }
+    }
 
     document.addEventListener('click', (e) => {
         if (e.target !== input && e.target !== dropdown) {
@@ -369,8 +417,8 @@ async function handleSearch() {
             // Cap total routes before expensive O(N²) filter to avoid call stack overflow
             if (currentRoutes.length > 300) {
                 currentRoutes.sort((a, b) => {
-                    const aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
-                    const bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
+                    const aArr = a.type !== 'direct' ? a.options[0].actualArrMins : a.actualArrMins;
+                    const bArr = b.type !== 'direct' ? b.options[0].actualArrMins : b.actualArrMins;
                     return aArr - bArr;
                 });
                 currentRoutes = currentRoutes.slice(0, 300);
@@ -454,16 +502,16 @@ function applySortingAndRender(isPartial) {
     let routes = [...currentRoutes]; // work on a copy to avoid mutating original repeatedly
 
     routes.sort((a, b) => {
-        let aArr = a.type === '1-transfer' ? a.options[0].actualArrMins : a.actualArrMins;
-        let bArr = b.type === '1-transfer' ? b.options[0].actualArrMins : b.actualArrMins;
-        let aDep = a.type === '1-transfer' ? a.options[0].actualDepMins : a.actualDepMins;
-        let bDep = b.type === '1-transfer' ? b.options[0].actualDepMins : b.actualDepMins;
+        let aArr = a.type !== 'direct' ? a.options[0].actualArrMins : a.actualArrMins;
+        let bArr = b.type !== 'direct' ? b.options[0].actualArrMins : b.actualArrMins;
+        let aDep = a.type !== 'direct' ? a.options[0].actualDepMins : a.actualDepMins;
+        let bDep = b.type !== 'direct' ? b.options[0].actualDepMins : b.actualDepMins;
         const durA = aArr - aDep;
         const durB = bArr - bDep;
         let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
         let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
-        let aTrains = a.type === '1-transfer' ? a.options[0].trains : a.trains;
-        let bTrains = b.type === '1-transfer' ? b.options[0].trains : b.trains;
+        let aTrains = a.type !== 'direct' ? a.options[0].trains : a.trains;
+        let bTrains = b.type !== 'direct' ? b.options[0].trains : b.trains;
         let aStops = aTrains.reduce((sum, t) => sum + (t.stops ? t.stops.length : 0), 0);
         let bStops = bTrains.reduce((sum, t) => sum + (t.stops ? t.stops.length : 0), 0);
 
@@ -705,6 +753,7 @@ function findOneTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
 
                             const optionData = {
                                 transferStation: t1ArrStation,
+                                waitTime: waitTime,
                                 actualDepMins: totalDep,
                                 actualArrMins: totalArr,
                                 trains: [
@@ -873,27 +922,36 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
                             if (wait2 < transferThresholdMin || wait2 > transferThresholdMax) return;
 
                             const routeKey = `${train1.number}_${train2.number}_${train3.number}`;
+                            let totalDep = stops1[t1.fromDepIdx].y + delay1;
+                            let totalArr = stops3[t3.toArrIdx].y + delay3;
+                            if (totalArr < totalDep) totalArr += 24 * 60;
+
+                            // [Fix 2] Guard against unreasonably long total duration (max 18 hours)
+                            if (totalArr - totalDep > 18 * 60) return;
+
+                            const optionData = {
+                                transferStations: [hub1, hub2],
+                                waitTimes: [wait1, wait2],
+                                actualDepMins: totalDep,
+                                actualArrMins: totalArr,
+                                trains: [
+                                    { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, hub1) },
+                                    { trainInfo: train2, delay: delay2, stops: extractStops(train2, hub1, hub2) },
+                                    { trainInfo: train3, delay: delay3, stops: extractStops(train3, hub2, toName) }
+                                ]
+                            };
+
                             if (!routesMap[routeKey]) {
-                                let totalDep = stops1[t1.fromDepIdx].y + delay1;
-                                let totalArr = stops3[t3.toArrIdx].y + delay3;
-                                if (totalArr < totalDep) totalArr += 24 * 60;
-
-                                // [Fix 2] Guard against unreasonably long total duration (max 18 hours)
-                                if (totalArr - totalDep > 18 * 60) return;
-
                                 routesMap[routeKey] = {
                                     type: '2-transfer',
-                                    trains: [
-                                        { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, hub1) },
-                                        { trainInfo: train2, delay: delay2, stops: extractStops(train2, hub1, hub2) },
-                                        { trainInfo: train3, delay: delay3, stops: extractStops(train3, hub2, toName) }
-                                    ],
+                                    options: [optionData],
                                     fromStation: fromName,
-                                    toStation: toName,
-                                    actualDepMins: totalDep,
-                                    actualArrMins: totalArr,
-                                    transferStations: [hub1, hub2]
+                                    toStation: toName
                                 };
+                            } else {
+                                if (!routesMap[routeKey].options.find(o => o.transferStations[0] === hub1 && o.transferStations[1] === hub2)) {
+                                    routesMap[routeKey].options.push(optionData);
+                                }
                             }
                         });
                     }
@@ -1077,7 +1135,7 @@ function renderRoutes(routes, container, isPartial) {
         card.className = 'result-card';
         card.style.cursor = 'pointer';
 
-        let routeData = route.type === '1-transfer' ? route.options[0] : route;
+        let routeData = route.type !== 'direct' ? route.options[0] : route;
 
         const totalDep = routeData.actualDepMins;
         const totalArr = routeData.actualArrMins;
@@ -1134,11 +1192,20 @@ function renderRoutes(routes, container, isPartial) {
         bodyWrapper.className = 'route-details';
         bodyWrapper.style.display = 'none';
 
-        if (route.type === '1-transfer' && route.options.length > 1) {
+        if (route.type !== 'direct' && route.options.length > 1) {
             let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
-                <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇換乘車站:</label>
+                <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇轉乘車站:</label>
                 <select class="transfer-select planner-input custom-scrollbar" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
-                    ${route.options.map((opt, i) => `<option value="${i}">${opt.transferStation}</option>`).join('')}
+                    ${route.options.map((opt, i) => {
+                        if (route.type === '1-transfer') {
+                            const wait = Math.round(opt.waitTime || 0);
+                            return `<option value="${i}">${opt.transferStation}(轉乘${wait}分鐘)</option>`;
+                        } else {
+                            const wait1 = Math.round(opt.waitTimes[0] || 0);
+                            const wait2 = Math.round(opt.waitTimes[1] || 0);
+                            return `<option value="${i}">${opt.transferStations[0]}(轉乘${wait1}分) - ${opt.transferStations[1]}(轉乘${wait2}分)</option>`;
+                        }
+                    }).join('')}
                 </select>
             </div>`;
 
