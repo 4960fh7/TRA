@@ -278,6 +278,16 @@ async function handleSearch() {
         // Filter out excluded train types from schedule
         scheduleData = scheduleData.filter(train => !isExcludedTrain(train.train));
 
+        // Pre-normalize all station names to avoid regex overhead in deep loops
+        scheduleData.forEach(train => {
+            if (train.data) {
+                train.data.forEach(stop => {
+                    stop.normX = normalizeStationName(stop.x);
+                });
+            }
+        });
+
+
         liveBoardData = {};
         if (shouldFetchLive) {
             let offset = 0;
@@ -747,7 +757,10 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
     const fastTrainLinks = {};
     scheduleData.forEach(train2 => {
         if (!isTrainAllowedByFilter(train2.train, filters)) return;
-        // Removed `if (!isFastTrain(train2.train)) return;` to allow any train type in the middle segment
+        // To prevent combinatorial explosion (browser crash) with O(N^3) loops, we restrict the middle segment 
+        // to fast trains UNLESS the user explicitly filtered for only unreserved trains.
+        if (!filters.unreserved && !isFastTrain(train2.train)) return;
+
         const stops = train2.data || [];
         const majorStops = [];
         for (let i = 0; i < stops.length; i++) {
