@@ -1020,3 +1020,36 @@ svg {
 }
 .suggestion-active { background-color: #3b82f6; color: white; }
 
+/* Mobile Header Layout Adjustments */
+@media (max-width: 600px) {
+    .header {
+        padding: 0 10px;
+    }
+    .header h1 {
+        font-size: 1.2rem;
+        white-space: nowrap;
+        letter-spacing: 1px;
+    }
+    .search-wrap {
+        flex-wrap: nowrap;
+        margin-top: 0;
+        gap: 6px;
+        flex: 1;
+        justify-content: flex-end;
+    }
+    .search-container {
+        width: 140px;
+        max-width: 100%;
+        flex-shrink: 1;
+    }
+    #unified-search-input {
+        font-size: 13px;
+        padding: 6px 8px;
+    }
+    .hamburger-btn {
+        padding: 4px 6px;
+        font-size: 22px;
+    }
+}
+
+
