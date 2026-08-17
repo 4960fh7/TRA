@@ -7,6 +7,13 @@ let liveBoardData = {};
 let currentRoutes = [];
 let searchAbortController = null;
 
+const branchLineHubs = {
+    "海科館": ["瑞芳", "八堵", "七堵"], "八斗子": ["瑞芳", "八堵", "七堵"], "大華": ["瑞芳", "八堵"], "十分": ["瑞芳", "八堵"], "望古": ["瑞芳", "八堵"], "嶺腳": ["瑞芳", "八堵"], "平溪": ["瑞芳", "八堵"], "菁桐": ["瑞芳", "八堵"],
+    "千甲": ["新竹", "竹中"], "新莊": ["新竹", "竹中"], "竹中": ["新竹"], "六家": ["新竹", "竹中"], "上員": ["新竹", "竹中"], "榮華": ["新竹", "竹中"], "竹東": ["新竹", "竹中"], "橫山": ["新竹", "竹中"], "九讚頭": ["新竹", "竹中"], "合興": ["新竹", "竹中"], "富貴": ["新竹", "竹中"], "內灣": ["新竹", "竹中"],
+    "源泉": ["二水", "彰化"], "濁水": ["二水", "彰化"], "龍泉": ["二水", "彰化"], "集集": ["二水", "彰化"], "水里": ["二水", "彰化"], "車埕": ["二水", "彰化"],
+    "長榮大學": ["中洲", "台南"], "沙崙": ["中洲", "台南"]
+};
+
 const colorPalette = {
     "普悠瑪": "#FF5252",
     "太魯閣": "#FFA726",
@@ -53,8 +60,8 @@ function filterDominatedRoutes(routes) {
             const d1 = r1.type !== 'direct' ? r1.options[0] : r1;
             const d2 = r2.type !== 'direct' ? r2.options[0] : r2;
 
-            const transfers1 = r1.type === 'direct' ? 0 : (r1.type === '1-transfer' ? 1 : 2);
-            const transfers2 = r2.type === 'direct' ? 0 : (r2.type === '1-transfer' ? 1 : 2);
+            const transfers1 = r1.type === 'direct' ? 0 : (r1.type === '1-transfer' ? 1 : (r1.type === '2-transfer' ? 2 : 3));
+            const transfers2 = r2.type === 'direct' ? 0 : (r2.type === '1-transfer' ? 1 : (r2.type === '2-transfer' ? 2 : 3));
 
             if (transfers2 === 0) continue;
 
@@ -409,6 +416,10 @@ async function handleSearch() {
                 // Search 2-transfer routes
                 const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
                 batchRoutes.push(...twoTransferRoutes);
+
+                // Search 3-transfer routes for branch lines
+                const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+                batchRoutes.push(...threeTransferRoutes);
             }
 
             // Merge batch results into currentRoutes
@@ -508,8 +519,8 @@ function applySortingAndRender(isPartial) {
         let bDep = b.type !== 'direct' ? b.options[0].actualDepMins : b.actualDepMins;
         const durA = aArr - aDep;
         const durB = bArr - bDep;
-        let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : 2);
-        let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : 2);
+        let aTransfers = a.type === 'direct' ? 0 : (a.type === '1-transfer' ? 1 : (a.type === '2-transfer' ? 2 : 3));
+        let bTransfers = b.type === 'direct' ? 0 : (b.type === '1-transfer' ? 1 : (b.type === '2-transfer' ? 2 : 3));
         let aTrains = a.type !== 'direct' ? a.options[0].trains : a.trains;
         let bTrains = b.type !== 'direct' ? b.options[0].trains : b.trains;
         let aStops = aTrains.reduce((sum, t) => sum + (t.stops ? t.stops.length : 0), 0);
@@ -963,6 +974,189 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
     return Object.values(routesMap);
 }
 
+function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartureMins, filters) {
+    const routesMap = {};
+    const normFromName = normalizeStationName(fromName);
+    const normToName = normalizeStationName(toName);
+
+    const fromHubs = branchLineHubs[normFromName];
+    const toHubs = branchLineHubs[normToName];
+    if (!fromHubs && !toHubs) return [];
+
+    const normFilterTransfer = filters.transfer ? normalizeStationName(filters.transfer) : null;
+
+    const majorStations = [
+        "基隆", "八堵", "七堵", "南港", "松山", "台北", "板橋", "樹林",
+        "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "員林",
+        "斗六", "嘉義", "新營", "台南", "新左營", "高雄", "鳳山", "屏東", "潮州", "枋寮",
+        "台東", "關山", "池上", "玉里", "瑞穗", "光復", "花蓮",
+        "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳", "二水", "中洲"
+    ];
+
+    const allowedHubsFrom = fromHubs || ((stationsHubData[normFromName] && stationsHubData[normFromName].length > 0) ? stationsHubData[normFromName] : majorStations);
+    const allowedHubsTo = toHubs || ((stationsHubData[normToName] && stationsHubData[normToName].length > 0) ? stationsHubData[normToName] : majorStations);
+
+    const fastTrainLinks = {};
+    scheduleData.forEach(train2 => {
+        if (!isTrainAllowedByFilter(train2.train, filters)) return;
+        if (!filters.unreserved && !isFastTrain(train2.train)) return;
+        const stops = train2.data || [];
+        const majorStops = [];
+        for (let i = 0; i < stops.length; i++) {
+            const sName = normalizeStationName(stops[i].x);
+            if (majorStations.some(m => normalizeStationName(m) === sName) || allowedHubsFrom.includes(sName) || allowedHubsTo.includes(sName)) {
+                majorStops.push({ name: sName, idx: i, time: stops[i].y });
+            }
+        }
+        for (let i = 0; i < majorStops.length; i++) {
+            for (let j = i + 1; j < majorStops.length; j++) {
+                const key = majorStops[i].name + "_" + majorStops[j].name;
+                if (!fastTrainLinks[key]) fastTrainLinks[key] = [];
+                fastTrainLinks[key].push({ train: train2, depIdx: majorStops[i].idx, arrIdx: majorStops[j].idx });
+            }
+        }
+    });
+
+    let fromTrains = [];
+    let toTrains = [];
+    
+    scheduleData.forEach(train => {
+        if (!isTrainAllowedByFilter(train.train, filters)) return;
+        let fromDepIdx = -1, toArrIdx = -1;
+        const stops = train.data || [];
+        for (let i = 0; i < stops.length; i++) {
+            if (normalizeStationName(stops[i].x) === normFromName && fromDepIdx === -1) {
+                fromDepIdx = (i + 1 < stops.length && normalizeStationName(stops[i + 1].x) === normFromName) ? i + 1 : i;
+            }
+            if (normalizeStationName(stops[i].x) === normToName && toArrIdx === -1) {
+                toArrIdx = i;
+            }
+        }
+        if (fromDepIdx !== -1) {
+            const depMins = stops[fromDepIdx].y;
+            let adj = depMins < 4 * 60 && minDepartureMins > 20 * 60 ? depMins + 24 * 60 : depMins;
+            if (adj >= minDepartureMins && adj < maxDepartureMins) fromTrains.push({ train, fromDepIdx });
+        }
+        if (toArrIdx !== -1) toTrains.push({ train, toArrIdx });
+    });
+
+    const transferThresholdMin = filters.transferTime ? filters.transferTime.min : 5;
+    const transferThresholdMax = filters.transferTime ? filters.transferTime.max : 150;
+
+    fromTrains.forEach(t1 => {
+        const train1 = t1.train;
+        const delay1 = liveBoardData[train1.number] || 0;
+        const stops1 = train1.data;
+        for (let i = t1.fromDepIdx + 1; i < stops1.length; i++) {
+            const hub1 = stops1[i].x;
+            const normHub1 = stops1[i].normX;
+            if (!allowedHubsFrom.includes(normHub1) && normHub1 !== normFilterTransfer) continue;
+            if (normHub1 === normFromName || normHub1 === normToName) continue;
+            if (train1.stopSet.has(normToName)) continue;
+
+            const t1ArrActual = stops1[i].y + delay1;
+
+            toTrains.forEach(t4 => {
+                const train4 = t4.train;
+                if (train1.number === train4.number) return;
+                const delay4 = liveBoardData[train4.number] || 0;
+                const stops4 = train4.data;
+                for (let l = 0; l < t4.toArrIdx; l++) {
+                    const hub3 = stops4[l].x;
+                    const normHub3 = stops4[l].normX;
+                    if (!allowedHubsTo.includes(normHub3) && normHub3 !== normFilterTransfer) continue;
+                    if (normHub3 === normFromName || normHub3 === normToName) continue;
+                    if (train4.stopSet.has(normFromName)) continue;
+
+                    const t4DepActual = stops4[l].y + delay4;
+
+                    majorStations.forEach(hub2 => {
+                        const normHub2 = normalizeStationName(hub2);
+                        if (normHub2 === normHub1 || normHub2 === normHub3) return;
+                        if (normHub2 === normFromName || normHub2 === normToName) return;
+
+                        const links12 = fastTrainLinks[normHub1 + "_" + normHub2];
+                        const links23 = fastTrainLinks[normHub2 + "_" + normHub3];
+                        if (!links12 || !links23) return;
+
+                        links12.forEach(link12 => {
+                            const train2 = link12.train;
+                            if (train2.number === train1.number || train2.number === train4.number) return;
+                            const delay2 = liveBoardData[train2.number] || 0;
+                            const stops2 = train2.data;
+                            if (train2.stopSet.has(normFromName) || train2.stopSet.has(normToName)) return;
+
+                            let t2DepActual = stops2[link12.depIdx].y + delay2;
+                            let wait1 = t2DepActual - t1ArrActual;
+                            if (wait1 < 0) wait1 += 24 * 60;
+                            if (wait1 > 6 * 60) return;
+                            if (wait1 < transferThresholdMin || wait1 > transferThresholdMax) return;
+
+                            const t2ArrActual = stops2[link12.arrIdx].y + delay2;
+
+                            links23.forEach(link23 => {
+                                const train3 = link23.train;
+                                if (train3.number === train1.number || train3.number === train2.number || train3.number === train4.number) return;
+                                const delay3 = liveBoardData[train3.number] || 0;
+                                const stops3 = train3.data;
+                                if (train3.stopSet.has(normFromName) || train3.stopSet.has(normToName)) return;
+
+                                let t3DepActual = stops3[link23.depIdx].y + delay3;
+                                let wait2 = t3DepActual - t2ArrActual;
+                                if (wait2 < 0) wait2 += 24 * 60;
+                                if (wait2 > 6 * 60) return;
+                                if (wait2 < transferThresholdMin || wait2 > transferThresholdMax) return;
+
+                                const t3ArrActual = stops3[link23.arrIdx].y + delay3;
+                                let wait3 = t4DepActual - t3ArrActual;
+                                if (wait3 < 0) wait3 += 24 * 60;
+                                if (wait3 > 6 * 60) return;
+                                if (wait3 < transferThresholdMin || wait3 > transferThresholdMax) return;
+
+                                const routeKey = `${train1.number}_${train2.number}_${train3.number}_${train4.number}`;
+                                let totalDep = stops1[t1.fromDepIdx].y + delay1;
+                                let totalArr = stops4[t4.toArrIdx].y + delay4;
+                                if (totalArr < totalDep) totalArr += 24 * 60;
+
+                                if (totalArr - totalDep > 18 * 60) return;
+
+                                const optionData = {
+                                    transferStations: [hub1, hub2, hub3],
+                                    waitTimes: [wait1, wait2, wait3],
+                                    actualDepMins: totalDep,
+                                    actualArrMins: totalArr,
+                                    trains: [
+                                        { trainInfo: train1, delay: delay1, stops: extractStops(train1, fromName, hub1) },
+                                        { trainInfo: train2, delay: delay2, stops: extractStops(train2, hub1, hub2) },
+                                        { trainInfo: train3, delay: delay3, stops: extractStops(train3, hub2, hub3) },
+                                        { trainInfo: train4, delay: delay4, stops: extractStops(train4, hub3, toName) }
+                                    ]
+                                };
+
+                                if (!routesMap[routeKey]) {
+                                    routesMap[routeKey] = {
+                                        type: '3-transfer',
+                                        options: [optionData],
+                                        fromStation: fromName,
+                                        toStation: toName
+                                    };
+                                } else {
+                                    if (!routesMap[routeKey].options.find(o => o.transferStations[0] === hub1 && o.transferStations[1] === hub2 && o.transferStations[2] === hub3)) {
+                                        routesMap[routeKey].options.push(optionData);
+                                    }
+                                }
+                            });
+                        });
+                    });
+                }
+            });
+        }
+    });
+
+    return Object.values(routesMap);
+}
+
+
 function buildTimelineHtml(routeData) {
     let html = '<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #1a2a3a;">';
 
@@ -1151,7 +1345,7 @@ function renderRoutes(routes, container, isPartial) {
         }
 
         let trainsSummary = routeData.trains.map(t => `<span style="color:${getTrainColor(t.trainInfo.train)}">${t.trainInfo.train} ${t.trainInfo.number}</span>`).join(' 轉 ');
-        let transferText = route.type === 'direct' ? '直達車' : (route.type === '1-transfer' ? `1次轉乘` : `2次轉乘`);
+        let transferText = route.type === 'direct' ? '直達車' : (route.type === '1-transfer' ? `1次轉乘` : (route.type === '2-transfer' ? `2次轉乘` : `3次轉乘`));
 
         let hasDelay = routeData.trains.some(t => t.delay > 0);
         let delayBadge = hasDelay ? `<span style="color: #ff4444; font-size: 12px; font-weight: bold; margin-left: 5px;">(延誤)</span>` : '';
@@ -1200,10 +1394,15 @@ function renderRoutes(routes, container, isPartial) {
                 if (route.type === '1-transfer') {
                     const wait = Math.round(opt.waitTime || 0);
                     return `<option value="${i}">${opt.transferStation}(轉乘 ${wait} 分鐘)</option>`;
-                } else {
+                } else if (route.type === '2-transfer') {
                     const wait1 = Math.round(opt.waitTimes[0] || 0);
                     const wait2 = Math.round(opt.waitTimes[1] || 0);
                     return `<option value="${i}">${opt.transferStations[0]}(轉乘 ${wait1} 分鐘) - ${opt.transferStations[1]}(轉乘 ${wait2} 分鐘)</option>`;
+                } else {
+                    const wait1 = Math.round(opt.waitTimes[0] || 0);
+                    const wait2 = Math.round(opt.waitTimes[1] || 0);
+                    const wait3 = Math.round(opt.waitTimes[2] || 0);
+                    return `<option value="${i}">${opt.transferStations[0]}(轉乘 ${wait1} 分) - ${opt.transferStations[1]}(轉乘 ${wait2} 分) - ${opt.transferStations[2]}(轉乘 ${wait3} 分)</option>`;
                 }
             }).join('')}
                 </select>
