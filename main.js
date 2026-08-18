@@ -736,6 +736,7 @@ async function loadData() {
         drawMap(twData, globalStationsData);
         svg.call(zoom.transform, d3.zoomIdentity); // Trigger initial zoom event to render labels
         initUnifiedSearchAutocomplete(); // Launch unified combined search engine
+        updateOverviewPanel();
         scheduleNextAutoRefresh();
     } catch (err) {
         console.error("Error configuration mapping pipeline:", err);
@@ -842,6 +843,7 @@ function scheduleNextAutoRefresh() {
         if (currentActiveStationCode) {
             await showStationInfoPanel(currentActiveStationCode, currentActiveStationName, currentActiveStationAddress, currentActiveStationCW, currentActiveStationCCW);
         }
+        updateOverviewPanel();
         scheduleNextAutoRefresh();
     }, timeoutMs);
 }
@@ -1808,5 +1810,175 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 });
+
+window.toggleOverviewPanel = function() {
+    const panel = document.getElementById("overview-panel");
+    if (panel) {
+        panel.classList.toggle("mobile-open");
+    }
+};
+
+document.addEventListener("click", (e) => {
+    const panel = document.getElementById("overview-panel");
+    const toggleBtn = document.getElementById("overview-toggle-btn");
+    if (panel && panel.classList.contains("mobile-open") && window.innerWidth <= 768) {
+        if (!panel.contains(e.target) && e.target !== toggleBtn) {
+            panel.classList.remove("mobile-open");
+        }
+    }
+});
+
+async function updateOverviewPanel() {
+    const contentContainer = document.getElementById("overview-content");
+    const updateTimeEl = document.getElementById("overview-update-time");
+    
+    if (!contentContainer) return;
+
+    if (!globalScheduleData || globalScheduleData.length === 0) {
+        contentContainer.innerHTML = '<p class="placeholder-text">等待班次資料...</p>';
+        return;
+    }
+
+    try {
+        let liveBoardData = null;
+        for (let attempts = 0; attempts < 3; attempts++) {
+            try {
+                liveBoardData = await d3.json(getLatestTDXUrl(attempts * 5));
+                if (liveBoardData) break;
+            } catch (e) {}
+        }
+
+        if (!liveBoardData || !Array.isArray(liveBoardData.TrainLiveBoards)) {
+            contentContainer.innerHTML = '<p class="placeholder-text">無法取得即時動態資料</p>';
+            return;
+        }
+        
+        if (liveBoardData.UpdateTime && updateTimeEl) {
+            const rawTimeStr = liveBoardData.UpdateTime.split("T")[1] || "";
+            const formattedLiveTime = rawTimeStr.substring(0, 5) || "--:--";
+            updateTimeEl.innerHTML = `最後更新：${formattedLiveTime}`;
+        }
+
+        const severeDelays = [];
+        const slightDelays = [];
+        const delayedTrainIndices = [];
+
+        liveBoardData.TrainLiveBoards.forEach(board => {
+            const delay = board.DelayTime !== undefined && !isNaN(board.DelayTime) ? parseInt(board.DelayTime, 10) : 0;
+            if (delay > 3) {
+                const trainNum = String(board.TrainNo);
+                const matchedTrain = globalScheduleData.find(t => String(t.number) === trainNum);
+                if (matchedTrain) {
+                    const trainType = matchedTrain.train || "未知";
+                    const loc = board.StationName?.Zh_tw || "未知";
+                    
+                    const stationIdx = globalStationsData.findIndex(s => getStationName(s) === loc);
+                    if (stationIdx !== -1) {
+                        delayedTrainIndices.push({ idx: stationIdx, loc: loc });
+                    }
+
+                    const itemData = {
+                        trainType,
+                        trainNum,
+                        loc,
+                        delay,
+                        start: matchedTrain.info?.start || "N/A",
+                        end: matchedTrain.info?.end || "N/A",
+                        via: matchedTrain.info?.via || "-"
+                    };
+                    
+                    if (delay > 15) {
+                        severeDelays.push(itemData);
+                    } else {
+                        slightDelays.push(itemData);
+                    }
+                }
+            }
+        });
+
+        severeDelays.sort((a, b) => b.delay - a.delay);
+        slightDelays.sort((a, b) => b.delay - a.delay);
+
+        let html = "";
+        
+        function renderList(list) {
+            return list.map(item => {
+                const color = colorPalette[item.trainType] || "#64748b";
+                let viaText = item.via !== "-" ? `經${item.via}` : "";
+                return `
+                    <div class="delay-item-row" onclick="this.classList.toggle('expanded')">
+                        <div class="delay-item-header">
+                            <span style="color:${color}; font-weight:bold;">${item.trainType} ${item.trainNum}</span>
+                            <span>位於 <span class="delay-highlight-loc">${item.loc}</span></span>
+                            <span>誤點 <span class="delay-highlight-time">${item.delay}</span> 分</span>
+                        </div>
+                        <div class="delay-item-details">
+                            ${item.start} → ${item.end} ${viaText}
+                        </div>
+                    </div>
+                `;
+            }).join("");
+        }
+
+        if (severeDelays.length > 0) {
+            html += `<div class="delay-section-title" style="color: #ef4444;">嚴重誤點 (>15分)</div>`;
+            html += renderList(severeDelays);
+        }
+        
+        if (slightDelays.length > 0) {
+            html += `<div class="delay-section-title" style="color: #fbbf24;">輕微誤點 (4~15分)</div>`;
+            html += renderList(slightDelays);
+        }
+
+        if (delayedTrainIndices.length > 0) {
+            delayedTrainIndices.sort((a, b) => a.idx - b.idx);
+            
+            const sections = [];
+            let currentSection = [delayedTrainIndices[0]];
+            
+            for (let i = 1; i < delayedTrainIndices.length; i++) {
+                const curr = delayedTrainIndices[i];
+                const prev = currentSection[currentSection.length - 1];
+                
+                if (curr.idx - prev.idx <= 4) {
+                    currentSection.push(curr);
+                } else {
+                    if (currentSection.length > 1) {
+                        sections.push(currentSection);
+                    }
+                    currentSection = [curr];
+                }
+            }
+            if (currentSection.length > 1) {
+                sections.push(currentSection);
+            }
+
+            if (sections.length > 0) {
+                html += `<div class="delay-section-title" style="color: #00f0ff; margin-top: 20px;">誤點區間</div>`;
+                sections.forEach(sec => {
+                    const startLoc = sec[0].loc;
+                    const endLoc = sec[sec.length - 1].loc;
+                    html += `
+                        <div class="delay-item-row" style="cursor: default; pointer-events: none;">
+                            <div style="font-size: 14px; font-weight: bold; color: #00ffaa; text-align: center;">
+                                ${startLoc} ～ ${endLoc}
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        }
+
+        if (severeDelays.length === 0 && slightDelays.length === 0) {
+            html = `<p class="placeholder-text" style="color:#00ffaa; margin-top: 40px; font-weight: bold;">目前所有列車誤點皆小於三分鐘</p>`;
+        }
+
+        contentContainer.innerHTML = html;
+
+    } catch (e) {
+        contentContainer.innerHTML = '<p class="placeholder-text" style="color:#ef4444;">載入失敗</p>';
+        console.error("Error in updateOverviewPanel:", e);
+    }
+}
 
 loadData();
