@@ -1869,6 +1869,24 @@ async function updateOverviewPanel() {
                 const trainNum = String(board.TrainNo);
                 const matchedTrain = globalScheduleData.find(t => String(t.number) === trainNum);
                 if (matchedTrain) {
+                    const firstStopMinutes = matchedTrain.data && matchedTrain.data.length > 0 ? matchedTrain.data[0].y : matchedTrain.calculatedDepMinutes;
+                    let lastStopMinutes = matchedTrain.data && matchedTrain.data.length > 0 ? matchedTrain.data[matchedTrain.data.length - 1].y : matchedTrain.calculatedDepMinutes;
+                    
+                    if (lastStopMinutes < firstStopMinutes) {
+                        lastStopMinutes += 1440;
+                    }
+                    
+                    const now = new Date();
+                    let currentMins = now.getHours() * 60 + now.getMinutes();
+                    
+                    if (currentMins < firstStopMinutes && currentMins < 4 * 60 && firstStopMinutes > 20 * 60) {
+                        currentMins += 1440;
+                    }
+                    
+                    if (currentMins > (lastStopMinutes + delay)) {
+                        return; // Skip trains that have finished service
+                    }
+
                     const trainType = matchedTrain.train || "未知";
                     const loc = board.StationName?.Zh_tw || "未知";
 
@@ -1887,7 +1905,7 @@ async function updateOverviewPanel() {
                         via: matchedTrain.info?.via || "-"
                     };
 
-                    if (delay > 15) {
+                    if (delay >= 15) {
                         severeDelays.push(itemData);
                     } else {
                         slightDelays.push(itemData);
@@ -1961,7 +1979,7 @@ async function updateOverviewPanel() {
                     const startLoc = sec[0].loc;
                     const endLoc = sec[sec.length - 1].loc;
                     const sectionText = startLoc === endLoc ? `${startLoc}附近` : `${startLoc} ～ ${endLoc}`;
-                    
+
                     for (let i = sec[0].idx; i <= sec[sec.length - 1].idx; i++) {
                         if (globalStationsData[i]) {
                             delayedSectionStationNames.add(getStationName(globalStationsData[i]));
