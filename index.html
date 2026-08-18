@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>臺鐵列車動態</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson@3"></script>
+    <style>
+        .hamburger-btn { display: none; background: none; border: none; color: #d0ffe6; font-size: 24px; cursor: pointer; padding: 8px; z-index: 1100; }
+        .nav-overlay { display: none; position: fixed; top: 0; right: 0; width: 100%; height: 100%; z-index: 1050; }
+        .nav-overlay .nav-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .nav-overlay .nav-drawer { position: absolute; top: 0; right: 0; width: 220px; height: 100%; background: #0d1b2a; border-left: 1px solid #1a2a3a; display: flex; flex-direction: column; padding: 60px 20px 20px 20px; gap: 10px; }
+        .nav-overlay .nav-drawer .nav-link { display: block; background: #111a22; border: 1px solid #1a2a3a; color: #fff; padding: 12px 16px; font-family: inherit; font-size: 15px; cursor: pointer; border-radius: 5px; text-align: left; transition: 0.2s; }
+        .nav-overlay .nav-drawer .nav-link:hover { border-color: #00f0ff; color: #00f0ff; }
+        .nav-overlay .nav-drawer .nav-link.active { border-color: #00f0ff; color: #00f0ff; background: #14283f; }
+        .nav-overlay.open { display: block; }
+        @media (max-width: 600px) {
+            .hamburger-btn { display: block; }
+            .desktop-nav-btn { display: none !important; }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-title-group">
+            <h1>臺鐵列車動態</h1>
+        </div>
+        <div class="search-wrap">
+            <button id="reset-widths-btn" class="reset-btn" style="display: none;">重設</button>
+            <button onclick="window.location.href='planner.html'" class="reset-btn desktop-nav-btn">旅程規劃</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">歷史資料</button>
+            <div class="search-container">
+                <input type="text" id="unified-search-input" placeholder="搜尋車站或車次編號..." autocomplete="off">
+                <div id="unified-suggestions" class="suggestions-dropdown custom-scrollbar"></div>
+            </div>
+            <button class="hamburger-btn" id="hamburger-btn">☰</button>
+        </div>
+    </div>
+
+    <!-- Mobile Nav Overlay -->
+    <div class="nav-overlay" id="nav-overlay">
+        <div class="nav-backdrop" id="nav-backdrop"></div>
+        <div class="nav-drawer">
+            <button class="nav-link active">列車動態</button>
+            <button class="nav-link" onclick="window.location.href='planner.html'">旅程規劃</button>
+            <button class="nav-link" onclick="window.location.href='history.html'">歷史資料</button>
+        </div>
+    </div>
+    <script>
+        document.getElementById('hamburger-btn').addEventListener('click', function() { document.getElementById('nav-overlay').classList.toggle('open'); });
+        document.getElementById('nav-backdrop').addEventListener('click', function() { document.getElementById('nav-overlay').classList.remove('open'); });
+    </script>
+
+    <div id="tooltip" class="tooltip"></div>
+
+    <div id="app-container">
+        <div id="map-container">
+            <button id="overview-toggle-btn" class="topology-toggle-btn overview-mobile-btn" onclick="toggleOverviewPanel()">顯示總覽</button>
+            <button id="topology-toggle-btn" class="topology-toggle-btn" onclick="toggleTopologyMode()">切換拓樸圖</button>
+            <button id="home-view-btn" class="topology-toggle-btn" style="left: 140px; display: none;">🏠</button>
+            <div id="map"></div>
+        </div>
+
+        <div id="overview-panel">
+            <div id="overview-panel-meta-container">
+                <div id="overview-details">
+                    <h2>誤點總覽</h2>
+                    <p id="overview-update-time">最後更新：載入中...</p>
+                </div>
+                <div class="overview-header-actions">
+                    <div id="close-overview-btn" class="close-btn overview-mobile-btn" onclick="toggleOverviewPanel()">&times;</div>
+                </div>
+            </div>
+            <hr>
+            <div id="overview-content" class="custom-scrollbar">
+                <p class="placeholder-text">讀取中...</p>
+            </div>
+        </div>
+
+        <div id="info-panel">
+            <div id="info-panel-meta-container">
+                <div id="station-details"></div>
+                <div class="info-panel-header-actions">
+                    <div id="close-panel-btn" class="close-btn">&times;</div>
+                </div>
+            </div>
+
+            <hr>
+
+            <div id="unified-train-wrapper">
+                <div class="sticky-direction-header">
+                    <div class="dir-indicator ccw-ind">逆行</div>
+                    <div class="dir-indicator cw-ind">順行</div>
+                </div>
+                <div id="unified-train-list" class="custom-scrollbar">
+                    <p class="placeholder-text">選擇車站以顯示資訊...</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="schedule-panel">
+            <div id="schedule-panel-meta-container">
+                <div id="train-details">
+                    <h2 id="schedule-train-title">列車停靠站</h2>
+                    <p id="schedule-train-route">請點擊班次...</p>
+                </div>
+                <div class="schedule-panel-header-actions">
+                    <div id="close-schedule-btn" class="close-btn">&times;</div>
+                </div>
+            </div>
+            <hr>
+            <div id="schedule-stops-container" class="custom-scrollbar">
+                <p class="placeholder-text">選擇列車以顯示停靠站...</p>
+            </div>
+        </div>
+    </div>
+    <script src="main.js"></script>
+</body>
+
+</html>
