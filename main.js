@@ -576,7 +576,7 @@ function drawMap(twData, stationsData) {
         .append("path")
         .attr("class", "county")
         .attr("d", path)
-        .on("click", function(event, d) {
+        .on("click", function (event, d) {
             if (window.isTopologyMode) return;
             const bounds = path.bounds(d);
             const dx = bounds[1][0] - bounds[0][0];
@@ -585,7 +585,7 @@ function drawMap(twData, stationsData) {
             const y = (bounds[0][1] + bounds[1][1]) / 2;
             const scale = Math.max(1, Math.min(8, 0.9 / Math.max(dx / width, dy / height)));
             const translate = [width / 2 - scale * x, height / 2 - scale * y];
-            
+
             svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
         });
 
@@ -689,7 +689,7 @@ async function loadData() {
                     if (new Date().getTime() - parsed.timestamp < expiryHrs * 3600 * 1000) {
                         return parsed.data;
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
             const data = await d3.json(url);
             localStorage.setItem(cacheKey, JSON.stringify({
@@ -1390,7 +1390,7 @@ function hexToRgb(hex) {
 // Initialize autocomplete for train search on DOM Ready
 document.addEventListener('DOMContentLoaded', () => {
     initUnifiedSearchAutocomplete();
-    
+
     const homeBtn = document.getElementById('home-view-btn');
     if (homeBtn) {
         homeBtn.addEventListener('click', () => {
@@ -1811,7 +1811,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-window.toggleOverviewPanel = function() {
+window.toggleOverviewPanel = function () {
     const panel = document.getElementById("overview-panel");
     if (panel) {
         panel.classList.toggle("mobile-open");
@@ -1831,7 +1831,7 @@ document.addEventListener("click", (e) => {
 async function updateOverviewPanel() {
     const contentContainer = document.getElementById("overview-content");
     const updateTimeEl = document.getElementById("overview-update-time");
-    
+
     if (!contentContainer) return;
 
     if (!globalScheduleData || globalScheduleData.length === 0) {
@@ -1845,14 +1845,14 @@ async function updateOverviewPanel() {
             try {
                 liveBoardData = await d3.json(getLatestTDXUrl(attempts * 5));
                 if (liveBoardData) break;
-            } catch (e) {}
+            } catch (e) { }
         }
 
         if (!liveBoardData || !Array.isArray(liveBoardData.TrainLiveBoards)) {
             contentContainer.innerHTML = '<p class="placeholder-text">無法取得即時動態資料</p>';
             return;
         }
-        
+
         if (liveBoardData.UpdateTime && updateTimeEl) {
             const rawTimeStr = liveBoardData.UpdateTime.split("T")[1] || "";
             const formattedLiveTime = rawTimeStr.substring(0, 5) || "--:--";
@@ -1871,7 +1871,7 @@ async function updateOverviewPanel() {
                 if (matchedTrain) {
                     const trainType = matchedTrain.train || "未知";
                     const loc = board.StationName?.Zh_tw || "未知";
-                    
+
                     const stationIdx = globalStationsData.findIndex(s => getStationName(s) === loc);
                     if (stationIdx !== -1) {
                         delayedTrainIndices.push({ idx: stationIdx, loc: loc });
@@ -1886,7 +1886,7 @@ async function updateOverviewPanel() {
                         end: matchedTrain.info?.end || "N/A",
                         via: matchedTrain.info?.via || "-"
                     };
-                    
+
                     if (delay > 15) {
                         severeDelays.push(itemData);
                     } else {
@@ -1900,7 +1900,7 @@ async function updateOverviewPanel() {
         slightDelays.sort((a, b) => b.delay - a.delay);
 
         let html = "";
-        
+
         function renderList(list) {
             return list.map(item => {
                 const color = colorPalette[item.trainType] || "#64748b";
@@ -1921,35 +1921,35 @@ async function updateOverviewPanel() {
         }
 
         if (severeDelays.length > 0) {
-            html += `<div class="delay-section-title" style="color: #ef4444;">嚴重誤點 (>15分)</div>`;
+            html += `<div class="delay-section-title" style="color: #ef4444;">嚴重誤點</div>`;
             html += renderList(severeDelays);
         }
-        
+
         if (slightDelays.length > 0) {
-            html += `<div class="delay-section-title" style="color: #fbbf24;">輕微誤點 (4~15分)</div>`;
+            html += `<div class="delay-section-title" style="color: #fbbf24;">輕微誤點</div>`;
             html += renderList(slightDelays);
         }
 
         if (delayedTrainIndices.length > 0) {
             delayedTrainIndices.sort((a, b) => a.idx - b.idx);
-            
+
             const sections = [];
             let currentSection = [delayedTrainIndices[0]];
-            
+
             for (let i = 1; i < delayedTrainIndices.length; i++) {
                 const curr = delayedTrainIndices[i];
                 const prev = currentSection[currentSection.length - 1];
-                
+
                 if (curr.idx - prev.idx <= 4) {
                     currentSection.push(curr);
                 } else {
-                    if (currentSection.length > 1) {
+                    if (currentSection.length >= 3) {
                         sections.push(currentSection);
                     }
                     currentSection = [curr];
                 }
             }
-            if (currentSection.length > 1) {
+            if (currentSection.length >= 3) {
                 sections.push(currentSection);
             }
 
@@ -1958,10 +1958,11 @@ async function updateOverviewPanel() {
                 sections.forEach(sec => {
                     const startLoc = sec[0].loc;
                     const endLoc = sec[sec.length - 1].loc;
+                    const sectionText = startLoc === endLoc ? `${startLoc}附近` : `${startLoc} ～ ${endLoc}`;
                     html += `
                         <div class="delay-item-row" style="cursor: default; pointer-events: none;">
                             <div style="font-size: 14px; font-weight: bold; color: #00ffaa; text-align: center;">
-                                ${startLoc} ～ ${endLoc}
+                                ${sectionText}
                             </div>
                         </div>
                     `;
