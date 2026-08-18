@@ -301,12 +301,12 @@ svg {
     justify-content: space-between;
     align-items: center;
 
-    /* ?詨?靽格嚗撥?嗅捆?其?皛踹?? 100% ?偌撟喳?典祝摨?*/
+    /* ?閰??賣??謍唳???????號蹓??? 100% ???????貊???*/
     width: 100%;
     max-width: 100%;
     min-width: 100%;
 
-    /* ?脫迫?扯? (Padding) 撠捆?冽?撖祉憯?撅 */
+    /* ??怨翰??? (Padding) ???????赯剜豯?? */
     box-sizing: border-box;
     margin: 0 0 10px 0;
 }
@@ -316,7 +316,7 @@ svg {
     max-width: 60%;
     display: flex;
     justify-content: flex-end;
-    /* 霈?函????????喳撠? */
+    /* ??????謚?????蹎???啾???? */
     box-sizing: border-box;
 }
 
@@ -547,7 +547,7 @@ svg {
     stroke-width: 0.8px;
 }
 
-/* ?身?箇????????*/
+/* ??澈?蝞???????????*/
 .station {
     fill: #00f0ff;
     stroke: #040810;
@@ -560,7 +560,7 @@ svg {
     font-family: 'Courier New', Courier, monospace;
     font-weight: bold;
     fill: #00f0ff;
-    /* ?身蝜潭?箸????*/
+    /* ??澈?蔬??蝞賃秧?????*/
     text-shadow: 0 0 4px #040810, 0 0 4px #040810;
     text-anchor: middle;
     dominant-baseline: central;
@@ -569,9 +569,9 @@ svg {
 }
 
 /* =======================================================
-   ?詨?靽格 1 & 2嚗移皞?朣?瑽?靽?靽格迤??⊥??郊??憿?   ======================================================= */
+   ?閰??賣??1 & 2?垓蝘餌?謘??????踝??踐縈??賣餈???????駁??????   ======================================================= */
 
-/* ???A嚗?葉?蜓閬?蝡?-> 蝝 (Circle & Label) */
+/* ????A?契蹓?謘餉?????秋撫???-> ???(Circle & Label) */
 #map .station-group.active .station {
     fill: #ff0055;
     filter: drop-shadow(0 0 6px #ff0055);
@@ -581,7 +581,7 @@ svg {
     fill: #ff0055;
 }
 
-/* ???B嚗??園??鈭斗???蝡?-> 蝬 (Circle & Label) */
+/* ????B?奕??????剜???????-> ?秋滿??(Circle & Label) */
 #map .station-group.connected .station {
     fill: #00ffaa;
     filter: drop-shadow(0 0 5px #00ffaa);
@@ -591,7 +591,7 @@ svg {
     fill: #00ffaa;
 }
 
-/* ???C嚗?頠??? -> 璈 (Circle & Label) */
+/* ????C?城?????蹎? -> ?此??(Circle & Label) */
 #map .station-group.train-stop .station {
     fill: #ff9900;
     filter: drop-shadow(0 0 5px #ff9900);
@@ -968,7 +968,7 @@ svg {
         padding: 16px !important;
         height: calc(100vh - 140px);
 
-        /* ???踹祝摨行??100%嚗?閮剜???寞??游??*/
+        /* ????頦寧??刻????100%???桀??????撖??皜賃??*/
         right: -100% !important;
         top: 14vh;
     }
@@ -1136,12 +1136,22 @@ svg {
 }
 
 .delay-item-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: 100px 1fr 80px;
     align-items: center;
     font-size: 13px;
     color: #e2e8f0;
-    gap: 8px;
+    gap: 4px;
+}
+
+.delay-col-left { text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.delay-col-center { text-align: left; white-space: nowrap; }
+.delay-col-right { text-align: right; white-space: nowrap; }
+
+@media (min-width: 769px) {
+    #map-container svg > g:not(.topology-mode-active) .station.delay-highlight {
+        fill: #f97316 !important;
+    }
 }
 
 .delay-item-details {

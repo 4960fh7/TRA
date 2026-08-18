@@ -1908,9 +1908,9 @@ async function updateOverviewPanel() {
                 return `
                     <div class="delay-item-row" onclick="this.classList.toggle('expanded')">
                         <div class="delay-item-header">
-                            <span style="color:${color}; font-weight:bold;">${item.trainType} ${item.trainNum}</span>
-                            <span>位於 <span class="delay-highlight-loc">${item.loc}</span></span>
-                            <span>誤點 <span class="delay-highlight-time">${item.delay}</span> 分</span>
+                            <span class="delay-col-left" style="color:${color}; font-weight:bold;">${item.trainType} ${item.trainNum}</span>
+                            <span class="delay-col-center">位於 <span class="delay-highlight-loc">${item.loc}</span></span>
+                            <span class="delay-col-right">誤點 <span class="delay-highlight-time">${item.delay}</span> 分</span>
                         </div>
                         <div class="delay-item-details">
                             ${item.start} → ${item.end} ${viaText}
@@ -1953,12 +1953,21 @@ async function updateOverviewPanel() {
                 sections.push(currentSection);
             }
 
+            const delayedSectionStationNames = new Set();
+
             if (sections.length > 0) {
                 html += `<div class="delay-section-title" style="color: #00f0ff; margin-top: 20px;">誤點區間</div>`;
                 sections.forEach(sec => {
                     const startLoc = sec[0].loc;
                     const endLoc = sec[sec.length - 1].loc;
                     const sectionText = startLoc === endLoc ? `${startLoc}附近` : `${startLoc} ～ ${endLoc}`;
+                    
+                    for (let i = sec[0].idx; i <= sec[sec.length - 1].idx; i++) {
+                        if (globalStationsData[i]) {
+                            delayedSectionStationNames.add(getStationName(globalStationsData[i]));
+                        }
+                    }
+
                     html += `
                         <div class="delay-item-row" style="cursor: default; pointer-events: none;">
                             <div style="font-size: 14px; font-weight: bold; color: #00ffaa; text-align: center;">
@@ -1968,6 +1977,12 @@ async function updateOverviewPanel() {
                     `;
                 });
             }
+
+            d3.selectAll(".station").classed("delay-highlight", d => {
+                return delayedSectionStationNames.has(getStationName(d));
+            });
+        } else {
+            d3.selectAll(".station").classed("delay-highlight", false);
         }
 
         if (severeDelays.length === 0 && slightDelays.length === 0) {
