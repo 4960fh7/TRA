@@ -860,8 +860,8 @@ function getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight) {
 
     let currentMins = currentMinutesMidnight;
 
-    // If the time is early morning, and the train starts late night, we are likely observing it post-midnight
-    if (currentMins < firstStopMinutes && currentMins < 4 * 60 && firstStopMinutes > 20 * 60) {
+    // If the time is early morning, and the train arrived late yesterday, we are likely observing it post-midnight
+    if (currentMins < 4 * 60 && lastStopMinutes > 12 * 60) {
         currentMins += 1440;
     }
 
@@ -1879,7 +1879,7 @@ async function updateOverviewPanel() {
                     const now = new Date();
                     let currentMins = now.getHours() * 60 + now.getMinutes();
                     
-                    if (currentMins < firstStopMinutes && currentMins < 4 * 60 && firstStopMinutes > 20 * 60) {
+                    if (currentMins < 4 * 60 && lastStopMinutes > 12 * 60) {
                         currentMins += 1440;
                     }
                     
