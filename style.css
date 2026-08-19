@@ -82,10 +82,12 @@ body {
     border-radius: 2px;
 }
 
-.reset-btn:hover {
-    box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
-    background: #14283f;
-    color: #00f0ff;
+@media (hover: hover) {
+    .reset-btn:hover {
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+        background: #14283f;
+        color: #00f0ff;
+    }
 }
 
 #unified-search-input {
@@ -155,9 +157,11 @@ body {
     box-sizing: border-box;
 }
 
-.suggestion-item:hover {
-    background-color: #162238;
-    color: #d0ffe6;
+@media (hover: hover) {
+    .suggestion-item:hover {
+        background-color: #162238;
+        color: #d0ffe6;
+    }
 }
 
 /* App Container Layout Frame */
@@ -291,7 +295,12 @@ svg {
     transition: background 0.2s;
 }
 
-.panel-resizer:hover, .panel-resizer.dragging {
+@media (hover: hover) {
+    .panel-resizer:hover {
+        background: rgba(0, 240, 255, 0.4);
+    }
+}
+.panel-resizer.dragging {
     background: rgba(0, 240, 255, 0.4);
 }
 
@@ -333,10 +342,12 @@ svg {
     text-transform: uppercase;
 }
 
-.close-btn:hover {
-    background: #ef4444;
-    color: #fff;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+@media (hover: hover) {
+    .close-btn:hover {
+        background: #ef4444;
+        color: #fff;
+        box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+    }
 }
 
 #app-container #station-details {
@@ -453,8 +464,10 @@ svg {
     box-sizing: border-box;
 }
 
-.train-card:hover {
-    transform: translateY(-2px);
+@media (hover: hover) {
+    .train-card:hover {
+        transform: translateY(-2px);
+    }
 }
 
 .train-header {
@@ -636,9 +649,11 @@ svg {
     transition: all 0.2s ease;
 }
 
-.topology-toggle-btn:hover {
-    background: rgba(0, 240, 255, 0.1);
-    box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+@media (hover: hover) {
+    .topology-toggle-btn:hover {
+        background: rgba(0, 240, 255, 0.1);
+        box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+    }
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -870,12 +885,14 @@ svg {
     background: #111a2e !important;
 }
 
-.schedule-stop-item-row:hover {
-    background: rgba(0, 240, 255, 0.08) !important;
-}
+@media (hover: hover) {
+    .schedule-stop-item-row:hover {
+        background: rgba(0, 240, 255, 0.08) !important;
+    }
 
-.schedule-stop-item-row:hover .stop-name-text {
-    color: #00f0ff !important;
+    .schedule-stop-item-row:hover .stop-name-text {
+        color: #00f0ff !important;
+    }
 }
 
 /* --- Responsive Media Query Framework Overrides (Narrow Viewports) --- */
@@ -952,9 +969,7 @@ svg {
         grid-column: auto !important;
     }
 
-    .train-card:hover {
-        transform: none;
-    }
+
 
     .train-header {
         padding: 8px;
@@ -1130,9 +1145,11 @@ svg {
     transition: transform 0.2s, background 0.2s;
 }
 
-.delay-item-row:hover {
-    transform: translateY(-2px);
-    background: #111c30;
+@media (hover: hover) {
+    .delay-item-row:hover {
+        transform: translateY(-2px);
+        background: #111c30;
+    }
 }
 
 .delay-item-header {

@@ -84,9 +84,11 @@
             margin-top: 22px;
         }
 
-        .swap-btn:hover {
-            background: #00f0ff;
-            color: #060a12;
+        @media (hover: hover) {
+            .swap-btn:hover {
+                background: #00f0ff;
+                color: #060a12;
+            }
         }
 
         .submit-btn {
@@ -102,8 +104,10 @@
             transition: 0.3s;
         }
 
-        .submit-btn:hover {
-            background: #00b0ff;
+        @media (hover: hover) {
+            .submit-btn:hover {
+                background: #00b0ff;
+            }
         }
 
         .settings-btn {
@@ -119,9 +123,11 @@
             text-align: left;
         }
 
-        .settings-btn:hover {
-            border-color: #00f0ff;
-            color: #00f0ff;
+        @media (hover: hover) {
+            .settings-btn:hover {
+                border-color: #00f0ff;
+                color: #00f0ff;
+            }
         }
 
         .settings-panel {
@@ -186,8 +192,10 @@
             transition: 0.2s;
         }
 
-        .result-card:hover {
-            border-color: #00f0ff;
+        @media (hover: hover) {
+            .result-card:hover {
+                border-color: #00f0ff;
+            }
         }
 
         .result-header {
@@ -262,9 +270,11 @@
             font-family: inherit;
         }
 
-        .suggestion-item-planner:hover {
-            background: #1a2a3a;
-            color: #00f0ff;
+        @media (hover: hover) {
+            .suggestion-item-planner:hover {
+                background: #1a2a3a;
+                color: #00f0ff;
+            }
         }
 
         .loading-text {
@@ -340,9 +350,11 @@
             transition: 0.2s;
         }
 
-        .nav-overlay .nav-drawer .nav-link:hover {
-            border-color: #00f0ff;
-            color: #00f0ff;
+        @media (hover: hover) {
+            .nav-overlay .nav-drawer .nav-link:hover {
+                border-color: #00f0ff;
+                color: #00f0ff;
+            }
         }
 
         .nav-overlay .nav-drawer .nav-link.active {
@@ -396,14 +408,7 @@
                 height: calc(100vh - 50px);
             }
             
-            /* Disable hover effects on mobile */
-            .swap-btn:hover { background: #1a2a3a; color: #00f0ff; }
-            .submit-btn:hover { background: #00f0ff; }
-            .settings-btn:hover { border-color: #1a2a3a; color: #ccc; }
-            .result-card:hover { border-color: #1a2a3a; }
-            .nav-overlay .nav-drawer .nav-link:hover { border-color: #1a2a3a; color: #fff; }
-            .nav-overlay .nav-drawer .nav-link.active:hover { border-color: #00f0ff; color: #00f0ff; }
-            .suggestion-item-planner:hover { background: transparent; color: #eee; }
+
         }
     </style>
 </head>
