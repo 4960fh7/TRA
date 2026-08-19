@@ -1959,7 +1959,7 @@ async function updateOverviewPanel() {
                 return `
                     <div class="delay-item-row" onclick="this.classList.toggle('expanded')">
                         <div class="delay-item-header">
-                            <span class="delay-col-left" style="color:${color}; font-weight:bold;">${item.trainType} ${item.trainNum}</span>
+                            <span class="delay-col-left" style="color:${color}; font-weight:bold;">${getTrainTypeName(item.trainType, item.trainNum)}</span>
                             <span class="delay-col-center">位於 <span class="delay-highlight-loc">${item.loc}</span></span>
                             <span class="delay-col-right">誤點 <span class="delay-highlight-time">${item.delay}</span> 分</span>
                         </div>
