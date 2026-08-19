@@ -598,7 +598,37 @@ function drawMap(twData, stationsData) {
         .attr("d", path)
         .on("click", function (event, d) {
             if (window.isTopologyMode) return;
-            const bounds = path.bounds(d);
+            
+            const name = d.properties.name || d.properties.COUNTYNAME || "";
+            if (name === "澎湖縣" || name === "金門縣" || name === "連江縣") return;
+
+            let targetFeature = d;
+            
+            if ((name === "宜蘭縣" || name === "臺東縣" || name === "台東縣") && d.geometry.type === "MultiPolygon") {
+                targetFeature = {
+                    type: "Feature",
+                    geometry: {
+                        type: "MultiPolygon",
+                        coordinates: d.geometry.coordinates.filter(polygon => {
+                            const ring = polygon[0];
+                            let minLon = Infinity, maxLat = -Infinity;
+                            for (const pt of ring) {
+                                if (pt[0] < minLon) minLon = pt[0];
+                                if (pt[1] > maxLat) maxLat = pt[1];
+                            }
+                            // 宜蘭縣：釣魚台列嶼 (經度 > 122.5)
+                            if (name === "宜蘭縣" && minLon > 122.5) return false;
+                            
+                            // 臺東縣：蘭嶼、小蘭嶼 (緯度 < 22.15)
+                            if ((name === "臺東縣" || name === "台東縣") && maxLat < 22.15) return false;
+                            
+                            return true;
+                        })
+                    }
+                };
+            }
+
+            const bounds = path.bounds(targetFeature);
             const dx = bounds[1][0] - bounds[0][0];
             const dy = bounds[1][1] - bounds[0][1];
             const x = (bounds[0][0] + bounds[1][0]) / 2;
