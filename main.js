@@ -359,6 +359,17 @@ function drawMap(twData, stationsData) {
     function generateTopologyLayout() {
         if (stationsData.length > 0 && stationsData[0].topoX !== undefined) return;
 
+        globalStationsHub = {};
+        function addEdge(idx1, idx2) {
+            if (!stationsData[idx1] || !stationsData[idx2]) return;
+            let n1 = getStationName(stationsData[idx1]);
+            let n2 = getStationName(stationsData[idx2]);
+            if (!globalStationsHub[n1]) globalStationsHub[n1] = new Set();
+            if (!globalStationsHub[n2]) globalStationsHub[n2] = new Set();
+            globalStationsHub[n1].add(n2);
+            globalStationsHub[n2].add(n1);
+        }
+
         const S = 35;
         const offsetX = 0;
         const offsetY = -20 * S;
@@ -392,6 +403,7 @@ function drawMap(twData, stationsData) {
             for (let i = 0; i < count; i++) {
                 let idx1 = stations[i];
                 let idx2 = stations[i + 1];
+                addEdge(idx1, idx2);
                 topologyLinesData.push({
                     x1: stationsData[idx1].topoX, y1: stationsData[idx1].topoY,
                     x2: stationsData[idx2].topoX, y2: stationsData[idx2].topoY
@@ -416,8 +428,10 @@ function drawMap(twData, stationsData) {
                 stationsData[stationsArr[i]].topoY = jY + dirY * (i + 1) * stepSize;
             }
 
+            addEdge(junctionIdx, stationsArr[0]);
             addLineAbs(jX, jY, stationsData[stationsArr[0]].topoX, stationsData[stationsArr[0]].topoY);
             for (let i = 0; i < count - 1; i++) {
+                addEdge(stationsArr[i], stationsArr[i + 1]);
                 addLineAbs(stationsData[stationsArr[i]].topoX, stationsData[stationsArr[i]].topoY,
                     stationsData[stationsArr[i + 1]].topoX, stationsData[stationsArr[i + 1]].topoY);
             }
@@ -446,7 +460,9 @@ function drawMap(twData, stationsData) {
         let seaStations = makeArr(48, 63);
         let seaCount = seaStations.length;
 
+        addEdge(47, seaStations[0]);
         addLineAbs(stationsData[47].topoX, y_start, seaX, y_start);
+        addEdge(seaStations[seaCount - 1], 85);
         addLineAbs(seaX, y_end, stationsData[85].topoX, y_end);
 
         for (let i = 0; i < seaCount; i++) {
@@ -456,6 +472,7 @@ function drawMap(twData, stationsData) {
         }
         addLineAbs(seaX, y_start, stationsData[seaStations[0]].topoX, stationsData[seaStations[0]].topoY);
         for (let i = 0; i < seaCount - 1; i++) {
+            addEdge(seaStations[i], seaStations[i + 1]);
             addLineAbs(stationsData[seaStations[i]].topoX, stationsData[seaStations[i]].topoY,
                 stationsData[seaStations[i + 1]].topoX, stationsData[seaStations[i + 1]].topoY);
         }
