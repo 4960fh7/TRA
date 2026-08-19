@@ -1834,7 +1834,7 @@ document.addEventListener("DOMContentLoaded", () => {
         } else if (isDraggingOverview) {
             // Dragging the overview resizer changes the overview panel width
             let newWidth = containerWidth - e.clientX;
-            
+
             const minWidth = containerWidth * 0.2; // Min 20vw
             const maxWidth = containerWidth * 0.8; // Max 80vw
             newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
@@ -1925,18 +1925,18 @@ async function updateOverviewPanel() {
                 if (matchedTrain) {
                     const firstStopMinutes = matchedTrain.data && matchedTrain.data.length > 0 ? matchedTrain.data[0].y : matchedTrain.calculatedDepMinutes;
                     let lastStopMinutes = matchedTrain.data && matchedTrain.data.length > 0 ? matchedTrain.data[matchedTrain.data.length - 1].y : matchedTrain.calculatedDepMinutes;
-                    
+
                     if (lastStopMinutes < firstStopMinutes) {
                         lastStopMinutes += 1440;
                     }
-                    
+
                     const now = new Date();
                     let currentMins = now.getHours() * 60 + now.getMinutes();
-                    
+
                     if (currentMins < 4 * 60 && lastStopMinutes > 12 * 60) {
                         currentMins += 1440;
                     }
-                    
+
                     if (currentMins > (lastStopMinutes + delay)) {
                         return; // Skip trains that have finished service
                     }
@@ -2006,21 +2006,21 @@ async function updateOverviewPanel() {
             function getTopoPath(startLoc, endLoc) {
                 if (!globalStationsHub) return null;
                 if (startLoc === endLoc) return [startLoc];
-                
-                const queue = [{loc: startLoc, path: [startLoc]}];
+
+                const queue = [{ loc: startLoc, path: [startLoc] }];
                 const visited = new Set([startLoc]);
-                
+
                 while (queue.length > 0) {
-                    const {loc, path} = queue.shift();
+                    const { loc, path } = queue.shift();
                     if (loc === endLoc) return path;
                     if (path.length > 5) continue; // max distance 4 means max path length 5
-                    
+
                     const neighbors = globalStationsHub[loc];
                     if (neighbors) {
                         for (const n of neighbors) {
                             if (!visited.has(n)) {
                                 visited.add(n);
-                                queue.push({loc: n, path: [...path, n]});
+                                queue.push({ loc: n, path: [...path, n] });
                             }
                         }
                     }
@@ -2031,7 +2031,7 @@ async function updateOverviewPanel() {
             const nodes = [...delayedTrainIndices];
             const parent = new Map();
             nodes.forEach(n => parent.set(n.loc, n.loc));
-            
+
             function find(i) {
                 if (parent.get(i) === i) return i;
                 parent.set(i, find(parent.get(i)));
@@ -2059,34 +2059,69 @@ async function updateOverviewPanel() {
             const sections = [];
             const delayedSectionStationNames = new Set();
 
+            const sectionTexts = [];
+
             for (const cluster of grouped.values()) {
                 if (cluster.length >= 3) {
-                    // Sort by original index for visual start/end ordering
-                    cluster.sort((a, b) => a.idx - b.idx);
-                    sections.push(cluster);
-
+                    const clusterPathStations = new Set();
                     for (let i = 0; i < cluster.length; i++) {
                         for (let j = i + 1; j < cluster.length; j++) {
                             const path = getTopoPath(cluster[i].loc, cluster[j].loc);
                             if (path) {
+                                path.forEach(p => clusterPathStations.add(p));
                                 path.forEach(p => delayedSectionStationNames.add(p));
                             }
                         }
                     }
+
+                    const endpoints = [];
+                    for (const loc of clusterPathStations) {
+                        const neighbors = globalStationsHub[loc];
+                        let degree = 0;
+                        if (neighbors) {
+                            for (const n of neighbors) {
+                                if (clusterPathStations.has(n)) degree++;
+                            }
+                        }
+                        if (degree <= 1) {
+                            endpoints.push(loc);
+                        }
+                    }
+
+                    let sectionText = "";
+                    if (clusterPathStations.size === 1) {
+                        sectionText = `${[...clusterPathStations][0]} 附近`;
+                    } else if (endpoints.length === 2) {
+                        endpoints.sort((a, b) => {
+                            const idxA = globalStationsData.findIndex(d => getStationName(d) === a);
+                            const idxB = globalStationsData.findIndex(d => getStationName(d) === b);
+                            return idxA - idxB;
+                        });
+                        sectionText = `${endpoints[0]} ～ ${endpoints[1]}`;
+                    } else if (endpoints.length > 2) {
+                        endpoints.sort((a, b) => {
+                            const idxA = globalStationsData.findIndex(d => getStationName(d) === a);
+                            const idxB = globalStationsData.findIndex(d => getStationName(d) === b);
+                            return idxA - idxB;
+                        });
+                        sectionText = `${endpoints.join(" ～ ")} 區間`;
+                    } else if (endpoints.length === 0 && cluster.length > 0) {
+                        sectionText = `${cluster[0].loc} 等站及區間`;
+                    }
+
+                    if (sectionText) {
+                        sectionTexts.push(sectionText);
+                    }
                 }
             }
 
-            if (sections.length > 0) {
+            if (sectionTexts.length > 0) {
                 html += `<div class="delay-section-title" style="color: #00f0ff; margin-top: 20px;">誤點區間</div>`;
-                sections.forEach(sec => {
-                    const startLoc = sec[0].loc;
-                    const endLoc = sec[sec.length - 1].loc;
-                    const sectionText = startLoc === endLoc ? `${startLoc}附近` : `${startLoc} ～ ${endLoc}`;
-
+                sectionTexts.forEach(text => {
                     html += `
                         <div class="delay-item-row" style="cursor: default; pointer-events: none;">
                             <div style="font-size: 14px; font-weight: bold; color: #00ffaa; text-align: center;">
-                                ${sectionText}
+                                ${text}
                             </div>
                         </div>
                     `;
