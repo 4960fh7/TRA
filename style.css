@@ -1231,4 +1231,8 @@ svg {
     .overview-mobile-btn {
         display: inline-block !important;
     }
+    
+    #overview-content {
+        padding-bottom: 85px !important;
+    }
 }
