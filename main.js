@@ -19,6 +19,7 @@ const mapUrl = "counties.json";
 let activeStationSelection = null;
 let globalStationsData = [];
 let globalScheduleData = []; // Cache full schedule lookup tables globally
+let globalStationsHub = null; // Graph topology for delay grouping
 
 // 全域追蹤狀態
 let currentActiveStationCode = null;
@@ -704,6 +705,12 @@ async function loadData() {
             globalStationsData = await fetchWithCache("stations.json", 'cache_stations_json');
         } catch (e) {
             console.warn("Stations data file loading failed!");
+        }
+
+        try {
+            globalStationsHub = await fetchWithCache("stationsHub.json", 'cache_stations_hub');
+        } catch (e) {
+            console.warn("Stations Hub loading failed!");
         }
 
         // Cache the daily schedule file globally to handle standalone train search actions
@@ -1982,29 +1989,78 @@ async function updateOverviewPanel() {
         }
 
         if (delayedTrainIndices.length > 0) {
-            delayedTrainIndices.sort((a, b) => a.idx - b.idx);
-
-            const sections = [];
-            let currentSection = [delayedTrainIndices[0]];
-
-            for (let i = 1; i < delayedTrainIndices.length; i++) {
-                const curr = delayedTrainIndices[i];
-                const prev = currentSection[currentSection.length - 1];
-
-                if (curr.idx - prev.idx <= 4) {
-                    currentSection.push(curr);
-                } else {
-                    if (currentSection.length >= 3) {
-                        sections.push(currentSection);
+            function getTopoPath(startLoc, endLoc) {
+                if (!globalStationsHub) return null;
+                if (startLoc === endLoc) return [startLoc];
+                
+                const queue = [{loc: startLoc, path: [startLoc]}];
+                const visited = new Set([startLoc]);
+                
+                while (queue.length > 0) {
+                    const {loc, path} = queue.shift();
+                    if (loc === endLoc) return path;
+                    if (path.length > 5) continue; // max distance 4 means max path length 5
+                    
+                    const neighbors = globalStationsHub[loc];
+                    if (neighbors) {
+                        for (const n of neighbors) {
+                            if (!visited.has(n)) {
+                                visited.add(n);
+                                queue.push({loc: n, path: [...path, n]});
+                            }
+                        }
                     }
-                    currentSection = [curr];
+                }
+                return null;
+            }
+
+            const nodes = [...delayedTrainIndices];
+            const parent = new Map();
+            nodes.forEach(n => parent.set(n.loc, n.loc));
+            
+            function find(i) {
+                if (parent.get(i) === i) return i;
+                parent.set(i, find(parent.get(i)));
+                return parent.get(i);
+            }
+            function union(i, j) {
+                parent.set(find(i), find(j));
+            }
+
+            for (let i = 0; i < nodes.length; i++) {
+                for (let j = i + 1; j < nodes.length; j++) {
+                    if (getTopoPath(nodes[i].loc, nodes[j].loc)) {
+                        union(nodes[i].loc, nodes[j].loc);
+                    }
                 }
             }
-            if (currentSection.length >= 3) {
-                sections.push(currentSection);
+
+            const grouped = new Map();
+            for (const node of nodes) {
+                const root = find(node.loc);
+                if (!grouped.has(root)) grouped.set(root, []);
+                grouped.get(root).push(node);
             }
 
+            const sections = [];
             const delayedSectionStationNames = new Set();
+
+            for (const cluster of grouped.values()) {
+                if (cluster.length >= 3) {
+                    // Sort by original index for visual start/end ordering
+                    cluster.sort((a, b) => a.idx - b.idx);
+                    sections.push(cluster);
+
+                    for (let i = 0; i < cluster.length; i++) {
+                        for (let j = i + 1; j < cluster.length; j++) {
+                            const path = getTopoPath(cluster[i].loc, cluster[j].loc);
+                            if (path) {
+                                path.forEach(p => delayedSectionStationNames.add(p));
+                            }
+                        }
+                    }
+                }
+            }
 
             if (sections.length > 0) {
                 html += `<div class="delay-section-title" style="color: #00f0ff; margin-top: 20px;">誤點區間</div>`;
@@ -2012,12 +2068,6 @@ async function updateOverviewPanel() {
                     const startLoc = sec[0].loc;
                     const endLoc = sec[sec.length - 1].loc;
                     const sectionText = startLoc === endLoc ? `${startLoc}附近` : `${startLoc} ～ ${endLoc}`;
-
-                    for (let i = sec[0].idx; i <= sec[sec.length - 1].idx; i++) {
-                        if (globalStationsData[i]) {
-                            delayedSectionStationNames.add(getStationName(globalStationsData[i]));
-                        }
-                    }
 
                     html += `
                         <div class="delay-item-row" style="cursor: default; pointer-events: none;">
