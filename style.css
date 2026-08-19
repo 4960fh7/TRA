@@ -1165,10 +1165,8 @@ svg {
 .delay-col-center { text-align: left; white-space: nowrap; }
 .delay-col-right { text-align: right; white-space: nowrap; }
 
-@media (min-width: 769px) {
-    #map-container svg > g:not(.topology-mode-active) .station.delay-highlight {
-        fill: #f97316 !important;
-    }
+#map-container svg > g:not(.topology-mode-active) .station.delay-highlight {
+    fill: #f97316 !important;
 }
 
 .delay-item-details {
