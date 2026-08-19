@@ -501,6 +501,8 @@ function drawMap(twData, stationsData) {
             .style("opacity", 0.5);
     }
 
+    generateTopologyLayout(); // Pre-compute topology graph and globalStationsHub
+
     window.toggleTopologyMode = function () {
         isTopologyMode = !isTopologyMode;
         const btn = document.getElementById("topology-toggle-btn");
@@ -724,11 +726,6 @@ async function loadData() {
             console.warn("Stations data file loading failed!");
         }
 
-        try {
-            globalStationsHub = await fetchWithCache("stationsHub.json", 'cache_stations_hub');
-        } catch (e) {
-            console.warn("Stations Hub loading failed!");
-        }
 
         // Cache the daily schedule file globally to handle standalone train search actions
         const dateStr = getTodayDateString();
