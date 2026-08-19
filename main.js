@@ -1686,9 +1686,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const root = document.documentElement;
     const savedSplitInfoWidth = localStorage.getItem('splitInfoWidth');
     const savedScheduleWidth = localStorage.getItem('scheduleWidth');
+    const savedOverviewWidth = localStorage.getItem('overviewWidth');
 
     if (savedSplitInfoWidth) root.style.setProperty('--split-info-width', savedSplitInfoWidth);
     if (savedScheduleWidth) root.style.setProperty('--schedule-width', savedScheduleWidth);
+    if (savedOverviewWidth) root.style.setProperty('--overview-width', savedOverviewWidth);
 
     function checkWidthAdjustments() {
         const resetBtn = document.getElementById('reset-widths-btn');
@@ -1701,9 +1703,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const splitWidthStr = root.style.getPropertyValue('--split-info-width');
         const scheduleWidthStr = root.style.getPropertyValue('--schedule-width');
+        const overviewWidthStr = root.style.getPropertyValue('--overview-width');
 
         const isCustomized = (splitWidthStr && splitWidthStr !== '60vw') ||
-            (scheduleWidthStr && scheduleWidthStr !== '20vw');
+            (scheduleWidthStr && scheduleWidthStr !== '20vw') ||
+            (overviewWidthStr && overviewWidthStr !== '33.33vw');
 
         resetBtn.style.display = isCustomized ? 'block' : 'none';
     }
@@ -1713,8 +1717,10 @@ document.addEventListener("DOMContentLoaded", () => {
         resetBtn.addEventListener('click', () => {
             root.style.setProperty('--split-info-width', '60vw');
             root.style.setProperty('--schedule-width', '20vw');
+            root.style.setProperty('--overview-width', '33.33vw');
             localStorage.removeItem('splitInfoWidth');
             localStorage.removeItem('scheduleWidth');
+            localStorage.removeItem('overviewWidth');
             checkWidthAdjustments();
         });
     }
@@ -1726,6 +1732,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const infoPanel = document.getElementById('info-panel');
     const schedulePanel = document.getElementById('schedule-panel');
     const appContainer = document.getElementById('app-container');
+    const overviewPanel = document.getElementById('overview-panel');
 
     const infoResizer = document.createElement('div');
     infoResizer.className = 'panel-resizer';
@@ -1735,9 +1742,14 @@ document.addEventListener("DOMContentLoaded", () => {
     scheduleResizer.className = 'panel-resizer';
     schedulePanel.appendChild(scheduleResizer);
 
+    const overviewResizer = document.createElement('div');
+    overviewResizer.className = 'panel-resizer';
+    overviewPanel.appendChild(overviewResizer);
+
     // 3. Drag Logic
     let isDraggingInfo = false;
     let isDraggingSchedule = false;
+    let isDraggingOverview = false;
 
     infoResizer.addEventListener('mousedown', (e) => {
         if (window.innerWidth <= 768) return; // Disable on mobile
@@ -1755,8 +1767,16 @@ document.addEventListener("DOMContentLoaded", () => {
         document.body.style.cursor = 'ew-resize';
     });
 
+    overviewResizer.addEventListener('mousedown', (e) => {
+        if (window.innerWidth <= 768) return; // Disable on mobile
+        isDraggingOverview = true;
+        overviewResizer.classList.add('dragging');
+        document.body.style.userSelect = 'none';
+        document.body.style.cursor = 'ew-resize';
+    });
+
     window.addEventListener('mousemove', (e) => {
-        if (!isDraggingInfo && !isDraggingSchedule) return;
+        if (!isDraggingInfo && !isDraggingSchedule && !isDraggingOverview) return;
 
         const containerWidth = window.innerWidth;
 
@@ -1790,21 +1810,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
             const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
             root.style.setProperty('--schedule-width', newWidthVw);
+        } else if (isDraggingOverview) {
+            // Dragging the overview resizer changes the overview panel width
+            let newWidth = containerWidth - e.clientX;
+            
+            const minWidth = containerWidth * 0.2; // Min 20vw
+            const maxWidth = containerWidth * 0.8; // Max 80vw
+            newWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+
+            const newWidthVw = (newWidth / containerWidth) * 100 + 'vw';
+            root.style.setProperty('--overview-width', newWidthVw);
         }
     });
 
     window.addEventListener('mouseup', () => {
-        if (isDraggingInfo || isDraggingSchedule) {
+        if (isDraggingInfo || isDraggingSchedule || isDraggingOverview) {
             isDraggingInfo = false;
             isDraggingSchedule = false;
+            isDraggingOverview = false;
             infoResizer.classList.remove('dragging');
             scheduleResizer.classList.remove('dragging');
+            overviewResizer.classList.remove('dragging');
             document.body.style.userSelect = '';
             document.body.style.cursor = '';
 
             // Save adjustments to localStorage
             localStorage.setItem('splitInfoWidth', root.style.getPropertyValue('--split-info-width'));
             localStorage.setItem('scheduleWidth', root.style.getPropertyValue('--schedule-width'));
+            localStorage.setItem('overviewWidth', root.style.getPropertyValue('--overview-width'));
 
             checkWidthAdjustments();
         }
