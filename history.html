@@ -58,15 +58,28 @@
         @media (max-width: 600px) {
             .sub-header {
                 display: none;
-                flex-direction: column;
-                align-items: stretch;
+                position: absolute;
+                top: 60px;
+                left: 0;
+                right: 0;
+                background: rgba(6, 10, 18, 0.95);
+                backdrop-filter: blur(5px);
+                z-index: 1050;
                 padding: 15px;
+                flex-direction: column;
+                align-items: flex-start;
+                border-bottom: 1px solid #00f0ff;
             }
             .sub-header.show {
                 display: flex;
             }
             #history-app-container {
-                height: 90vh;
+                height: calc(90vh);
+            }
+            .chart-container {
+                height: auto !important;
+                min-height: 250px !important;
+                aspect-ratio: 4 / 3;
             }
         }
 
@@ -157,19 +170,23 @@
     </div>
 
     <div class="sub-header" id="mobile-search-form">
-        <button id="view-mode-btn" class="fetch-btn" style="margin-right: 15px; padding: 6px 12px; background: #00f0ff; color: #060a12;">切換至: 各車站</button>
-        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-            <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">日期:</label>
-            <input type="date" id="date-input" class="date-input" style="padding: 6px 10px;">
-            <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; margin-right: 10px;">查詢</button>
-
-            <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px;">搜尋:</label>
-            <div style="position: relative;">
-                <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
-                    style="width: 160px; padding: 6px 10px;">
-                <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 300px; top: 100%;"></div>
+        <button id="view-mode-btn" class="fetch-btn" style="margin-right: 15px; padding: 6px 12px; background: #00f0ff; color: #060a12; white-space: nowrap;">切換至: 各車站</button>
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+                <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
+                <input type="date" id="date-input" class="date-input" style="padding: 6px 10px; width: 130px;">
+                <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
             </div>
-            <button id="search-btn" class="fetch-btn" style="padding: 6px 12px;">跳轉</button>
+
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
+                <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">搜尋:</label>
+                <div style="position: relative;">
+                    <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
+                        style="width: 140px; padding: 6px 10px;">
+                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 250px; top: 100%;"></div>
+                </div>
+                <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">跳轉</button>
+            </div>
         </div>
     </div>
 

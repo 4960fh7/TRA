@@ -392,8 +392,8 @@ function renderTrainCharts() {
                             return '#ce6be0';
                         },
                         pointBorderWidth: 0,
-                        pointRadius: 4,
-                        pointHoverRadius: 6,
+                        pointRadius: 1.5,
+                        pointHoverRadius: 2.5,
                         clip: false
                     }]
                 },
@@ -728,8 +728,8 @@ function renderSingleStationChart(sid, points, container) {
                 },
                 borderColor: 'transparent',
                 borderWidth: 0,
-                pointRadius: 5,
-                pointHoverRadius: 7,
+                pointRadius: 2,
+                pointHoverRadius: 3,
                 clip: false
             }]
         },
@@ -912,12 +912,30 @@ function jumpToTarget(targetId) {
 document.getElementById('search-btn').addEventListener('click', () => {
     const query = searchInput.value.trim();
     if (!query) return;
-    const firstMatch = suggestionsBox.querySelector('.suggestion-item');
-    if (firstMatch) {
-        jumpToTarget(firstMatch.getAttribute('data-id'));
+
+    let targetId = query;
+    let targetType = window.currentViewMode;
+
+    const exactTrain = window.processedTrains?.find(t => String(t.No) === query);
+    if (exactTrain) {
+        targetId = exactTrain.No;
+        targetType = 'train';
     } else {
-        jumpToTarget(query);
+        const firstMatch = suggestionsBox.querySelector('.suggestion-item');
+        if (firstMatch) {
+            targetId = firstMatch.getAttribute('data-id');
+            targetType = firstMatch.getAttribute('data-type');
+        }
     }
+
+    if (window.currentViewMode !== targetType) {
+        document.getElementById('view-mode-btn').click();
+    }
+
+    suggestionsBox.style.display = 'none';
+    setTimeout(() => {
+        jumpToTarget(targetId);
+    }, 100);
 });
 
 searchInput.addEventListener('keydown', (e) => {
@@ -937,13 +955,30 @@ searchInput.addEventListener('keydown', (e) => {
         } else {
             const query = searchInput.value.trim();
             if (!query) return;
-            const firstMatch = suggestionsBox.querySelector('.suggestion-item');
-            if (firstMatch) {
-                jumpToTarget(firstMatch.getAttribute('data-id'));
+
+            let targetId = query;
+            let targetType = window.currentViewMode;
+
+            const exactTrain = window.processedTrains?.find(t => String(t.No) === query);
+            if (exactTrain) {
+                targetId = exactTrain.No;
+                targetType = 'train';
             } else {
-                jumpToTarget(query);
+                const firstMatch = suggestionsBox.querySelector('.suggestion-item');
+                if (firstMatch) {
+                    targetId = firstMatch.getAttribute('data-id');
+                    targetType = firstMatch.getAttribute('data-type');
+                }
             }
+
+            if (window.currentViewMode !== targetType) {
+                document.getElementById('view-mode-btn').click();
+            }
+
             suggestionsBox.style.display = 'none';
+            setTimeout(() => {
+                jumpToTarget(targetId);
+            }, 100);
         }
     }
 });
