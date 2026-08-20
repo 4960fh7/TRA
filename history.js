@@ -320,7 +320,7 @@ function renderTrainCharts() {
 
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
-        let mobileHeight = Math.max(120, (localMaxDelay / (window.yAxisMax || 1)) * 200 + 40);
+        let mobileHeight = Math.max(70, ((localMaxDelay / (window.yAxisMax || 1)) * 200 + 40) * 0.4);
 
         const containerHTML = `
             <div class="chart-container" id="chart-train-${train.No}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;">
@@ -673,7 +673,7 @@ function renderStationCharts() {
 
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
-        let mobileHeight = Math.max(120, (localMaxDelay / (window.yAxisMax || 1)) * 200 + 40);
+        let mobileHeight = Math.max(70, ((localMaxDelay / (window.yAxisMax || 1)) * 200 + 40) * 0.4);
 
         const containerHTML = `
             <div class="chart-container" id="chart-station-${sid}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;" data-sname="${sName}" data-sid="${sid}" data-ymax="${yMax}">

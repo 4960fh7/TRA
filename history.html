@@ -77,9 +77,9 @@
                 height: calc(90vh);
             }
             .chart-container {
-                height: auto !important;
-                min-height: 250px !important;
-                aspect-ratio: 4 / 3;
+                height: var(--mobile-height, 120px) !important;
+                min-height: var(--mobile-height, 120px) !important;
+                aspect-ratio: auto !important;
             }
         }
 
