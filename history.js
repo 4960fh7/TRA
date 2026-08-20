@@ -35,6 +35,15 @@ function getTrainTypeName(train, number) {
     return train ? `${train} ${numKey}` : `${numKey}`;
 }
 
+function closeMobileSearchForm() {
+    const form = document.getElementById('mobile-search-form');
+    const toggle = document.getElementById('mobile-search-toggle');
+    if (form && form.classList.contains('show')) {
+        form.classList.remove('show');
+        if (toggle) toggle.innerHTML = '搜尋設定 ▼';
+    }
+}
+
 async function init() {
     try {
         const now = new Date();
@@ -177,6 +186,7 @@ async function fetchData(showError = true) {
         window.processedTrains = processedData;
 
         renderCharts();
+        closeMobileSearchForm();
 
     } catch (e) {
         if (showError) {
@@ -915,6 +925,7 @@ document.addEventListener('click', (e) => {
 });
 
 function jumpToTarget(targetId) {
+    closeMobileSearchForm();
     if (!targetId) return;
     const prefix = window.currentViewMode === 'train' ? 'chart-train-' : 'chart-station-';
     const target = document.getElementById(`${prefix}${targetId}`);
