@@ -321,12 +321,12 @@ function renderTrainCharts() {
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
         
-        let mobileHeight = isMobile ? Math.floor(130 + (localMaxDelay / (window.yAxisMax || 1)) * 70) : 400;
+        let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
         const containerHTML = `
             <div class="chart-container" id="chart-train-${train.No}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;">
                 <h2 class="chart-title">${titleHTML}</h2>
-                <div style="display: flex; height: calc(100% - 40px); width: 100%;">
+                <div style="display: flex; height: calc(100% - ${isMobile ? 20 : 40}px); width: 100%;">
                     <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
                         <canvas class="y-axis-canvas"></canvas>
                     </div>
@@ -361,14 +361,14 @@ function renderTrainCharts() {
                 type: 'line',
                 data: { datasets: [] },
                 options: {
-                    layout: { padding: { top: 10, bottom: 15, left: 5, right: 5 } },
+                    layout: { padding: { top: isMobile ? 5 : 10, bottom: isMobile ? 5 : 15, left: 5, right: 5 } },
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false }, tooltip: { enabled: false } },
                     scales: {
                         x: {
                             min: 0, max: 1, grid: { display: false }, border: { display: false },
                             ticks: { color: 'transparent', maxRotation: 45, minRotation: 45, callback: () => ' ' },
-                            title: { display: true, text: ' ', font: { size: 14 } }
+                            title: { display: !isMobile, text: ' ', font: { size: 14 } }
                         },
                         y: {
                             min: 0, max: yMax,
@@ -406,7 +406,7 @@ function renderTrainCharts() {
                 },
                 options: {
                     layout: {
-                        padding: { top: 10, bottom: 15, left: 0, right: 20 }
+                        padding: { top: isMobile ? 5 : 10, bottom: isMobile ? 5 : 15, left: 0, right: 20 }
                     },
                     responsive: true,
                     maintainAspectRatio: false,
@@ -415,7 +415,7 @@ function renderTrainCharts() {
                             type: 'linear',
                             min: 0,
                             max: Math.max(480, maxTime),
-                            title: { display: true, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                            title: { display: !isMobile, text: '停靠站', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
                             afterBuildTicks: axis => { axis.ticks = displayTicks.map(v => ({ value: v })); },
                             ticks: {
@@ -675,7 +675,7 @@ function renderStationCharts() {
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
         
-        let mobileHeight = isMobile ? Math.floor(130 + (localMaxDelay / (window.yAxisMax || 1)) * 70) : 400;
+        let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
         const containerHTML = `
             <div class="chart-container" id="chart-station-${sid}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;" data-sname="${sName}" data-sid="${sid}" data-ymax="${yMax}">
@@ -684,7 +684,7 @@ function renderStationCharts() {
                     <span style="color: #94a3b8; font-size: 0.8em;">(代碼: ${sid})</span> 
                     <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>
                 </h2>
-                <div style="display: flex; height: calc(100% - 40px); width: 100%;">
+                <div style="display: flex; height: calc(100% - ${isMobile ? 20 : 40}px); width: 100%;">
                     <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
                         <canvas class="y-axis-canvas"></canvas>
                     </div>
@@ -709,19 +709,20 @@ function renderSingleStationChart(sid, points, container) {
     if (!yCanvas || !mainCanvas) return;
 
     let yMax = parseFloat(container.getAttribute('data-ymax')) || window.yAxisMax;
+    let isMobile = window.innerWidth <= 600;
 
     new Chart(yCanvas, {
         type: 'line',
         data: { datasets: [] },
         options: {
-            layout: { padding: { top: 10, bottom: 15, left: 5, right: 5 } },
+            layout: { padding: { top: isMobile ? 5 : 10, bottom: isMobile ? 5 : 15, left: 5, right: 5 } },
             responsive: true, maintainAspectRatio: false,
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
             scales: {
                 x: {
                     min: 0, max: 1, grid: { display: false }, border: { display: false },
                     ticks: { color: 'transparent', maxRotation: 45, minRotation: 45, callback: () => ' ' },
-                    title: { display: true, text: ' ', font: { size: 14 } }
+                    title: { display: !isMobile, text: ' ', font: { size: 14 } }
                 },
                 y: {
                     min: 0, max: yMax,
@@ -753,7 +754,7 @@ function renderSingleStationChart(sid, points, container) {
         },
         options: {
             layout: {
-                padding: { top: 10, bottom: 15, left: 0, right: 20 }
+                padding: { top: isMobile ? 5 : 10, bottom: isMobile ? 5 : 15, left: 0, right: 20 }
             },
             responsive: true,
             maintainAspectRatio: false,
@@ -762,7 +763,7 @@ function renderSingleStationChart(sid, points, container) {
                     type: 'linear',
                     min: 300,
                     max: 1500,
-                    title: { display: true, text: '當天時間', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
+                    title: { display: !isMobile, text: '當天時間', color: '#d0ffe6', font: { size: 14, family: "'Courier New', Courier, monospace" } },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     ticks: {
                         color: '#94a3b8',
