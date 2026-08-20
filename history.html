@@ -88,6 +88,10 @@
                 margin-bottom: 2px !important;
                 margin-top: 2px !important;
             }
+            #overview-chart-container, #avg-delay-bar-chart {
+                height: 300px !important;
+                min-height: 300px !important;
+            }
             #charts-wrapper {
                 padding-bottom: 200px;
             }
@@ -193,7 +197,7 @@
                 <div style="position: relative;">
                     <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
                         style="width: 140px; padding: 6px 10px;">
-                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 250px; top: 100%;"></div>
+                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 100%; top: 100%; box-sizing: border-box;"></div>
                 </div>
                 <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">跳轉</button>
             </div>
