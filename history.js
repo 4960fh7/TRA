@@ -821,7 +821,13 @@ searchInput.addEventListener('input', () => {
 
     const suggestions = [];
 
-    const trainMatches = window.processedTrains.filter(t => String(t.No).includes(query));
+    const trainMatches = window.processedTrains.filter(t => {
+        const noMatch = String(t.No).includes(query);
+        const trainData = window.trainTypeMap[t.No];
+        const tType = trainData?.train || "";
+        const typeMatch = tType.includes(query) || getTrainTypeName(tType, t.No).includes(query);
+        return noMatch || typeMatch;
+    });
     trainMatches.forEach(t => {
         const trainData = window.trainTypeMap[t.No];
         const tType = trainData?.train || "";
@@ -858,6 +864,7 @@ searchInput.addEventListener('input', () => {
     if (suggestions.length > 0) {
         suggestionsBox.innerHTML = suggestions.join('');
         suggestionsBox.style.display = 'block';
+        suggestionsBox.scrollTop = 0;
     }
 
     suggestionsBox.querySelectorAll('.suggestion-item').forEach(item => {
