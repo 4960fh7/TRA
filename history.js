@@ -374,7 +374,7 @@ function renderTrainCharts() {
                             min: 0, max: yMax,
                             title: { display: false },
                             grid: { display: false }, border: { display: false },
-                            ticks: { color: '#94a3b8' }
+                            ticks: { color: '#94a3b8', stepSize: 5, precision: 0 }
                         }
                     }
                 }
@@ -427,7 +427,7 @@ function renderTrainCharts() {
                             min: 0, max: yMax,
                             title: { display: false },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                            ticks: { display: false },
+                            ticks: { display: false, stepSize: 5 },
                             border: { display: false }
                         }
                     },
@@ -488,7 +488,7 @@ function renderTrainCharts() {
                     max: window.yAxisMax,
                     title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6' },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { color: '#94a3b8', stepSize: 5, precision: 0 }
                 }
             },
             plugins: {
@@ -600,7 +600,7 @@ function renderStationCharts() {
                     min: 0, max: maxBarDelay,
                     title: { display: false },
                     grid: { display: false }, border: { display: false },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { color: '#94a3b8', stepSize: 5, precision: 0 }
                 }
             }
         }
@@ -635,7 +635,7 @@ function renderStationCharts() {
                 y: {
                     min: 0, max: maxBarDelay,
                     title: { display: false },
-                    ticks: { display: false },
+                    ticks: { display: false, stepSize: 5 },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     border: { display: false }
                 }
@@ -728,7 +728,7 @@ function renderSingleStationChart(sid, points, container) {
                     min: 0, max: yMax,
                     title: { display: false },
                     grid: { display: false }, border: { display: false },
-                    ticks: { color: '#94a3b8' }
+                    ticks: { color: '#94a3b8', stepSize: 5, precision: 0 }
                 }
             }
         }
@@ -781,7 +781,7 @@ function renderSingleStationChart(sid, points, container) {
                     min: 0, max: window.yAxisMax,
                     title: { display: false },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
-                    ticks: { display: false },
+                    ticks: { display: false, stepSize: 5 },
                     border: { display: false }
                 }
             },

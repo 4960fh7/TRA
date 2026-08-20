@@ -192,14 +192,14 @@
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
-                <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">搜尋:</label>
-                <div style="position: relative;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; width: 100%;">
+                <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap; flex-shrink: 0;">搜尋:</label>
+                <div style="position: relative; flex-grow: 1; min-width: 0;">
                     <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
-                        style="width: 140px; padding: 6px 10px;">
+                        style="width: 100%; padding: 6px 10px; box-sizing: border-box;">
                     <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 100%; top: 100%; box-sizing: border-box;"></div>
                 </div>
-                <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">跳轉</button>
+                <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap; flex-shrink: 0;">跳轉</button>
             </div>
         </div>
     </div>
