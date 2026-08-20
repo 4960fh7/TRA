@@ -810,8 +810,10 @@ document.getElementById('view-mode-btn').addEventListener('click', () => {
 
 const searchInput = document.getElementById('train-search-input');
 const suggestionsBox = document.getElementById('train-suggestions');
+let currentFocus = -1;
 
 searchInput.addEventListener('input', () => {
+    currentFocus = -1;
     const query = searchInput.value.trim();
     suggestionsBox.style.display = 'none';
 
@@ -912,18 +914,47 @@ document.getElementById('search-btn').addEventListener('click', () => {
 });
 
 searchInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        const query = searchInput.value.trim();
-        if (!query) return;
-        const firstMatch = suggestionsBox.querySelector('.suggestion-item');
-        if (firstMatch) {
-            jumpToTarget(firstMatch.getAttribute('data-id'));
+    const items = suggestionsBox.getElementsByClassName('suggestion-item');
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        currentFocus++;
+        addActive(items);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        currentFocus--;
+        addActive(items);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (suggestionsBox.style.display === 'block' && currentFocus > -1 && items.length > 0) {
+            items[currentFocus].click();
         } else {
-            jumpToTarget(query);
+            const query = searchInput.value.trim();
+            if (!query) return;
+            const firstMatch = suggestionsBox.querySelector('.suggestion-item');
+            if (firstMatch) {
+                jumpToTarget(firstMatch.getAttribute('data-id'));
+            } else {
+                jumpToTarget(query);
+            }
+            suggestionsBox.style.display = 'none';
         }
-        suggestionsBox.style.display = 'none';
     }
 });
+
+function addActive(items) {
+    if (!items || items.length === 0) return false;
+    removeActive(items);
+    if (currentFocus >= items.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = items.length - 1;
+    items[currentFocus].classList.add('suggestion-active');
+    items[currentFocus].scrollIntoView({ block: 'nearest' });
+}
+
+function removeActive(items) {
+    for (let i = 0; i < items.length; i++) {
+        items[i].classList.remove('suggestion-active');
+    }
+}
 
 // Initialize
 init();

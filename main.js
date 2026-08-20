@@ -1460,8 +1460,10 @@ document.addEventListener('DOMContentLoaded', () => {
 function initUnifiedSearchAutocomplete() {
     const searchInput = document.getElementById("unified-search-input");
     const suggestionsDropdown = document.getElementById("unified-suggestions");
+    let currentFocus = -1;
 
     searchInput.addEventListener("input", function () {
+        currentFocus = -1;
         const rawValue = this.value.trim();
         const normalizedValue = rawValue.replace(/台/g, '臺').toLowerCase();
         suggestionsDropdown.innerHTML = "";
@@ -1542,19 +1544,48 @@ function initUnifiedSearchAutocomplete() {
     });
 
     searchInput.addEventListener("keydown", function (e) {
-        if (e.key === "Enter") {
-            const val = this.value.trim().replace(/台/g, '臺');
-            if (!val) return;
-
-            if (/^\d+$/.test(val)) {
-                triggerSelectionByTrainNumber(val);
+        const items = suggestionsDropdown.getElementsByClassName("suggestion-item");
+        if (e.key === "ArrowDown") {
+            e.preventDefault();
+            currentFocus++;
+            addActive(items);
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            currentFocus--;
+            addActive(items);
+        } else if (e.key === "Enter") {
+            e.preventDefault();
+            if (suggestionsDropdown.style.display === "block" && currentFocus > -1 && items.length > 0) {
+                items[currentFocus].click();
             } else {
-                triggerSelectionByStationName(val);
+                const val = this.value.trim().replace(/台/g, '臺');
+                if (!val) return;
+
+                if (/^\d+$/.test(val)) {
+                    triggerSelectionByTrainNumber(val);
+                } else {
+                    triggerSelectionByStationName(val);
+                }
+                this.value = "";
+                suggestionsDropdown.style.display = "none";
             }
-            this.value = "";
-            suggestionsDropdown.style.display = "none";
         }
     });
+
+    function addActive(items) {
+        if (!items || items.length === 0) return false;
+        removeActive(items);
+        if (currentFocus >= items.length) currentFocus = 0;
+        if (currentFocus < 0) currentFocus = items.length - 1;
+        items[currentFocus].classList.add("suggestion-active");
+        items[currentFocus].scrollIntoView({ block: "nearest" });
+    }
+
+    function removeActive(items) {
+        for (let i = 0; i < items.length; i++) {
+            items[i].classList.remove("suggestion-active");
+        }
+    }
 
     document.addEventListener("click", (e) => {
         if (e.target !== searchInput) suggestionsDropdown.style.display = "none";
