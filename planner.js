@@ -247,6 +247,7 @@ function setupAutocomplete(inputId, dropdownId) {
         if (currentFocus >= items.length) currentFocus = 0;
         if (currentFocus < 0) currentFocus = items.length - 1;
         items[currentFocus].classList.add('suggestion-active');
+        items[currentFocus].scrollIntoView({ block: 'nearest' });
     }
 
     function removeActive(items) {
