@@ -930,7 +930,13 @@ function jumpToTarget(targetId) {
     const prefix = window.currentViewMode === 'train' ? 'chart-train-' : 'chart-station-';
     const target = document.getElementById(`${prefix}${targetId}`);
     if (target) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const appContainer = document.getElementById('history-app-container');
+        if (appContainer) {
+            const offset = target.offsetTop - (appContainer.clientHeight / 2) + (target.clientHeight / 2);
+            appContainer.scrollTo({ top: offset, behavior: 'smooth' });
+        } else {
+            target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
         target.style.transition = 'box-shadow 0.3s ease';
         target.style.boxShadow = '0 0 20px #00f0ff';
         setTimeout(() => {
