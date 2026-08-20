@@ -1480,9 +1480,12 @@ function initUnifiedSearchAutocomplete() {
 
         let trainMatches = [];
         if (globalScheduleData) {
-            trainMatches = globalScheduleData.filter(t =>
-                String(t.number).includes(normalizedValue)
-            );
+            trainMatches = globalScheduleData.filter(t => {
+                const noMatch = String(t.number).includes(normalizedValue);
+                const trainType = t.train || "";
+                const typeMatch = trainType.includes(normalizedValue) || getTrainTypeName(trainType, t.number).includes(normalizedValue);
+                return noMatch || typeMatch;
+            });
 
             trainMatches.sort((a, b) => {
                 return parseInt(a.number, 10) - parseInt(b.number, 10);
@@ -1541,6 +1544,7 @@ function initUnifiedSearchAutocomplete() {
         }
 
         suggestionsDropdown.style.display = "block";
+        suggestionsDropdown.scrollTop = 0;
     });
 
     searchInput.addEventListener("keydown", function (e) {

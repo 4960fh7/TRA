@@ -821,6 +821,23 @@ searchInput.addEventListener('input', () => {
 
     const suggestions = [];
 
+    const activeStations = new Set();
+    window.processedTrains.forEach(t => {
+        t.data.forEach(d => activeStations.add(d.StationID));
+    });
+
+    const uniqueStations = [];
+    activeStations.forEach(sid => {
+        const sName = stationsMap[sid] || sid;
+        if (sName.includes(query) || sid.includes(query)) {
+            uniqueStations.push({ id: sid, name: sName });
+        }
+    });
+
+    uniqueStations.forEach(s => {
+        suggestions.push(`<div class="suggestion-item" data-id="${s.id}" data-type="station"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span> <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車站)</span></div>`);
+    });
+
     const trainMatches = window.processedTrains.filter(t => {
         const noMatch = String(t.No).includes(query);
         const trainData = window.trainTypeMap[t.No];
@@ -842,23 +859,6 @@ searchInput.addEventListener('input', () => {
             displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
         }
         suggestions.push(`<div class="suggestion-item" data-id="${t.No}" data-type="train">${displayName} <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車次)</span></div>`);
-    });
-
-    const activeStations = new Set();
-    window.processedTrains.forEach(t => {
-        t.data.forEach(d => activeStations.add(d.StationID));
-    });
-
-    const uniqueStations = [];
-    activeStations.forEach(sid => {
-        const sName = stationsMap[sid] || sid;
-        if (sName.includes(query) || sid.includes(query)) {
-            uniqueStations.push({ id: sid, name: sName });
-        }
-    });
-
-    uniqueStations.forEach(s => {
-        suggestions.push(`<div class="suggestion-item" data-id="${s.id}" data-type="station"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span> <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車站)</span></div>`);
     });
 
     if (suggestions.length > 0) {
