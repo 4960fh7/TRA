@@ -248,6 +248,7 @@ function renderTrainCharts() {
         const timeToStation = {};
 
         let totalDelay = 0;
+        let localMaxDelay = 0;
         let stationNodes = [];
 
         train.data.forEach(d => {
@@ -265,6 +266,7 @@ function renderTrainCharts() {
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
             totalDelay += d.Delay;
+            if (d.Delay > localMaxDelay) localMaxDelay = d.Delay;
 
             let level = (window.stationsLevelMap && window.stationsLevelMap[sid] !== undefined) ? window.stationsLevelMap[sid] : 999;
             stationNodes.push({ time: timeSinceDep, name: sName, level: level, sid: sid });
@@ -316,8 +318,12 @@ function renderTrainCharts() {
         let maxTime = Math.max(...xTicks);
         let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
 
+        let isMobile = window.innerWidth <= 600;
+        let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
+        let mobileHeight = Math.max(120, (localMaxDelay / (window.yAxisMax || 1)) * 200 + 40);
+
         const containerHTML = `
-            <div class="chart-container" id="chart-train-${train.No}" style="overflow: hidden;">
+            <div class="chart-container" id="chart-train-${train.No}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;">
                 <h2 class="chart-title">${titleHTML}</h2>
                 <div style="display: flex; height: calc(100% - 40px); width: 100%;">
                     <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
@@ -364,7 +370,7 @@ function renderTrainCharts() {
                             title: { display: true, text: ' ', font: { size: 14 } }
                         },
                         y: {
-                            min: 0, max: window.yAxisMax,
+                            min: 0, max: yMax,
                             title: { display: false },
                             grid: { display: false }, border: { display: false },
                             ticks: { color: '#94a3b8' }
@@ -417,7 +423,7 @@ function renderTrainCharts() {
                             }
                         },
                         y: {
-                            min: 0, max: window.yAxisMax,
+                            min: 0, max: yMax,
                             title: { display: false },
                             grid: { color: 'rgba(208, 255, 230, 0.1)' },
                             ticks: { display: false },
@@ -658,11 +664,19 @@ function renderStationCharts() {
         const points = Object.values(stationDataMap[sid]);
 
         let totalDelay = 0;
-        points.forEach(p => totalDelay += p.y);
+        let localMaxDelay = 0;
+        points.forEach(p => {
+            totalDelay += p.y;
+            if (p.y > localMaxDelay) localMaxDelay = p.y;
+        });
         let avgDelay = points.length > 0 ? (totalDelay / points.length).toFixed(1) : 0;
 
+        let isMobile = window.innerWidth <= 600;
+        let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
+        let mobileHeight = Math.max(120, (localMaxDelay / (window.yAxisMax || 1)) * 200 + 40);
+
         const containerHTML = `
-            <div class="chart-container" id="chart-station-${sid}" style="overflow: hidden; min-height: 300px;" data-sname="${sName}" data-sid="${sid}">
+            <div class="chart-container" id="chart-station-${sid}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;" data-sname="${sName}" data-sid="${sid}" data-ymax="${yMax}">
                 <h2 class="chart-title">
                     <span style="color: #00f0ff; text-shadow: 0 0 8px #00f0ff;">${sName}</span> 
                     <span style="color: #94a3b8; font-size: 0.8em;">(代碼: ${sid})</span> 
@@ -692,6 +706,8 @@ function renderSingleStationChart(sid, points, container) {
     const mainCanvas = container.querySelector('.main-chart-canvas');
     if (!yCanvas || !mainCanvas) return;
 
+    let yMax = parseFloat(container.getAttribute('data-ymax')) || window.yAxisMax;
+
     new Chart(yCanvas, {
         type: 'line',
         data: { datasets: [] },
@@ -706,7 +722,7 @@ function renderSingleStationChart(sid, points, container) {
                     title: { display: true, text: ' ', font: { size: 14 } }
                 },
                 y: {
-                    min: 0, max: window.yAxisMax,
+                    min: 0, max: yMax,
                     title: { display: false },
                     grid: { display: false }, border: { display: false },
                     ticks: { color: '#94a3b8' }
@@ -748,9 +764,12 @@ function renderSingleStationChart(sid, points, container) {
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     ticks: {
                         color: '#94a3b8',
+                        maxRotation: 45,
+                        minRotation: 45,
                         callback: function (value) {
-                            let h = Math.floor(value / 60) % 24;
+                            let h = Math.floor(value / 60);
                             const m = Math.floor(value % 60);
+                            if (h >= 24) h -= 24;
                             return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
                         }
                     }
