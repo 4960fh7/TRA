@@ -173,7 +173,7 @@ async function fetchData(showError = true) {
 
         processedData.sort((a, b) => parseInt(a.No, 10) - parseInt(b.No, 10));
 
-        window.yAxisMax = Math.ceil(maxDelay * 1.1) || 10;
+        window.yAxisMax = Math.ceil(Math.max(10, maxDelay * 1.1) / 5) * 5;
         window.processedTrains = processedData;
 
         renderCharts();
@@ -319,7 +319,7 @@ function renderTrainCharts() {
         let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
 
         let isMobile = window.innerWidth <= 600;
-        let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
+        let yMax = isMobile ? Math.ceil(Math.max(10, localMaxDelay * 1.1) / 5) * 5 : window.yAxisMax;
         
         let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
@@ -561,7 +561,7 @@ function renderStationCharts() {
     avgDelayData.sort((a, b) => b.avg - a.avg);
 
     const minWidth = avgDelayData.length * 30;
-    const maxBarDelay = avgDelayData.length > 0 ? Math.ceil(avgDelayData[0].avg * 1.2) || 10 : 10;
+    const maxBarDelay = avgDelayData.length > 0 ? Math.ceil(Math.max(10, avgDelayData[0].avg * 1.2) / 5) * 5 : 10;
 
     const barContainerHTML = `
         <div class="chart-container" id="avg-delay-bar-chart">
@@ -673,7 +673,7 @@ function renderStationCharts() {
         let avgDelay = points.length > 0 ? (totalDelay / points.length).toFixed(1) : 0;
 
         let isMobile = window.innerWidth <= 600;
-        let yMax = isMobile ? Math.max(10, localMaxDelay * 1.1) : window.yAxisMax;
+        let yMax = isMobile ? Math.ceil(Math.max(10, localMaxDelay * 1.1) / 5) * 5 : window.yAxisMax;
         
         let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
