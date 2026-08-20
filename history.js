@@ -265,11 +265,11 @@ function renderTrainCharts() {
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
             totalDelay += d.Delay;
-            
+
             let level = (window.stationsLevelMap && window.stationsLevelMap[sid] !== undefined) ? window.stationsLevelMap[sid] : 999;
             stationNodes.push({ time: timeSinceDep, name: sName, level: level, sid: sid });
         });
-        
+
         stationNodes.sort((a, b) => a.time - b.time);
         let level0Nodes = stationNodes.filter(n => n.level === 0);
         let finalSelection = [];
@@ -282,10 +282,10 @@ function renderTrainCharts() {
                 lastSelectedTime = node.time;
                 continue;
             }
-            
+
             let tooCloseToLevel0 = level0Nodes.some(l0 => Math.abs(l0.time - node.time) < 10);
             if (tooCloseToLevel0) continue;
-            
+
             if (node.time - lastSelectedTime >= 10) {
                 let windowEnd = Math.max(node.time, lastSelectedTime + 15);
                 let candidates = [];
@@ -297,7 +297,7 @@ function renderTrainCharts() {
                         candidates.push(cand);
                     }
                 }
-                
+
                 if (candidates.length > 0) {
                     candidates.sort((a, b) => a.level - b.level || a.time - b.time);
                     let best = candidates[0];
@@ -307,7 +307,7 @@ function renderTrainCharts() {
                 }
             }
         }
-        
+
         let displayTicks = finalSelection.map(n => n.time);
 
         let avgDelay = train.data.length > 0 ? (totalDelay / train.data.length).toFixed(1) : 0;
@@ -835,7 +835,7 @@ searchInput.addEventListener('input', () => {
     });
 
     uniqueStations.forEach(s => {
-        suggestions.push(`<div class="suggestion-item" data-id="${s.id}" data-type="station"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span> <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車站)</span></div>`);
+        suggestions.push(`<div class="suggestion-item" data-id="${s.id}" data-type="station"><span style="color: #00f0ff;">${s.name}</span> <span style="color: #94a3b8; font-size: 0.9em;">(${s.id})</span></div>`);
     });
 
     const trainMatches = window.processedTrains.filter(t => {
@@ -858,7 +858,7 @@ searchInput.addEventListener('input', () => {
             let endStr = endTime ? `${endTime} ` : "";
             displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
         }
-        suggestions.push(`<div class="suggestion-item" data-id="${t.No}" data-type="train">${displayName} <span style="font-size: 0.8em; color: #64748b; margin-left: 5px;">(車次)</span></div>`);
+        suggestions.push(`<div class="suggestion-item" data-id="${t.No}" data-type="train">${displayName}</div>`);
     });
 
     if (suggestions.length > 0) {
