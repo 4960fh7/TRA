@@ -173,13 +173,9 @@
         /* --- Map View Modal Styles --- */
         #map-view-modal {
             display: none;
-            position: fixed;
-            top: 60px; /* Below header */
-            left: 0;
             width: 100%;
-            height: calc(100vh - 60px);
+            height: 100%;
             background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
-            z-index: 1000;
             flex-direction: column;
         }
         #map-view-modal.show {
@@ -257,6 +253,7 @@
                 <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
                 <input type="date" id="date-input" class="date-input" style="padding: 6px 10px; width: 130px;">
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
+                <button id="close-map-btn" class="fetch-btn" style="display: none; padding: 6px 12px; background: #ef4444; color: white; border-color: #ef4444; font-weight: bold; white-space: nowrap;">關閉地圖</button>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex: 1 1 auto; max-width: 100%;">
@@ -285,34 +282,36 @@
         document.getElementById('nav-backdrop').addEventListener('click', function() { document.getElementById('nav-overlay').classList.remove('open'); });
     </script>
 
-    <!-- Map View Modal -->
-    <div id="map-view-modal">
-        <button id="close-map-btn" class="close-map-btn">關閉地圖</button>
-        <div id="map-container">
-            <svg id="history-map-svg" style="width: 100%; height: 100%;"></svg>
-            <div id="history-tooltip" class="tooltip"></div>
-        </div>
-        <div class="map-time-controls">
-            <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="播放/暫停">▶️</button>
-            <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
-            <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
-            <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">1X</button>
-            <div class="time-display" id="time-display">05:00</div>
-            <input type="range" id="time-slider" class="time-slider" min="300" max="1500" step="5" value="300">
-            <!-- 300 = 05:00, 1500 = 25:00 (01:00 next day) -->
-        </div>
-    </div>
+
 
     <div id="history-app-container" class="custom-scrollbar">
 
-        <div class="chart-container" id="overview-chart-container" style="display: none;">
-            <h2 class="chart-title">所有列車總覽</h2>
-            <div style="position: relative; height: calc(100% - 40px); width: 100%;">
-                <canvas id="overview-canvas"></canvas>
+        <div id="charts-main-content" style="width: 100%;">
+            <div class="chart-container" id="overview-chart-container" style="display: none;">
+                <h2 class="chart-title">所有列車總覽</h2>
+                <div style="position: relative; height: calc(100% - 40px); width: 100%;">
+                    <canvas id="overview-canvas"></canvas>
+                </div>
             </div>
+
+            <div id="charts-wrapper"></div>
         </div>
 
-        <div id="charts-wrapper"></div>
+        <!-- Map View Modal -->
+        <div id="map-view-modal">
+            <div id="map-container">
+                <svg id="history-map-svg" style="width: 100%; height: 100%;"></svg>
+                <div id="history-tooltip" class="tooltip"></div>
+            </div>
+            <div class="map-time-controls">
+                <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="播放/暫停">▶️</button>
+                <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
+                <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
+                <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">1X</button>
+                <div class="time-display" id="time-display">05:00</div>
+                <input type="range" id="time-slider" class="time-slider" min="300" max="1500" step="5" value="300">
+            </div>
+        </div>
     </div>
 
     <button id="back-to-top-btn" title="回頂端">↑</button>

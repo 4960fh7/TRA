@@ -1056,7 +1056,19 @@ let playbackSpeed = 1;
 let isLoopPlayback = false;
 
 document.getElementById('delay-map-btn').addEventListener('click', () => {
-    document.getElementById('map-view-modal').classList.add('show');
+    // Hide standard elements
+    document.getElementById('view-mode-btn').style.display = 'none';
+    document.getElementById('delay-map-btn').style.display = 'none';
+    document.getElementById('fetch-btn').style.display = 'none';
+    document.getElementById('search-label').parentElement.style.display = 'none';
+    
+    // Show close map button
+    document.getElementById('close-map-btn').style.display = 'block';
+
+    // Toggle chart vs map view
+    document.getElementById('charts-main-content').style.display = 'none';
+    document.getElementById('map-view-modal').style.display = 'flex';
+    
     if (!isMapInitialized) {
         initHistoryMap();
     }
@@ -1064,8 +1076,30 @@ document.getElementById('delay-map-btn').addEventListener('click', () => {
 });
 
 document.getElementById('close-map-btn').addEventListener('click', () => {
-    document.getElementById('map-view-modal').classList.remove('show');
     pauseAutoPlay();
+    
+    // Restore standard elements
+    document.getElementById('view-mode-btn').style.display = 'block';
+    document.getElementById('delay-map-btn').style.display = 'block';
+    document.getElementById('fetch-btn').style.display = 'block';
+    document.getElementById('search-label').parentElement.style.display = 'flex';
+    
+    // Hide close map button
+    document.getElementById('close-map-btn').style.display = 'none';
+
+    // Toggle chart vs map view
+    document.getElementById('map-view-modal').style.display = 'none';
+    document.getElementById('charts-main-content').style.display = 'block';
+});
+
+document.getElementById('date-input').addEventListener('change', async () => {
+    // If map is open, fetch new data silently and update map
+    if (document.getElementById('map-view-modal').style.display === 'flex') {
+        await fetchData(false);
+        if (isMapInitialized) {
+            updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+        }
+    }
 });
 
 function initHistoryMap() {
