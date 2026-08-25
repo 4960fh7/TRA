@@ -178,7 +178,7 @@
             left: 0;
             width: 100%;
             height: calc(100vh - 60px);
-            background-color: #060a12;
+            background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
             z-index: 1000;
             flex-direction: column;
         }
@@ -190,7 +190,6 @@
             width: 100%;
             position: relative;
             overflow: hidden;
-            background-color: #0d1b2a;
         }
         .map-time-controls {
             display: flex;
@@ -232,10 +231,6 @@
             background: #ef4444;
             color: #fff;
         }
-        
-        .station { fill: #00ffaa; stroke: #060a12; stroke-width: 0.3px; transition: fill 0.3s, r 0.3s; }
-        .station.delay-highlight { fill: #ef4444; filter: drop-shadow(0 0 5px #ef4444); }
-        .county { fill: #0a1122; stroke: #1a2a3a; stroke-width: 0.5px; transition: fill 0.3s; }
     </style>
 </head>
 

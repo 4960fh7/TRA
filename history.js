@@ -1099,8 +1099,13 @@ function initHistoryMap() {
 
             mapMainGroup.selectAll(".station-label")
                 .style("font-size", `${Math.max(1, 10 / k)}px`)
-                .attr("dx", 5 / k)
-                .attr("dy", 3 / k)
+                .attr("dx", d => {
+                    let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
+                    return Math.max(0.6, base / Math.sqrt(k)) + 2/k;
+                })
+                .attr("dy", 0)
+                .style("text-anchor", "start")
+                .style("dominant-baseline", "central")
                 .style("opacity", d => {
                     if (k > 10) return 1;
                     if (k > 5 && d.level <= 3) return 1;
@@ -1173,11 +1178,14 @@ function initHistoryMap() {
 
         stationGroups.append("text")
             .attr("class", "station-label")
-            .attr("dx", 5)
-            .attr("dy", 3)
+            .attr("dx", d => {
+                let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
+                return Math.max(0.6, base) + 2;
+            })
+            .attr("dy", 0)
+            .style("text-anchor", "start")
+            .style("dominant-baseline", "central")
             .text(d => getStationNameStr(d))
-            .style("fill", "#d0ffe6")
-            .style("font-size", "10px")
             .style("pointer-events", "none")
             .style("opacity", d => (d.level <= 1) ? 1 : 0);
         
