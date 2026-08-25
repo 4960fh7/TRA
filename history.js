@@ -1000,7 +1000,9 @@ searchInput.addEventListener('input', () => {
 
     const activeStations = new Set();
     window.processedTrains.forEach(t => {
-        t.data.forEach(d => activeStations.add(d.StationID));
+        t.daysData.forEach(day => {
+            day.data.forEach(d => activeStations.add(d.StationID));
+        });
     });
 
     const uniqueStations = [];
