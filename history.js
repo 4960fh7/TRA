@@ -1388,6 +1388,12 @@ function toggleAutoPlay() {
     if (playInterval) {
         pauseAutoPlay();
     } else {
+        const slider = document.getElementById('time-slider');
+        if (parseInt(slider.value, 10) >= parseInt(slider.max, 10)) {
+            slider.value = slider.min;
+            updateMapForTime(parseInt(slider.value, 10));
+        }
+        
         playPauseBtn.innerText = '⏸️';
         playInterval = setInterval(() => {
             const slider = document.getElementById('time-slider');
