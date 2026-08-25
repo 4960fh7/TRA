@@ -299,8 +299,36 @@ function renderTrainCharts() {
             titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
         }
 
-        const allDatasets = [];
+        let origin_station_name = null;
+        let origin_scheduled_time = null;
+        
+        if (trainData && trainData.data && trainData.data.length > 0) {
+            origin_station_name = trainData.data[0].x;
+            origin_scheduled_time = trainData.data[0].y;
+        }
+
         let baseDayData = train.daysData[0].data; // Use the first available day to build x-axis ticks
+        
+        if (origin_scheduled_time === null) {
+            if (baseDayData.length > 0) {
+                let firstRecord = baseDayData[0];
+                let firstActual = parseTime(firstRecord.Update) / 60;
+                origin_scheduled_time = firstActual - firstRecord.Delay;
+                origin_station_name = stationsMap[firstRecord.StationID] || firstRecord.StationID;
+            } else {
+                origin_scheduled_time = 0;
+            }
+        }
+
+        let origin_station_id = null;
+        for (let sid in stationsMap) {
+            if (stationsMap[sid] === origin_station_name) {
+                origin_station_id = sid;
+                break;
+            }
+        }
+
+        const allDatasets = [];
         let stationNodes = [];
         let timeToStation = {};
         let xTicks = [];
@@ -308,15 +336,26 @@ function renderTrainCharts() {
         let localMaxDelay = 0;
         let totalCount = 0;
 
-        let baseFirstTime = parseTime(baseDayData[0].Update);
         baseDayData.forEach(d => {
             let sid = d.StationID;
             let sName = stationsMap[sid] || sid;
-            let currentTime = parseTime(d.Update);
-            if (currentTime < baseFirstTime - 12 * 3600) {
-                currentTime += 24 * 3600;
+            let actualTime = parseTime(d.Update) / 60;
+            
+            if (actualTime < origin_scheduled_time - 12 * 60) {
+                actualTime += 24 * 60;
             }
-            let timeSinceDep = (currentTime - baseFirstTime) / 60;
+            
+            let sched_time = actualTime - d.Delay;
+            
+            if (sched_time < origin_scheduled_time) {
+                if (sid === origin_station_id || sName === origin_station_name) {
+                    sched_time = origin_scheduled_time;
+                } else {
+                    return; // Ignore non-origin stations before departure time
+                }
+            }
+            
+            let timeSinceDep = sched_time - origin_scheduled_time;
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
 
@@ -327,17 +366,28 @@ function renderTrainCharts() {
         // Compute datasets for each day
         const stationDelays = {}; // For overview chart avg
         train.daysData.forEach(day => {
-            let firstTime = parseTime(day.data[0].Update);
             const chartData = [];
             
             day.data.forEach(d => {
                 let sid = d.StationID;
                 let sName = stationsMap[sid] || sid;
-                let currentTime = parseTime(d.Update);
-                if (currentTime < firstTime - 12 * 3600) {
-                    currentTime += 24 * 3600;
+                let actualTime = parseTime(d.Update) / 60;
+                
+                if (actualTime < origin_scheduled_time - 12 * 60) {
+                    actualTime += 24 * 60;
                 }
-                let timeSinceDep = (currentTime - firstTime) / 60;
+                
+                let sched_time = actualTime - d.Delay;
+                
+                if (sched_time < origin_scheduled_time) {
+                    if (sid === origin_station_id || sName === origin_station_name) {
+                        sched_time = origin_scheduled_time;
+                    } else {
+                        return; // Ignore non-origin stations before departure time
+                    }
+                }
+                
+                let timeSinceDep = sched_time - origin_scheduled_time;
 
                 chartData.push({ x: timeSinceDep, y: d.Delay, dateLabel: day.dateLabel, stationName: sName });
                 
