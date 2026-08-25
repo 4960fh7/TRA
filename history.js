@@ -59,6 +59,7 @@ async function init() {
 
         const res = await fetch('stations.json');
         const stations = await res.json();
+        window.globalStationsData = stations; // Added for map rendering
         window.stationsLevelMap = {};
         stations.forEach(s => {
             stationsMap[s.stationCode] = s.stationName;
@@ -67,6 +68,12 @@ async function init() {
 
         // Add special station '枋野' which is not in stations.json
         stationsMap['5170'] = '枋野';
+
+        try {
+            const mapRes = await fetch('counties.json');
+            window.countiesData = await mapRes.json();
+        } catch(e) { console.error("Failed to load counties.json", e); }
+
     } catch (e) {
         console.error("Failed to load stations.json", e);
     }
@@ -1039,3 +1046,308 @@ function removeActive(items) {
 
 // Initialize
 init();
+
+// --- Map View Logic ---
+let mapSvg, mapMainGroup, mapProjection;
+let isMapInitialized = false;
+let globalStationsHub = null;
+let playInterval = null;
+
+document.getElementById('delay-map-btn').addEventListener('click', () => {
+    document.getElementById('map-view-modal').classList.add('show');
+    if (!isMapInitialized) {
+        initHistoryMap();
+    }
+    updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+});
+
+document.getElementById('close-map-btn').addEventListener('click', () => {
+    document.getElementById('map-view-modal').classList.remove('show');
+    pauseAutoPlay();
+});
+
+function initHistoryMap() {
+    isMapInitialized = true;
+    const width = 800;
+    const height = 800;
+
+    mapSvg = d3.select("#history-map-svg")
+        .attr("viewBox", `0 0 ${width} ${height}`);
+    
+    mapMainGroup = mapSvg.append("g");
+
+    mapProjection = d3.geoMercator()
+        .center([121, 23.6])
+        .scale(9000)
+        .translate([width / 2, height / 2]);
+
+    const path = d3.geoPath().projection(mapProjection);
+
+    const zoom = d3.zoom()
+        .scaleExtent([0.1, 40])
+        .on("zoom", (event) => {
+            mapMainGroup.attr("transform", event.transform);
+            const k = event.transform.k;
+            mapMainGroup.selectAll(".station")
+                .attr("r", d => {
+                    let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
+                    return Math.max(0.6, base / Math.sqrt(k));
+                })
+                .style("stroke-width", `${0.3 / k}px`);
+        });
+
+    mapSvg.call(zoom);
+
+    if (window.countiesData && window.countiesData.objects) {
+        let objectsKey = Object.keys(window.countiesData.objects)[0];
+        if (window.countiesData.objects["counties"]) objectsKey = "counties";
+        else if (window.countiesData.objects["towns"]) objectsKey = "towns";
+        
+        const counties = topojson.feature(window.countiesData, window.countiesData.objects[objectsKey]).features;
+        mapMainGroup.selectAll(".county")
+            .data(counties)
+            .enter()
+            .append("path")
+            .attr("class", "county")
+            .attr("d", path);
+    }
+
+    if (window.globalStationsData) {
+        const stationGroups = mapMainGroup.selectAll(".station-group")
+            .data(window.globalStationsData)
+            .enter()
+            .append("g")
+            .attr("class", "station-group")
+            .attr("transform", d => {
+                let lat, lon;
+                if (d.gps) {
+                    const parts = d.gps.toString().trim().split(/[\s,]+/);
+                    const nums = parts.map(Number).filter(n => !isNaN(n));
+                    lat = nums.find(n => n > 21 && n < 26);
+                    lon = nums.find(n => n > 119 && n < 123);
+                } else if (d['緯度'] && d['經度']) {
+                    lat = parseFloat(d['緯度']);
+                    lon = parseFloat(d['經度']);
+                }
+                if (!lat || !lon) return "translate(-9999, -9999)";
+                const pos = mapProjection([lon, lat]);
+                return `translate(${pos[0]}, ${pos[1]})`;
+            });
+
+        stationGroups.append("circle")
+            .attr("class", "station")
+            .attr("r", d => d.level !== undefined ? (4.5 - d.level * 0.5) : 3)
+            .attr("cx", 0)
+            .attr("cy", 0);
+        
+        buildStationsHub();
+    }
+}
+
+function buildStationsHub() {
+    globalStationsHub = {};
+    const stationsData = window.globalStationsData;
+    if (!stationsData) return;
+
+    function getStationName(d) {
+        return d.stationName || d['車站中文名稱'] || d.name || "";
+    }
+
+    function addEdge(idx1, idx2) {
+        if (!stationsData[idx1] || !stationsData[idx2]) return;
+        let n1 = getStationName(stationsData[idx1]);
+        let n2 = getStationName(stationsData[idx2]);
+        if (!globalStationsHub[n1]) globalStationsHub[n1] = new Set();
+        if (!globalStationsHub[n2]) globalStationsHub[n2] = new Set();
+        globalStationsHub[n1].add(n2);
+        globalStationsHub[n2].add(n1);
+    }
+
+    function makeArr(start, end) {
+        let arr = [];
+        if (start <= end) { for (let i = start; i <= end; i++) arr.push(i); }
+        else { for (let i = start; i >= end; i--) arr.push(i); }
+        return arr;
+    }
+
+    let leftCoast = [...makeArr(14, 30), ...makeArr(43, 47), ...makeArr(64, 84), ...makeArr(85, 92), ...makeArr(99, 124), ...makeArr(127, 158)];
+    let rightCoast = [...makeArr(168, 194), ...makeArr(195, 205), 207, ...makeArr(208, 226), ...makeArr(233, 234), ...makeArr(237, 238), 2];
+
+    function mapChain(stations) {
+        for (let i = 0; i < stations.length - 1; i++) {
+            addEdge(stations[i], stations[i + 1]);
+        }
+    }
+    
+    mapChain(makeArr(2, 14));
+    mapChain(leftCoast);
+    mapChain(makeArr(158, 168));
+    mapChain(rightCoast);
+
+    let seaStations = makeArr(48, 63);
+    addEdge(47, seaStations[0]);
+    addEdge(seaStations[seaStations.length - 1], 85);
+    mapChain(seaStations);
+
+    function drawBranch(stationsArr, junctionIdx) {
+        addEdge(junctionIdx, stationsArr[0]);
+        mapChain(stationsArr);
+    }
+    
+    drawBranch([1, 0], 2);
+    drawBranch([206], 207);
+    drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30);
+    drawBranch([34], 33);
+    drawBranch(makeArr(93, 98), 92);
+    drawBranch([125, 126], 124);
+    drawBranch(makeArr(227, 232), 226);
+    drawBranch([235, 236], 234);
+}
+
+function getTopoPath(startLoc, endLoc) {
+    if (!globalStationsHub) return null;
+    if (startLoc === endLoc) return [startLoc];
+
+    const queue = [{ loc: startLoc, path: [startLoc] }];
+    const visited = new Set([startLoc]);
+
+    while (queue.length > 0) {
+        const { loc, path } = queue.shift();
+        if (loc === endLoc) return path;
+        if (path.length > 5) continue; // max distance 4 means max path length 5
+
+        const neighbors = globalStationsHub[loc];
+        if (neighbors) {
+            for (const n of neighbors) {
+                if (!visited.has(n)) {
+                    visited.add(n);
+                    queue.push({ loc: n, path: [...path, n] });
+                }
+            }
+        }
+    }
+    return null;
+}
+
+function getStationNameStr(d) {
+    return d.stationName || d['車站中文名稱'] || d.name || "";
+}
+
+function updateMapForTime(sliderMinutes) {
+    const timeDisplay = document.getElementById('time-display');
+    const h = Math.floor(sliderMinutes / 60);
+    const m = sliderMinutes % 60;
+    timeDisplay.innerText = `${String(h >= 24 ? h - 24 : h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+
+    if (!window.processedTrains || !isMapInitialized) return;
+
+    const delayedTrainLocs = [];
+    const sliderSeconds = sliderMinutes * 60;
+
+    window.processedTrains.forEach(train => {
+        let lastRecord = null;
+        for (let i = 0; i < train.data.length; i++) {
+            if (train.data[i]._absTime <= sliderSeconds) {
+                lastRecord = train.data[i];
+            } else {
+                break;
+            }
+        }
+
+        if (lastRecord) {
+            if (lastRecord.Delay > 3) {
+                const isFinishedAndOld = (sliderSeconds - lastRecord._absTime > 30 * 60) && (lastRecord === train.data[train.data.length - 1]);
+                if (!isFinishedAndOld) {
+                    const sid = lastRecord.StationID;
+                    const sName = stationsMap[sid] || sid;
+                    delayedTrainLocs.push({ loc: sName });
+                }
+            }
+        }
+    });
+
+    const nodes = [...delayedTrainLocs];
+    const parent = new Map();
+    nodes.forEach(n => parent.set(n.loc, n.loc));
+
+    function find(i) {
+        if (parent.get(i) === i) return i;
+        parent.set(i, find(parent.get(i)));
+        return parent.get(i);
+    }
+    function union(i, j) {
+        parent.set(find(i), find(j));
+    }
+
+    for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+            if (getTopoPath(nodes[i].loc, nodes[j].loc)) {
+                union(nodes[i].loc, nodes[j].loc);
+            }
+        }
+    }
+
+    const grouped = new Map();
+    for (const node of nodes) {
+        const root = find(node.loc);
+        if (!grouped.has(root)) grouped.set(root, []);
+        grouped.get(root).push(node);
+    }
+
+    const delayedSectionStationNames = new Set();
+    for (const cluster of grouped.values()) {
+        if (cluster.length >= 3) {
+            for (let i = 0; i < cluster.length; i++) {
+                for (let j = i + 1; j < cluster.length; j++) {
+                    const path = getTopoPath(cluster[i].loc, cluster[j].loc);
+                    if (path) {
+                        path.forEach(p => delayedSectionStationNames.add(p));
+                    }
+                }
+            }
+        }
+    }
+
+    d3.selectAll("#history-map-svg .station").classed("delay-highlight", d => {
+        return delayedSectionStationNames.has(getStationNameStr(d));
+    });
+}
+
+document.getElementById('time-slider').addEventListener('input', (e) => {
+    updateMapForTime(parseInt(e.target.value, 10));
+});
+
+const playPauseBtn = document.getElementById('play-pause-btn');
+function toggleAutoPlay() {
+    if (playInterval) {
+        pauseAutoPlay();
+    } else {
+        playPauseBtn.innerText = '⏸ 暫停';
+        playInterval = setInterval(() => {
+            const slider = document.getElementById('time-slider');
+            let val = parseInt(slider.value, 10);
+            val += 5;
+            if (val > parseInt(slider.max, 10)) {
+                val = parseInt(slider.min, 10);
+            }
+            slider.value = val;
+            updateMapForTime(val);
+        }, 1000 / 12);
+    }
+}
+
+function pauseAutoPlay() {
+    if (playInterval) {
+        clearInterval(playInterval);
+        playInterval = null;
+    }
+    playPauseBtn.innerText = '▶ 播放';
+}
+playPauseBtn.addEventListener('click', toggleAutoPlay);
+
+document.getElementById('reset-time-btn').addEventListener('click', () => {
+    pauseAutoPlay();
+    const slider = document.getElementById('time-slider');
+    slider.value = slider.min;
+    updateMapForTime(parseInt(slider.min, 10));
+});

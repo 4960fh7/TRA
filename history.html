@@ -7,6 +7,8 @@
     <title>臺鐵誤點分析</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://unpkg.com/topojson-client@3"></script>
     <style>
         #history-app-container {
             display: flex;
@@ -167,6 +169,73 @@
             .hamburger-btn { display: block; }
             .desktop-nav-btn { display: none !important; }
         }
+
+        /* --- Map View Modal Styles --- */
+        #map-view-modal {
+            display: none;
+            position: fixed;
+            top: 60px; /* Below header */
+            left: 0;
+            width: 100%;
+            height: calc(100vh - 60px);
+            background-color: #060a12;
+            z-index: 1000;
+            flex-direction: column;
+        }
+        #map-view-modal.show {
+            display: flex;
+        }
+        #map-container {
+            flex: 1;
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+            background-color: #0d1b2a;
+        }
+        .map-time-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            padding: 15px;
+            background: rgba(6, 10, 18, 0.95);
+            border-top: 1px solid #00f0ff;
+            flex-wrap: wrap;
+        }
+        .time-slider {
+            flex: 1;
+            min-width: 200px;
+            max-width: 600px;
+            accent-color: #00f0ff;
+        }
+        .time-display {
+            font-size: 1.2rem;
+            color: #00f0ff;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+        .close-map-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(13, 21, 38, 0.8);
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 1010;
+            font-weight: bold;
+        }
+        .close-map-btn:hover {
+            background: #ef4444;
+            color: #fff;
+        }
+        
+        .station { fill: #00ffaa; stroke: #060a12; stroke-width: 0.3px; transition: fill 0.3s, r 0.3s; }
+        .station.delay-highlight { fill: #ef4444; filter: drop-shadow(0 0 5px #ef4444); }
+        .county { fill: #0a1122; stroke: #1a2a3a; stroke-width: 0.5px; transition: fill 0.3s; }
     </style>
 </head>
 
@@ -184,7 +253,10 @@
     </div>
 
     <div class="sub-header" id="mobile-search-form">
-        <button id="view-mode-btn" class="fetch-btn" style="margin-right: 15px; padding: 6px 12px; background: #00f0ff; color: #060a12; white-space: nowrap;">切換至: 各車站</button>
+        <div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">
+            <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; background: #00f0ff; color: #060a12; white-space: nowrap;">切換至: 各車站</button>
+            <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">誤點區間地圖</button>
+        </div>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
                 <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
@@ -217,6 +289,21 @@
         document.getElementById('hamburger-btn').addEventListener('click', function() { document.getElementById('nav-overlay').classList.toggle('open'); });
         document.getElementById('nav-backdrop').addEventListener('click', function() { document.getElementById('nav-overlay').classList.remove('open'); });
     </script>
+
+    <!-- Map View Modal -->
+    <div id="map-view-modal">
+        <button id="close-map-btn" class="close-map-btn">關閉地圖</button>
+        <div id="map-container">
+            <!-- SVG will be created by D3 in history.js -->
+        </div>
+        <div class="map-time-controls">
+            <button id="play-pause-btn" class="fetch-btn" style="width: 80px;">▶ 播放</button>
+            <button id="reset-time-btn" class="fetch-btn" style="width: 80px;">重設</button>
+            <div class="time-display" id="time-display">05:00</div>
+            <input type="range" id="time-slider" class="time-slider" min="300" max="1620" step="5" value="300">
+            <!-- 300 = 05:00, 1620 = 27:00 (03:00 next day) -->
+        </div>
+    </div>
 
     <div id="history-app-container" class="custom-scrollbar">
 
