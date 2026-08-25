@@ -249,9 +249,13 @@
             <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">誤點區間地圖</button>
         </div>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap;">
-                <label for="date-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
-                <input type="date" id="date-input" class="date-input" style="padding: 6px 10px; width: 130px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                <label style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
+                <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="date" id="start-date-input" class="date-input" style="padding: 6px 8px; width: 130px;">
+                    <span style="color: #d0ffe6;">~</span>
+                    <input type="date" id="end-date-input" class="date-input" style="padding: 6px 8px; width: 130px;">
+                </div>
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
                 <button id="close-map-btn" class="fetch-btn" style="display: none; padding: 6px 12px; background: #ef4444; color: white; border-color: #ef4444; font-weight: bold; white-space: nowrap;">關閉地圖</button>
             </div>
@@ -308,6 +312,7 @@
                 <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
                 <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
                 <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">1X</button>
+                <div class="time-display" id="date-display" style="font-size: 1rem; margin-right: -10px;"></div>
                 <div class="time-display" id="time-display">05:00</div>
                 <input type="range" id="time-slider" class="time-slider" min="300" max="1500" step="5" value="300">
             </div>

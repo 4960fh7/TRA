@@ -55,7 +55,9 @@ async function init() {
         const yyyy = targetDate.getFullYear();
         const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
         const dd = String(targetDate.getDate()).padStart(2, '0');
-        document.getElementById('date-input').value = `${yyyy}-${mm}-${dd}`;
+        const dateStr = `${yyyy}-${mm}-${dd}`;
+        document.getElementById('start-date-input').value = dateStr;
+        document.getElementById('end-date-input').value = dateStr;
 
         const res = await fetch('stations.json');
         const stations = await res.json();
@@ -90,104 +92,142 @@ function parseTime(timeStr) {
 }
 
 async function fetchData(showError = true) {
-    const dateVal = document.getElementById('date-input').value;
-    if (!dateVal) {
-        if (showError) alert("請選擇日期");
+    const startVal = document.getElementById('start-date-input').value;
+    const endVal = document.getElementById('end-date-input').value;
+    if (!startVal || !endVal) {
+        if (showError) alert("請選擇日期區間");
         return;
     }
-    const dateStr = dateVal.substring(5).replace('-', '');
-    const fullDateStr = dateVal.replace(/-/g, '');
+    
+    let startDate = new Date(startVal);
+    let endDate = new Date(endVal);
+    
+    if (startDate > endDate) {
+        if (showError) alert("開始日期不能晚於結束日期");
+        return;
+    }
+    
+    const diffTime = Math.abs(endDate - startDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+    if (diffDays > 6) { 
+        if (showError) alert("區間最多只能選擇 7 天");
+        return;
+    }
 
     const wrapper = document.getElementById('charts-wrapper');
     wrapper.innerHTML = "<p style='color: #00f0ff;'>資料載入中，請稍候...</p>";
     document.getElementById('overview-chart-container').style.display = 'none';
 
     try {
-        const [resTdx, resSchedule] = await Promise.allSettled([
-            fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStr}.json`),
-            fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${fullDateStr}.json`)
-        ]);
-
-        if (resTdx.status === 'rejected' || !resTdx.value.ok) throw new Error("資料獲取失敗，請確認該日期有歷史資料。");
-        const data = await resTdx.value.json();
-
         let scheduleMap = {};
-        if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
-            try {
-                const sData = await resSchedule.value.json();
-                sData.forEach(t => { scheduleMap[t.number] = t; });
-            } catch (e) { }
+        let maxDelay = 0;
+        const allProcessedDataMap = {};
+
+        let currDate = new Date(startDate);
+        const dateObjects = [];
+        while (currDate <= endDate) {
+            const yyyy = currDate.getFullYear();
+            const mm = String(currDate.getMonth() + 1).padStart(2, '0');
+            const dd = String(currDate.getDate()).padStart(2, '0');
+            dateObjects.push({ str: `${yyyy}${mm}${dd}`, label: `${mm}/${dd}` });
+            currDate.setDate(currDate.getDate() + 1);
         }
+        
+        window.activeDateObjects = dateObjects;
+        const slider = document.getElementById('time-slider');
+        if (slider) {
+            slider.min = 300;
+            slider.max = 300 + (dateObjects.length * 1440) - 5; // e.g. 1 day = max 1735 (28:55)
+            slider.value = 300;
+        }
+        const dateDisplay = document.getElementById('date-display');
+        if (dateDisplay) dateDisplay.innerText = dateObjects[0].label;
+
+        for (let i = 0; i < dateObjects.length; i++) {
+            const dateStr = dateObjects[i].str;
+            const dateLabel = dateObjects[i].label;
+            
+            const [resTdx, resSchedule] = await Promise.allSettled([
+                fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStr}.json`),
+                fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json`)
+            ]);
+            
+            if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
+                try {
+                    const sData = await resSchedule.value.json();
+                    sData.forEach(t => { scheduleMap[t.number] = t; });
+                } catch (e) {}
+            }
+            
+            if (resTdx.status === 'fulfilled' && resTdx.value.ok) {
+                try {
+                    const data = await resTdx.value.json();
+                    data.forEach(train => {
+                        if (!train.data || train.data.length === 0) return;
+
+                        let baseTime = parseTime(train.data[0].Update);
+                        train.data.forEach(d => {
+                            let rawTime = parseTime(d.Update);
+                            if (rawTime < baseTime - 6 * 3600) {
+                                d._absTime = rawTime + 24 * 3600;
+                            } else if (rawTime > baseTime + 18 * 3600) {
+                                d._absTime = rawTime - 24 * 3600;
+                            } else {
+                                d._absTime = rawTime;
+                            }
+                        });
+                        train.data.sort((a, b) => a._absTime - b._absTime);
+
+                        const groups = [];
+                        for (let j = 0; j < train.data.length; j++) {
+                            const d = train.data[j];
+                            if (groups.length === 0 || groups[groups.length - 1].StationID !== d.StationID) {
+                                groups.push({ StationID: d.StationID, records: [d] });
+                            } else {
+                                groups[groups.length - 1].records.push(d);
+                            }
+                        }
+
+                        const uniqueData = [];
+                        const seenStations = new Set();
+                        groups.forEach((g, index) => {
+                            if (seenStations.has(g.StationID)) return;
+                            seenStations.add(g.StationID);
+                            if (index === 0) {
+                                uniqueData.push(g.records[g.records.length - 1]);
+                            } else {
+                                uniqueData.push(g.records[0]);
+                            }
+                        });
+
+                        uniqueData.forEach(d => {
+                            if (d.Delay > maxDelay) {
+                                maxDelay = d.Delay;
+                            }
+                        });
+
+                        if (uniqueData.length > 0) {
+                            if (!allProcessedDataMap[train.No]) {
+                                allProcessedDataMap[train.No] = { No: train.No, daysData: [] };
+                            }
+                            allProcessedDataMap[train.No].daysData.push({ dateLabel: dateLabel, data: uniqueData });
+                        }
+                    });
+                } catch(e) {}
+            }
+        }
+
         window.trainTypeMap = scheduleMap;
 
-        wrapper.innerHTML = "";
+        const processedData = Object.values(allProcessedDataMap);
+        processedData.sort((a, b) => parseInt(a.No, 10) - parseInt(b.No, 10));
 
-        if (!data || data.length === 0) {
-            wrapper.innerHTML = "<p style='color: #ef4444;'>無此日期的資料</p>";
+        wrapper.innerHTML = "";
+        
+        if (processedData.length === 0) {
+            wrapper.innerHTML = "<p style='color: #ef4444;'>此區間無資料</p>";
             return;
         }
-
-        let maxDelay = 0;
-        const processedData = [];
-
-        data.forEach(train => {
-            if (!train.data || train.data.length === 0) return;
-
-            // 1. Sort data chronologically relative to the first record
-            let baseTime = parseTime(train.data[0].Update);
-            train.data.forEach(d => {
-                let rawTime = parseTime(d.Update);
-                // If time drops by more than 6 hours, it crossed midnight into the next day
-                if (rawTime < baseTime - 6 * 3600) {
-                    d._absTime = rawTime + 24 * 3600;
-                }
-                // If time jumps by more than 18 hours, it's a leftover record from yesterday
-                else if (rawTime > baseTime + 18 * 3600) {
-                    d._absTime = rawTime - 24 * 3600;
-                }
-                else {
-                    d._absTime = rawTime;
-                }
-            });
-            train.data.sort((a, b) => a._absTime - b._absTime);
-
-            // 2. Group by consecutive stations
-            const groups = [];
-            for (let i = 0; i < train.data.length; i++) {
-                const d = train.data[i];
-                if (groups.length === 0 || groups[groups.length - 1].StationID !== d.StationID) {
-                    groups.push({ StationID: d.StationID, records: [d] });
-                } else {
-                    groups[groups.length - 1].records.push(d);
-                }
-            }
-
-            // 3. Keep last record of origin, and first record of subsequent stations
-            const uniqueData = [];
-            const seenStations = new Set();
-            groups.forEach((g, index) => {
-                if (seenStations.has(g.StationID)) return;
-                seenStations.add(g.StationID);
-
-                if (index === 0) {
-                    uniqueData.push(g.records[g.records.length - 1]);
-                } else {
-                    uniqueData.push(g.records[0]);
-                }
-            });
-
-            uniqueData.forEach(d => {
-                if (d.Delay > maxDelay) {
-                    maxDelay = d.Delay;
-                }
-            });
-
-            if (uniqueData.length > 0) {
-                processedData.push({ ...train, data: uniqueData });
-            }
-        });
-
-        processedData.sort((a, b) => parseInt(a.No, 10) - parseInt(b.No, 10));
 
         window.yAxisMax = Math.ceil(Math.max(10, maxDelay * 1.1) / 5) * 5;
         window.processedTrains = processedData;
@@ -258,35 +298,79 @@ function renderTrainCharts() {
             titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
         }
 
-        let firstTime = parseTime(train.data[0].Update);
-
-        const chartData = [];
-        const xTicks = [];
-        const timeToStation = {};
-
+        const allDatasets = [];
+        let baseDayData = train.daysData[0].data; // Use the first available day to build x-axis ticks
+        let stationNodes = [];
+        let timeToStation = {};
+        let xTicks = [];
         let totalDelay = 0;
         let localMaxDelay = 0;
-        let stationNodes = [];
+        let totalCount = 0;
 
-        train.data.forEach(d => {
+        let baseFirstTime = parseTime(baseDayData[0].Update);
+        baseDayData.forEach(d => {
             let sid = d.StationID;
             let sName = stationsMap[sid] || sid;
             let currentTime = parseTime(d.Update);
-
-            if (currentTime < firstTime - 12 * 3600) {
+            if (currentTime < baseFirstTime - 12 * 3600) {
                 currentTime += 24 * 3600;
             }
-
-            let timeSinceDep = (currentTime - firstTime) / 60;
-
-            chartData.push({ x: timeSinceDep, y: d.Delay });
+            let timeSinceDep = (currentTime - baseFirstTime) / 60;
             timeToStation[timeSinceDep] = sName;
             xTicks.push(timeSinceDep);
-            totalDelay += d.Delay;
-            if (d.Delay > localMaxDelay) localMaxDelay = d.Delay;
 
             let level = (window.stationsLevelMap && window.stationsLevelMap[sid] !== undefined) ? window.stationsLevelMap[sid] : 999;
             stationNodes.push({ time: timeSinceDep, name: sName, level: level, sid: sid });
+        });
+
+        // Compute datasets for each day
+        const stationDelays = {}; // For overview chart avg
+        train.daysData.forEach(day => {
+            let firstTime = parseTime(day.data[0].Update);
+            const chartData = [];
+            
+            day.data.forEach(d => {
+                let sid = d.StationID;
+                let sName = stationsMap[sid] || sid;
+                let currentTime = parseTime(d.Update);
+                if (currentTime < firstTime - 12 * 3600) {
+                    currentTime += 24 * 3600;
+                }
+                let timeSinceDep = (currentTime - firstTime) / 60;
+
+                chartData.push({ x: timeSinceDep, y: d.Delay, dateLabel: day.dateLabel, stationName: sName });
+                
+                totalDelay += d.Delay;
+                totalCount++;
+                if (d.Delay > localMaxDelay) localMaxDelay = d.Delay;
+
+                // For overview chart
+                if (!stationDelays[sid]) stationDelays[sid] = { totalTime: 0, totalDelay: 0, count: 0, stationName: sName };
+                stationDelays[sid].totalTime += timeSinceDep;
+                stationDelays[sid].totalDelay += d.Delay;
+                stationDelays[sid].count++;
+            });
+
+            allDatasets.push({
+                label: '誤點時間 (分鐘)',
+                data: chartData,
+                borderColor: neonColor,
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                tension: 0.1,
+                pointBackgroundColor: function (context) {
+                    if (context.raw === undefined) return '#00ffaa';
+                    const delay = context.raw.y;
+                    if (delay === 0) return '#00ffaa';
+                    if (delay <= 5) return '#ff9900';
+                    if (delay <= 20) return '#ff0055';
+                    return '#ce6be0';
+                },
+                pointBorderWidth: 0,
+                pointRadius: 1.5,
+                pointHoverRadius: 2.5,
+                clip: false
+            });
         });
 
         stationNodes.sort((a, b) => a.time - b.time);
@@ -329,7 +413,7 @@ function renderTrainCharts() {
 
         let displayTicks = finalSelection.map(n => n.time);
 
-        let avgDelay = train.data.length > 0 ? (totalDelay / train.data.length).toFixed(1) : 0;
+        let avgDelay = totalCount > 0 ? (totalDelay / totalCount).toFixed(1) : 0;
         titleHTML += ` <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
 
         let maxTime = Math.max(...xTicks);
@@ -360,9 +444,16 @@ function renderTrainCharts() {
         const yCanvas = container.querySelector('.y-axis-canvas');
         const canvas = container.querySelector('.main-chart-canvas');
 
+        // Overview Chart: Average of all days for this train
+        const avgChartData = [];
+        Object.values(stationDelays).forEach(sd => {
+            avgChartData.push({ x: sd.totalTime / sd.count, y: Math.round(sd.totalDelay / sd.count), stationName: sd.stationName });
+        });
+        avgChartData.sort((a, b) => a.x - b.x);
+
         overviewDatasets.push({
             label: getTrainTypeName(tType, train.No),
-            data: chartData,
+            data: avgChartData,
             borderColor: neonColor,
             backgroundColor: 'transparent',
             borderWidth: 1,
@@ -400,26 +491,7 @@ function renderTrainCharts() {
             new Chart(canvas, {
                 type: 'line',
                 data: {
-                    datasets: [{
-                        label: '誤點時間 (分鐘)',
-                        data: chartData,
-                        borderColor: neonColor,
-                        backgroundColor: 'transparent',
-                        borderWidth: 2,
-                        tension: 0.1,
-                        pointBackgroundColor: function (context) {
-                            if (context.raw === undefined) return '#00ffaa';
-                            const delay = context.raw.y;
-                            if (delay === 0) return '#00ffaa';
-                            if (delay <= 5) return '#ff9900';
-                            if (delay <= 20) return '#ff0055';
-                            return '#ce6be0';
-                        },
-                        pointBorderWidth: 0,
-                        pointRadius: 1.5,
-                        pointHoverRadius: 2.5,
-                        clip: false
-                    }]
+                    datasets: allDatasets
                 },
                 options: {
                     layout: {
@@ -454,10 +526,10 @@ function renderTrainCharts() {
                             backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
                             callbacks: {
                                 title: function (context) {
-                                    return timeToStation[context[0].raw.x] || '';
+                                    return context[0].raw.stationName || timeToStation[context[0].raw.x] || '';
                                 },
                                 label: function (context) {
-                                    return `誤點: ${context.raw.y} 分鐘`;
+                                    return `${context.raw.dateLabel} 誤點: ${context.raw.y} 分鐘`;
                                 }
                             }
                         }
@@ -537,26 +609,29 @@ function renderStationCharts() {
         const trainData = window.trainTypeMap[train.No];
         const tType = trainData?.train || "";
 
-        train.data.forEach(d => {
-            const sid = d.StationID;
-            if (!stationDataMap[sid]) {
-                stationDataMap[sid] = {};
-            }
+        train.daysData.forEach(day => {
+            day.data.forEach(d => {
+                const sid = d.StationID;
+                if (!stationDataMap[sid]) {
+                    stationDataMap[sid] = [];
+                }
 
-            let timeParts = (d.Update || "").split(":");
-            if (timeParts.length !== 3) return;
-            let minutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
+                let timeParts = (d.Update || "").split(":");
+                if (timeParts.length !== 3) return;
+                let minutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
 
-            if (minutes < 5 * 60) {
-                minutes += 24 * 60;
-            }
+                if (minutes < 5 * 60) {
+                    minutes += 24 * 60;
+                }
 
-            stationDataMap[sid][train.No] = {
-                x: minutes,
-                y: d.Delay,
-                trainNo: train.No,
-                trainType: tType
-            };
+                stationDataMap[sid].push({
+                    x: minutes,
+                    y: d.Delay,
+                    trainNo: train.No,
+                    trainType: tType,
+                    dateLabel: day.dateLabel
+                });
+            });
         });
     });
 
@@ -564,7 +639,7 @@ function renderStationCharts() {
 
     const avgDelayData = [];
     stationIds.forEach(sid => {
-        const points = Object.values(stationDataMap[sid]);
+        const points = stationDataMap[sid];
         let totalDelay = 0;
         points.forEach(p => totalDelay += p.y);
         let avg = points.length > 0 ? (totalDelay / points.length) : 0;
@@ -671,7 +746,7 @@ function renderStationCharts() {
             if (entry.isIntersecting) {
                 const container = entry.target;
                 const sid = container.getAttribute('data-sid');
-                renderSingleStationChart(sid, Object.values(stationDataMap[sid]), container);
+                renderSingleStationChart(sid, stationDataMap[sid], container);
                 obs.unobserve(container);
             }
         });
@@ -679,7 +754,7 @@ function renderStationCharts() {
 
     stationIds.forEach(sid => {
         const sName = stationsMap[sid] || sid;
-        const points = Object.values(stationDataMap[sid]);
+        const points = stationDataMap[sid];
 
         let totalDelay = 0;
         let localMaxDelay = 0;
@@ -809,7 +884,7 @@ function renderSingleStationChart(sid, points, container) {
                     callbacks: {
                         title: function (context) {
                             const p = context[0].raw;
-                            return `${p.trainType} ${p.trainNo}`;
+                            return `${p.dateLabel} ${p.trainType} ${p.trainNo}`;
                         },
                         label: function (context) {
                             const p = context.raw;
@@ -833,15 +908,17 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
     }
 });
 
-document.getElementById('date-input').addEventListener('change', () => {
-    if (document.getElementById('map-view-modal').style.display !== 'flex') {
-        fetchData(false);
-    }
-});
-document.getElementById('date-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-        fetchData(true);
-    }
+['start-date-input', 'end-date-input'].forEach(id => {
+    document.getElementById(id).addEventListener('change', () => {
+        if (document.getElementById('map-view-modal').style.display !== 'flex') {
+            fetchData(false);
+        }
+    });
+    document.getElementById(id).addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            fetchData(true);
+        }
+    });
 });
 
 document.getElementById('view-mode-btn').addEventListener('click', () => {
@@ -1100,14 +1177,16 @@ document.getElementById('close-map-btn').addEventListener('click', () => {
     document.getElementById('charts-main-content').style.display = 'block';
 });
 
-document.getElementById('date-input').addEventListener('change', async () => {
-    // If map is open, fetch new data silently and update map
-    if (document.getElementById('map-view-modal').style.display === 'flex') {
-        await fetchData(false);
-        if (isMapInitialized) {
-            updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+['start-date-input', 'end-date-input'].forEach(id => {
+    document.getElementById(id).addEventListener('change', async () => {
+        // If map is open, fetch new data silently and update map
+        if (document.getElementById('map-view-modal').style.display === 'flex') {
+            await fetchData(false);
+            if (isMapInitialized) {
+                updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+            }
         }
-    }
+    });
 });
 
 function initHistoryMap() {
@@ -1289,21 +1368,36 @@ function getStationNameStr(d) {
 }
 
 function updateMapForTime(sliderMinutes) {
+    let dayIndex = Math.floor((sliderMinutes - 300) / 1440);
+    let localMinutes = ((sliderMinutes - 300) % 1440) + 300;
+    
+    if (window.activeDateObjects && window.activeDateObjects.length > 0) {
+        if (dayIndex >= window.activeDateObjects.length) {
+            dayIndex = window.activeDateObjects.length - 1;
+            localMinutes = 1440 + 300;
+        }
+        document.getElementById('date-display').innerText = window.activeDateObjects[dayIndex].label;
+    }
+
     const timeDisplay = document.getElementById('time-display');
-    const h = Math.floor(sliderMinutes / 60);
-    const m = sliderMinutes % 60;
+    const h = Math.floor(localMinutes / 60);
+    const m = localMinutes % 60;
     timeDisplay.innerText = `${String(h >= 24 ? h - 24 : h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 
     if (!window.processedTrains || !isMapInitialized) return;
 
     const delayedTrainLocs = [];
-    const sliderSeconds = sliderMinutes * 60;
+    const sliderSeconds = localMinutes * 60;
 
     window.processedTrains.forEach(train => {
+        if (!window.activeDateObjects || !window.activeDateObjects[dayIndex]) return;
+        const dayDataObj = train.daysData.find(d => d.dateLabel === window.activeDateObjects[dayIndex].label);
+        if (!dayDataObj) return;
+
         let lastRecord = null;
-        for (let i = 0; i < train.data.length; i++) {
-            if (train.data[i]._absTime <= sliderSeconds) {
-                lastRecord = train.data[i];
+        for (let i = 0; i < dayDataObj.data.length; i++) {
+            if (dayDataObj.data[i]._absTime <= sliderSeconds) {
+                lastRecord = dayDataObj.data[i];
             } else {
                 break;
             }
@@ -1311,7 +1405,7 @@ function updateMapForTime(sliderMinutes) {
 
         if (lastRecord) {
             if (lastRecord.Delay > 3) {
-                const isFinishedAndOld = (sliderSeconds - lastRecord._absTime > 30 * 60) && (lastRecord === train.data[train.data.length - 1]);
+                const isFinishedAndOld = (sliderSeconds - lastRecord._absTime > 30 * 60) && (lastRecord === dayDataObj.data[dayDataObj.data.length - 1]);
                 if (!isFinishedAndOld) {
                     const sid = lastRecord.StationID;
                     const sName = stationsMap[sid] || sid;
