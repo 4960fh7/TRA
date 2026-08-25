@@ -311,7 +311,16 @@
                 <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="播放/暫停">▶️</button>
                 <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
                 <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
-                <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">1X</button>
+                <div style="position: relative; display: inline-block;">
+                    <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">⏩</button>
+                    <div id="speed-menu" style="display: none; position: absolute; bottom: 100%; left: 0; background-color: rgba(13, 21, 38, 0.95); border: 1px solid rgba(208, 255, 230, 0.2); border-radius: 4px; padding: 5px; margin-bottom: 5px; flex-direction: column; gap: 5px; z-index: 2000;">
+                        <button class="fetch-btn speed-option" data-speed="8" style="width: 40px; padding: 4px;">8x</button>
+                        <button class="fetch-btn speed-option" data-speed="4" style="width: 40px; padding: 4px;">4x</button>
+                        <button class="fetch-btn speed-option" data-speed="2" style="width: 40px; padding: 4px;">2x</button>
+                        <button class="fetch-btn speed-option" data-speed="1" style="width: 40px; padding: 4px; background-color: rgba(208, 255, 230, 0.2);">1x</button>
+                        <button class="fetch-btn speed-option" data-speed="0.5" style="width: 40px; padding: 4px;">0.5x</button>
+                    </div>
+                </div>
                 <div class="time-display" id="date-display" style="font-size: 1rem; margin-right: -10px;"></div>
                 <div class="time-display" id="time-display">05:00</div>
                 <input type="range" id="time-slider" class="time-slider" min="300" max="1500" step="5" value="300">

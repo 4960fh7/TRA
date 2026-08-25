@@ -109,8 +109,8 @@ async function fetchData(showError = true) {
     
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    if (diffDays > 6) { 
-        if (showError) alert("區間最多只能選擇 7 天");
+    if (diffDays > 13) { 
+        if (showError) alert("區間最多只能選擇 14 天");
         return;
     }
 
@@ -1526,14 +1526,31 @@ loopBtn.addEventListener('click', () => {
     loopBtn.style.opacity = isLoopPlayback ? "1" : "0.5";
 });
 
-speedBtn.addEventListener('click', () => {
-    if (playbackSpeed === 1) playbackSpeed = 2;
-    else if (playbackSpeed === 2) playbackSpeed = 0.5;
-    else playbackSpeed = 1;
-    speedBtn.innerText = playbackSpeed + 'X';
-    if (playInterval) {
-        pauseAutoPlay();
-        toggleAutoPlay();
+const speedMenu = document.getElementById('speed-menu');
+
+speedBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    speedMenu.style.display = speedMenu.style.display === 'none' ? 'flex' : 'none';
+});
+
+document.querySelectorAll('.speed-option').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        playbackSpeed = parseFloat(e.target.getAttribute('data-speed'));
+        document.querySelectorAll('.speed-option').forEach(b => b.style.backgroundColor = 'transparent');
+        e.target.style.backgroundColor = 'rgba(208, 255, 230, 0.2)';
+        speedMenu.style.display = 'none';
+        
+        if (playInterval) {
+            pauseAutoPlay();
+            toggleAutoPlay();
+        }
+    });
+});
+
+document.addEventListener('click', (e) => {
+    if (speedMenu && speedMenu.style.display !== 'none' && !speedBtn.contains(e.target) && !speedMenu.contains(e.target)) {
+        speedMenu.style.display = 'none';
     }
 });
 
