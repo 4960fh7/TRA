@@ -1096,26 +1096,6 @@ function initHistoryMap() {
                     return Math.max(0.6, base / Math.sqrt(k));
                 })
                 .style("stroke-width", `${0.3 / k}px`);
-
-            mapMainGroup.selectAll(".station-label")
-                .style("font-size", `${Math.max(1, 10 / k)}px`)
-                .attr("dx", d => {
-                    let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
-                    return Math.max(0.6, base / Math.sqrt(k)) + 2/k;
-                })
-                .attr("dy", 0)
-                .style("text-anchor", "start")
-                .style("dominant-baseline", "central")
-                .style("opacity", d => {
-                    if (k > 10) return 1;
-                    if (k > 5 && d.level <= 3) return 1;
-                    if (k > 2.5 && d.level <= 2) return 1;
-                    if (d.level <= 1) return 1;
-                    return 0;
-                });
-                
-            mapMainGroup.selectAll(".county-label")
-                .style("font-size", `${14 / Math.pow(k, 0.7)}px`);
         });
 
     mapSvg.call(zoom);
@@ -1132,20 +1112,6 @@ function initHistoryMap() {
             .append("path")
             .attr("class", "county")
             .attr("d", path);
-
-        mapMainGroup.selectAll(".county-label")
-            .data(counties)
-            .enter()
-            .append("text")
-            .attr("class", "county-label")
-            .attr("x", d => path.centroid(d)[0])
-            .attr("y", d => path.centroid(d)[1])
-            .text(d => d.properties.name || d.properties.COUNTYNAME || "")
-            .style("text-anchor", "middle")
-            .style("fill", "#64748b")
-            .style("font-size", "14px")
-            .style("font-weight", "bold")
-            .style("pointer-events", "none");
     }
 
     if (window.globalStationsData) {
@@ -1174,20 +1140,18 @@ function initHistoryMap() {
             .attr("class", "station")
             .attr("r", d => d.level !== undefined ? (4.5 - d.level * 0.5) : 3)
             .attr("cx", 0)
-            .attr("cy", 0);
-
-        stationGroups.append("text")
-            .attr("class", "station-label")
-            .attr("dx", d => {
-                let base = d.level !== undefined ? (4.5 - d.level * 0.5) : 3;
-                return Math.max(0.6, base) + 2;
+            .attr("cy", 0)
+            .on("mouseover", function (event, d) {
+                const tooltip = d3.select("#history-tooltip");
+                const name = getStationNameStr(d);
+                tooltip.style("opacity", 1)
+                    .html(name)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 10) + "px");
             })
-            .attr("dy", 0)
-            .style("text-anchor", "start")
-            .style("dominant-baseline", "central")
-            .text(d => getStationNameStr(d))
-            .style("pointer-events", "none")
-            .style("opacity", d => (d.level <= 1) ? 1 : 0);
+            .on("mouseleave", function (event, d) {
+                d3.select("#history-tooltip").style("opacity", 0);
+            });
         
         buildStationsHub();
     }
