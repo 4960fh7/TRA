@@ -297,11 +297,13 @@
             <svg id="history-map-svg" style="width: 100%; height: 100%;"></svg>
         </div>
         <div class="map-time-controls">
-            <button id="play-pause-btn" class="fetch-btn" style="width: 80px;">▶ 播放</button>
-            <button id="reset-time-btn" class="fetch-btn" style="width: 80px;">重設</button>
+            <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="播放/暫停">▶️</button>
+            <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
+            <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
+            <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">1X</button>
             <div class="time-display" id="time-display">05:00</div>
-            <input type="range" id="time-slider" class="time-slider" min="300" max="1620" step="5" value="300">
-            <!-- 300 = 05:00, 1620 = 27:00 (03:00 next day) -->
+            <input type="range" id="time-slider" class="time-slider" min="300" max="1500" step="5" value="300">
+            <!-- 300 = 05:00, 1500 = 25:00 (01:00 next day) -->
         </div>
     </div>
 

@@ -1052,6 +1052,8 @@ let mapSvg, mapMainGroup, mapProjection;
 let isMapInitialized = false;
 let globalStationsHub = null;
 let playInterval = null;
+let playbackSpeed = 1;
+let isLoopPlayback = false;
 
 document.getElementById('delay-map-btn').addEventListener('click', () => {
     document.getElementById('map-view-modal').classList.add('show');
@@ -1094,6 +1096,21 @@ function initHistoryMap() {
                     return Math.max(0.6, base / Math.sqrt(k));
                 })
                 .style("stroke-width", `${0.3 / k}px`);
+
+            mapMainGroup.selectAll(".station-label")
+                .style("font-size", `${Math.max(1, 10 / k)}px`)
+                .attr("dx", 5 / k)
+                .attr("dy", 3 / k)
+                .style("opacity", d => {
+                    if (k > 10) return 1;
+                    if (k > 5 && d.level <= 3) return 1;
+                    if (k > 2.5 && d.level <= 2) return 1;
+                    if (d.level <= 1) return 1;
+                    return 0;
+                });
+                
+            mapMainGroup.selectAll(".county-label")
+                .style("font-size", `${14 / Math.pow(k, 0.7)}px`);
         });
 
     mapSvg.call(zoom);
@@ -1110,6 +1127,20 @@ function initHistoryMap() {
             .append("path")
             .attr("class", "county")
             .attr("d", path);
+
+        mapMainGroup.selectAll(".county-label")
+            .data(counties)
+            .enter()
+            .append("text")
+            .attr("class", "county-label")
+            .attr("x", d => path.centroid(d)[0])
+            .attr("y", d => path.centroid(d)[1])
+            .text(d => d.properties.name || d.properties.COUNTYNAME || "")
+            .style("text-anchor", "middle")
+            .style("fill", "#64748b")
+            .style("font-size", "14px")
+            .style("font-weight", "bold")
+            .style("pointer-events", "none");
     }
 
     if (window.globalStationsData) {
@@ -1139,6 +1170,16 @@ function initHistoryMap() {
             .attr("r", d => d.level !== undefined ? (4.5 - d.level * 0.5) : 3)
             .attr("cx", 0)
             .attr("cy", 0);
+
+        stationGroups.append("text")
+            .attr("class", "station-label")
+            .attr("dx", 5)
+            .attr("dy", 3)
+            .text(d => getStationNameStr(d))
+            .style("fill", "#d0ffe6")
+            .style("font-size", "10px")
+            .style("pointer-events", "none")
+            .style("opacity", d => (d.level <= 1) ? 1 : 0);
         
         buildStationsHub();
     }
@@ -1318,21 +1359,45 @@ document.getElementById('time-slider').addEventListener('input', (e) => {
 });
 
 const playPauseBtn = document.getElementById('play-pause-btn');
+const loopBtn = document.getElementById('loop-btn');
+const speedBtn = document.getElementById('speed-btn');
+
+loopBtn.addEventListener('click', () => {
+    isLoopPlayback = !isLoopPlayback;
+    loopBtn.style.opacity = isLoopPlayback ? "1" : "0.5";
+});
+
+speedBtn.addEventListener('click', () => {
+    if (playbackSpeed === 1) playbackSpeed = 2;
+    else if (playbackSpeed === 2) playbackSpeed = 0.5;
+    else playbackSpeed = 1;
+    speedBtn.innerText = playbackSpeed + 'X';
+    if (playInterval) {
+        pauseAutoPlay();
+        toggleAutoPlay();
+    }
+});
+
 function toggleAutoPlay() {
     if (playInterval) {
         pauseAutoPlay();
     } else {
-        playPauseBtn.innerText = '⏸ 暫停';
+        playPauseBtn.innerText = '⏸️';
         playInterval = setInterval(() => {
             const slider = document.getElementById('time-slider');
             let val = parseInt(slider.value, 10);
             val += 5;
             if (val > parseInt(slider.max, 10)) {
-                val = parseInt(slider.min, 10);
+                if (isLoopPlayback) {
+                    val = parseInt(slider.min, 10);
+                } else {
+                    pauseAutoPlay();
+                    return;
+                }
             }
             slider.value = val;
             updateMapForTime(val);
-        }, 1000 / 12);
+        }, (1000 / 12) / playbackSpeed);
     }
 }
 
@@ -1341,7 +1406,7 @@ function pauseAutoPlay() {
         clearInterval(playInterval);
         playInterval = null;
     }
-    playPauseBtn.innerText = '▶ 播放';
+    playPauseBtn.innerText = '▶️';
 }
 playPauseBtn.addEventListener('click', toggleAutoPlay);
 
