@@ -129,7 +129,7 @@ async function fetchData(showError = true) {
             const yyyy = currDate.getFullYear();
             const mm = String(currDate.getMonth() + 1).padStart(2, '0');
             const dd = String(currDate.getDate()).padStart(2, '0');
-            dateObjects.push({ str: `${yyyy}${mm}${dd}`, label: `${mm}/${dd}` });
+            dateObjects.push({ str: `${mm}${dd}`, label: `${mm}/${dd}` });
             currDate.setDate(currDate.getDate() + 1);
         }
         
