@@ -826,8 +826,18 @@ function renderSingleStationChart(sid, points, container) {
     });
 }
 
-document.getElementById('fetch-btn').addEventListener('click', () => fetchData(true));
-document.getElementById('date-input').addEventListener('change', () => fetchData(false));
+document.getElementById('fetch-btn').addEventListener('click', async () => {
+    await fetchData(true);
+    if (document.getElementById('map-view-modal').style.display === 'flex' && isMapInitialized) {
+        updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+    }
+});
+
+document.getElementById('date-input').addEventListener('change', () => {
+    if (document.getElementById('map-view-modal').style.display !== 'flex') {
+        fetchData(false);
+    }
+});
 document.getElementById('date-input').addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
         fetchData(true);
@@ -1059,7 +1069,6 @@ document.getElementById('delay-map-btn').addEventListener('click', () => {
     // Hide standard elements
     document.getElementById('view-mode-btn').style.display = 'none';
     document.getElementById('delay-map-btn').style.display = 'none';
-    document.getElementById('fetch-btn').style.display = 'none';
     document.getElementById('search-label').parentElement.style.display = 'none';
     
     // Show close map button
@@ -1081,7 +1090,6 @@ document.getElementById('close-map-btn').addEventListener('click', () => {
     // Restore standard elements
     document.getElementById('view-mode-btn').style.display = 'block';
     document.getElementById('delay-map-btn').style.display = 'block';
-    document.getElementById('fetch-btn').style.display = 'block';
     document.getElementById('search-label').parentElement.style.display = 'flex';
     
     // Hide close map button
