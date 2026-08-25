@@ -129,7 +129,7 @@ async function fetchData(showError = true) {
             const yyyy = currDate.getFullYear();
             const mm = String(currDate.getMonth() + 1).padStart(2, '0');
             const dd = String(currDate.getDate()).padStart(2, '0');
-            dateObjects.push({ str: `${mm}${dd}`, label: `${mm}/${dd}` });
+            dateObjects.push({ str: `${mm}${dd}`, strVis: `${yyyy}${mm}${dd}`, label: `${mm}/${dd}` });
             currDate.setDate(currDate.getDate() + 1);
         }
         
@@ -144,12 +144,13 @@ async function fetchData(showError = true) {
         if (dateDisplay) dateDisplay.innerText = dateObjects[0].label;
 
         for (let i = 0; i < dateObjects.length; i++) {
-            const dateStr = dateObjects[i].str;
+            const dateStrTdx = dateObjects[i].str; // MMDD
+            const dateStrVis = dateObjects[i].strVis; // YYYYMMDD
             const dateLabel = dateObjects[i].label;
             
             const [resTdx, resSchedule] = await Promise.allSettled([
-                fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStr}.json`),
-                fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStr}.json`)
+                fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStrTdx}.json`),
+                fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStrVis}.json`)
             ]);
             
             if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
