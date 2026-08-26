@@ -312,6 +312,7 @@ function renderCharts() {
 function renderTrainCharts() {
     const wrapper = document.getElementById('charts-wrapper');
     const overviewDatasets = [];
+    let overviewMaxY = 0;
 
     const observer = new IntersectionObserver((entries, obs) => {
         entries.forEach(entry => {
@@ -595,9 +596,11 @@ function renderTrainCharts() {
         const avgChartData = [];
         uniqueXTicks.forEach(x => {
             if (interpolatedCount[x] > 0) {
+                let yVal = Math.round(interpolatedSum[x] / interpolatedCount[x]);
+                if (yVal > overviewMaxY) overviewMaxY = yVal;
                 avgChartData.push({
                     x: x,
-                    y: Math.round(interpolatedSum[x] / interpolatedCount[x]),
+                    y: yVal,
                     stationName: timeToStation[x]
                 });
             }
@@ -726,7 +729,7 @@ function renderTrainCharts() {
                 },
                 y: {
                     min: 0,
-                    max: window.yAxisMax,
+                    max: Math.ceil(Math.max(10, overviewMaxY * 1.1) / 5) * 5,
                     title: { display: true, text: '誤點時間 (分)', color: '#d0ffe6' },
                     grid: { color: 'rgba(208, 255, 230, 0.1)' },
                     ticks: { color: '#94a3b8', stepSize: 5, precision: 0 }
@@ -740,11 +743,14 @@ function renderTrainCharts() {
                     bodyColor: '#e2e8f0',
                     borderColor: '#1e293b',
                     borderWidth: 1,
-                    displayColors: true,
+                    displayColors: false,
                     callbacks: {
                         title: function () { return ''; },
                         label: function (context) {
                             return context.dataset.label;
+                        },
+                        labelTextColor: function (context) {
+                            return context.dataset.borderColor;
                         }
                     }
                 }
