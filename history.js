@@ -5,6 +5,10 @@ window.currentViewMode = 'train';
 window.yAxisMax = 10;
 window.overviewChart = null;
 
+if (typeof Chart !== 'undefined') {
+    Chart.defaults.font.family = "'Courier New', Courier, monospace, sans-serif";
+}
+
 const colorPalette = {
     "普悠瑪": "#FF5252",
     "太魯閣": "#FFA726",
