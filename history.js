@@ -550,12 +550,58 @@ function renderTrainCharts() {
         const yCanvas = container.querySelector('.y-axis-canvas');
         const canvas = container.querySelector('.main-chart-canvas');
 
-        // Overview Chart: Average of all days for this train
-        const avgChartData = [];
-        Object.values(stationDelays).forEach(sd => {
-            avgChartData.push({ x: sd.totalTime / sd.count, y: Math.round(sd.totalDelay / sd.count), stationName: sd.stationName });
+        // Overview Chart: Average of all days for this train by interpolating the curves
+        let uniqueXTicks = [...new Set(xTicks)].sort((a, b) => a - b);
+        let interpolatedSum = {};
+        let interpolatedCount = {};
+        uniqueXTicks.forEach(x => {
+             interpolatedSum[x] = 0;
+             interpolatedCount[x] = 0;
         });
-        avgChartData.sort((a, b) => a.x - b.x);
+
+        allDatasets.forEach(dataset => {
+             let data = dataset.data.slice().sort((a, b) => a.x - b.x);
+             if (data.length === 0) return;
+             
+             uniqueXTicks.forEach(x => {
+                 let y;
+                 let exactMatch = data.find(p => p.x === x);
+                 if (exactMatch) {
+                     y = exactMatch.y;
+                 } else if (x <= data[0].x) {
+                     y = data[0].y;
+                 } else if (x >= data[data.length - 1].x) {
+                     y = data[data.length - 1].y;
+                 } else {
+                     let p1, p2;
+                     for (let k = 0; k < data.length - 1; k++) {
+                         if (data[k].x < x && data[k+1].x > x) {
+                             p1 = data[k];
+                             p2 = data[k+1];
+                             break;
+                         }
+                     }
+                     if (p1 && p2) {
+                         y = p1.y + (p2.y - p1.y) * (x - p1.x) / (p2.x - p1.x);
+                     }
+                 }
+                 if (y !== undefined) {
+                     interpolatedSum[x] += y;
+                     interpolatedCount[x] += 1;
+                 }
+             });
+        });
+
+        const avgChartData = [];
+        uniqueXTicks.forEach(x => {
+            if (interpolatedCount[x] > 0) {
+                avgChartData.push({
+                    x: x,
+                    y: Math.round(interpolatedSum[x] / interpolatedCount[x]),
+                    stationName: timeToStation[x]
+                });
+            }
+        });
 
         overviewDatasets.push({
             label: getTrainTypeName(tType, train.No),
