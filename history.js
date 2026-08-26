@@ -24,13 +24,17 @@ function getTrainTypeName(train, number) {
         6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
         6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
         6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
+        6041: '鳴日號', 6073: '鳴日號', 6042: '鳴日號',
+        6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
+        6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
+        6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
         6041: '鳴日號',
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
         4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
-        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車', 6616: '慧燈專車'
     };
     const numKey = Number(number);
     if (trainMapping[numKey]) {
@@ -540,7 +544,7 @@ function renderTrainCharts() {
         let displayTicks = finalSelection.map(n => n.time);
 
         let avgDelay = totalCount > 0 ? (totalDelay / totalCount).toFixed(1) : 0;
-        titleHTML += ` <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>`;
+        titleHTML += ` <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點：${avgDelay} 分</span>`;
 
         let maxTime = Math.max(...xTicks);
         let targetWidthPercent = Math.max(100, (maxTime / 480) * 100);
@@ -703,7 +707,7 @@ function renderTrainCharts() {
                                     return context[0].raw.stationName || timeToStation[context[0].raw.x] || '';
                                 },
                                 label: function (context) {
-                                    return `${context.raw.dateLabel} 誤點: ${context.raw.y} 分鐘`;
+                                    return `${context.raw.dateLabel} 誤點：${context.raw.y} 分鐘`;
                                 }
                             }
                         }
@@ -1111,7 +1115,7 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
 document.getElementById('view-mode-btn').addEventListener('click', () => {
     window.currentViewMode = window.currentViewMode === 'train' ? 'station' : 'train';
     const btn = document.getElementById('view-mode-btn');
-    btn.textContent = window.currentViewMode === 'train' ? '切換至: 各車站' : '切換至: 各車次';
+    btn.textContent = window.currentViewMode === 'train' ? '切換至：各車站' : '切換至：各車次';
 
     document.getElementById('train-search-input').value = '';
     document.getElementById('train-suggestions').style.display = 'none';

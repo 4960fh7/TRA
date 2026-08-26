@@ -622,6 +622,12 @@ function drawMap(twData, stationsData) {
                             // 臺東縣：蘭嶼、小蘭嶼 (緯度 < 22.15)
                             if ((name === "臺東縣" || name === "台東縣") && maxLat < 22.15) return false;
 
+                            // 宜蘭縣：釣魚台列嶼 (經度 > 122.5)
+                            if (name === "宜蘭縣" && minLon > 122.5) return false;
+                            
+                            // 臺東縣：蘭嶼、小蘭嶼 (緯度 < 22.15)
+                            if ((name === "臺東縣" || name === "台東縣") && maxLat < 22.15) return false;
+                            
                             return true;
                         })
                     }
@@ -1046,13 +1052,17 @@ function getTrainTypeName(train, number) {
         6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
         6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
         6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
+        6041: '鳴日號', 6073: '鳴日號', 6042: '鳴日號',
+        6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
+        6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
+        6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
         6041: '鳴日號',
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
         4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
-        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車', 6616: '慧燈專車'
     };
     const numKey = Number(number);
     if (trainMapping[numKey]) {
@@ -1282,6 +1292,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
     const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
     const badgeInfo = getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight);
 
+    document.getElementById('last-update-time').innerHTML = `最後更新時間：<span>${updateTimeString}</span>`;
     document.getElementById("schedule-train-title").innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div style="color: ${neonColor}">${titleText}</div>

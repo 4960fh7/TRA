@@ -1183,7 +1183,7 @@ function buildTimelineHtml(routeData) {
                     lineColor: '#ff9800',
                     lineDashed: true,
                     text: `${stops[0].station} 轉乘 (等待約 ${Math.round(wait)} 分鐘)`,
-                    subtext: `抵達: ${minutesToTime(prevArr)} / 下班發車: ${minutesToTime(nextDep)}`
+                    subtext: `抵達：${minutesToTime(prevArr)} / 下班發車：${minutesToTime(nextDep)}`
                 });
             }
         }
@@ -1389,7 +1389,7 @@ function renderRoutes(routes, container, isPartial) {
 
         if (route.type !== 'direct' && route.options.length > 1) {
             let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
-                <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇轉乘車站:</label>
+                <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇轉乘車站：</label>
                 <select class="transfer-select planner-input custom-scrollbar" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
                     ${route.options.map((opt, i) => {
                 if (route.type === '1-transfer') {

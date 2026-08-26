@@ -1236,3 +1236,16 @@ svg {
         padding-bottom: 85px !important;
     }
 }
+
+/* Added to ensure form elements and SVGs inherit the sci-fi font */
+button, input, select, textarea, text, tspan {
+    font-family: inherit;
+}
+
+/* Added for history.html mobile date picker width reduction */
+@media (max-width: 600px) {
+    .responsive-date {
+        width: 90px !important;
+    }
+}
+

@@ -52,6 +52,7 @@
             z-index: 2000;
             transition: all 0.3s;
         }
+
         #back-to-top-btn:hover {
             background: #d0ffe6;
             box-shadow: 0 0 20px rgba(0, 240, 255, 1);
@@ -72,12 +73,15 @@
                 align-items: flex-start;
                 border-bottom: 1px solid #00f0ff;
             }
+
             .sub-header.show {
                 display: flex;
             }
+
             #history-app-container {
                 height: calc(90vh);
             }
+
             .chart-container {
                 padding: 6px !important;
                 margin-bottom: 10px !important;
@@ -85,15 +89,19 @@
                 min-height: var(--mobile-height, 140px) !important;
                 aspect-ratio: auto !important;
             }
+
             .chart-title {
                 font-size: 0.9rem !important;
                 margin-bottom: 2px !important;
                 margin-top: 2px !important;
             }
-            #overview-chart-container, #avg-delay-bar-chart {
+
+            #overview-chart-container,
+            #avg-delay-bar-chart {
                 height: 300px !important;
                 min-height: 300px !important;
             }
+
             #charts-wrapper {
                 padding-bottom: 200px;
             }
@@ -155,19 +163,90 @@
             text-shadow: 0 0 8px rgba(0, 240, 255, 0.4);
         }
 
-        .hamburger-btn { display: none; background: none; border: none; color: #d0ffe6; font-size: 24px; cursor: pointer; padding: 8px; z-index: 1100; }
-        .nav-overlay { display: none; position: fixed; top: 0; right: 0; width: 100%; height: 100%; z-index: 1050; }
-        .nav-overlay .nav-backdrop { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
-        .nav-overlay .nav-drawer { position: absolute; top: 0; right: 0; width: 220px; height: 100%; background: #0d1b2a; border-left: 1px solid #1a2a3a; display: flex; flex-direction: column; padding: 60px 20px 20px 20px; gap: 10px; }
-        .nav-overlay .nav-drawer .nav-link { display: block; background: #111a22; border: 1px solid #1a2a3a; color: #fff; padding: 12px 16px; font-family: inherit; font-size: 15px; cursor: pointer; border-radius: 5px; text-align: left; transition: 0.2s; }
-        @media (hover: hover) {
-            .nav-overlay .nav-drawer .nav-link:hover { border-color: #00f0ff; color: #00f0ff; }
+        .hamburger-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: #d0ffe6;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 8px;
+            z-index: 1100;
         }
-        .nav-overlay .nav-drawer .nav-link.active { border-color: #00f0ff; color: #00f0ff; background: #14283f; }
-        .nav-overlay.open { display: block; }
+
+        .nav-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1050;
+        }
+
+        .nav-overlay .nav-backdrop {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .nav-overlay .nav-drawer {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 220px;
+            height: 100%;
+            background: #0d1b2a;
+            border-left: 1px solid #1a2a3a;
+            display: flex;
+            flex-direction: column;
+            padding: 60px 20px 20px 20px;
+            gap: 10px;
+        }
+
+        .nav-overlay .nav-drawer .nav-link {
+            display: block;
+            background: #111a22;
+            border: 1px solid #1a2a3a;
+            color: #fff;
+            padding: 12px 16px;
+            font-family: inherit;
+            font-size: 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            text-align: left;
+            transition: 0.2s;
+        }
+
+        @media (hover: hover) {
+            .nav-overlay .nav-drawer .nav-link:hover {
+                border-color: #00f0ff;
+                color: #00f0ff;
+            }
+        }
+
+        .nav-overlay .nav-drawer .nav-link.active {
+            border-color: #00f0ff;
+            color: #00f0ff;
+            background: #14283f;
+        }
+
+        .nav-overlay.open {
+            display: block;
+        }
+
         @media (max-width: 600px) {
-            .hamburger-btn { display: block; }
-            .desktop-nav-btn { display: none !important; }
+            .hamburger-btn {
+                display: block;
+            }
+
+            .desktop-nav-btn {
+                display: none !important;
+            }
         }
 
         /* --- Map View Modal Styles --- */
@@ -178,15 +257,18 @@
             background: linear-gradient(180deg, #0a1120 0%, #060a12 100%);
             flex-direction: column;
         }
+
         #map-view-modal.show {
             display: flex;
         }
+
         #map-container {
             flex: 1;
             width: 100%;
             position: relative;
             overflow: hidden;
         }
+
         .map-time-controls {
             display: flex;
             align-items: center;
@@ -197,12 +279,14 @@
             border-top: 1px solid #00f0ff;
             flex-wrap: wrap;
         }
+
         .time-slider {
             flex: 1;
             min-width: 200px;
             max-width: 600px;
             accent-color: #00f0ff;
         }
+
         .time-display {
             font-size: 1.2rem;
             color: #00f0ff;
@@ -210,6 +294,7 @@
             min-width: 60px;
             text-align: center;
         }
+
         .close-map-btn {
             position: absolute;
             top: 15px;
@@ -223,6 +308,7 @@
             z-index: 1010;
             font-weight: bold;
         }
+
         .close-map-btn:hover {
             background: #ef4444;
             color: #fff;
@@ -245,29 +331,35 @@
 
     <div class="sub-header" id="mobile-search-form">
         <div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">
-            <button id="close-map-btn" class="fetch-btn" style="display: none; padding: 6px 12px; white-space: nowrap;">誤點圖表</button>
-            <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">切換至: 各車站</button>
+            <button id="close-map-btn" class="fetch-btn"
+                style="display: none; padding: 6px 12px; white-space: nowrap;">返回誤點圖表</button>
+            <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">切換至：
+                各車站</button>
             <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">誤點區間地圖</button>
         </div>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <label style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期:</label>
+                <label style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期：</label>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="date" id="start-date-input" class="date-input" style="padding: 6px 8px; width: 130px;">
+                    <input type="date" id="start-date-input" class="date-input responsive-date" style="padding: 6px 8px; width: 130px;">
                     <span style="color: #d0ffe6;">~</span>
-                    <input type="date" id="end-date-input" class="date-input" style="padding: 6px 8px; width: 130px;">
+                    <input type="date" id="end-date-input" class="date-input responsive-date" style="padding: 6px 8px; width: 130px;">
                 </div>
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
             </div>
 
-            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex: 1 1 auto; max-width: 100%;">
-                <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap; flex-shrink: 0;">搜尋:</label>
+            <div
+                style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex: 1 1 auto; max-width: 100%;">
+                <label id="search-label" for="train-search-input"
+                    style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap; flex-shrink: 0;">搜尋：</label>
                 <div style="position: relative; flex: 1 1 auto; max-width: 300px; min-width: 160px;">
-                    <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
-                        style="width: 100%; padding: 6px 10px; box-sizing: border-box;">
-                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 100%; top: 100%; box-sizing: border-box;"></div>
+                    <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次"
+                        autocomplete="off" style="width: 100%; padding: 6px 10px; box-sizing: border-box;">
+                    <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar"
+                        style="width: 100%; top: 100%; box-sizing: border-box;"></div>
                 </div>
-                <button id="search-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap; flex-shrink: 0;">跳轉</button>
+                <button id="search-btn" class="fetch-btn"
+                    style="padding: 6px 12px; white-space: nowrap; flex-shrink: 0;">跳轉</button>
             </div>
         </div>
     </div>
@@ -282,8 +374,8 @@
         </div>
     </div>
     <script>
-        document.getElementById('hamburger-btn').addEventListener('click', function() { document.getElementById('nav-overlay').classList.toggle('open'); });
-        document.getElementById('nav-backdrop').addEventListener('click', function() { document.getElementById('nav-overlay').classList.remove('open'); });
+        document.getElementById('hamburger-btn').addEventListener('click', function () { document.getElementById('nav-overlay').classList.toggle('open'); });
+        document.getElementById('nav-backdrop').addEventListener('click', function () { document.getElementById('nav-overlay').classList.remove('open'); });
     </script>
 
 
@@ -308,17 +400,27 @@
                 <div id="history-tooltip" class="tooltip"></div>
             </div>
             <div class="map-time-controls">
-                <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="播放/暫停">▶️</button>
-                <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;" title="重設時間">🔄</button>
-                <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;" title="循環播放">🔁</button>
+                <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;"
+                    title="播放/暫停">▶️</button>
+                <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;"
+                    title="重設時間">🔄</button>
+                <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;"
+                    title="循環播放">🔁</button>
                 <div style="position: relative; display: inline-block;">
-                    <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;" title="播放速度">⏩</button>
-                    <div id="speed-menu" style="display: none; position: absolute; bottom: 100%; left: 0; background-color: rgba(13, 21, 38, 0.95); border: 1px solid rgba(208, 255, 230, 0.2); border-radius: 4px; padding: 5px; margin-bottom: 5px; flex-direction: column; gap: 5px; z-index: 2000;">
-                        <button class="fetch-btn speed-option" data-speed="8" style="width: 40px; padding: 4px;">8x</button>
-                        <button class="fetch-btn speed-option" data-speed="4" style="width: 40px; padding: 4px;">4x</button>
-                        <button class="fetch-btn speed-option" data-speed="2" style="width: 40px; padding: 4px;">2x</button>
-                        <button class="fetch-btn speed-option" data-speed="1" style="width: 40px; padding: 4px; background-color: rgba(208, 255, 230, 0.2);">1x</button>
-                        <button class="fetch-btn speed-option" data-speed="0.5" style="width: 40px; padding: 4px;">0.5x</button>
+                    <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;"
+                        title="播放速度">⏩</button>
+                    <div id="speed-menu"
+                        style="display: none; position: absolute; bottom: 100%; left: 0; background-color: rgba(13, 21, 38, 0.95); border: 1px solid rgba(208, 255, 230, 0.2); border-radius: 4px; padding: 5px; margin-bottom: 5px; flex-direction: column; gap: 5px; z-index: 2000;">
+                        <button class="fetch-btn speed-option" data-speed="8"
+                            style="width: 40px; padding: 4px;">8x</button>
+                        <button class="fetch-btn speed-option" data-speed="4"
+                            style="width: 40px; padding: 4px;">4x</button>
+                        <button class="fetch-btn speed-option" data-speed="2"
+                            style="width: 40px; padding: 4px;">2x</button>
+                        <button class="fetch-btn speed-option" data-speed="1"
+                            style="width: 40px; padding: 4px; background-color: rgba(208, 255, 230, 0.2);">1x</button>
+                        <button class="fetch-btn speed-option" data-speed="0.5"
+                            style="width: 40px; padding: 4px;">0.5x</button>
                     </div>
                 </div>
                 <div class="time-display" id="date-display" style="font-size: 1rem; margin-right: -10px;"></div>
@@ -331,7 +433,7 @@
     <button id="back-to-top-btn" title="回頂端">↑</button>
 
     <script>
-        document.getElementById('mobile-search-toggle').addEventListener('click', function() {
+        document.getElementById('mobile-search-toggle').addEventListener('click', function () {
             var form = document.getElementById('mobile-search-form');
             form.classList.toggle('show');
             if (form.classList.contains('show')) {
