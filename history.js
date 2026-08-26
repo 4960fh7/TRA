@@ -97,7 +97,7 @@ function showErrorMessage(msg) {
         errorToast = document.createElement('div');
         errorToast.id = 'history-error-toast';
         errorToast.style.position = 'absolute';
-        errorToast.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+        errorToast.style.backgroundColor = 'rgba(248, 113, 113, 0.85)';
         errorToast.style.color = '#fff';
         errorToast.style.padding = '8px 16px';
         errorToast.style.borderRadius = '4px';
@@ -1017,7 +1017,14 @@ document.getElementById('fetch-btn').addEventListener('click', async () => {
 ['start-date-input', 'end-date-input'].forEach(id => {
     document.getElementById(id).addEventListener('change', () => {
         if (document.getElementById('map-view-modal').style.display !== 'flex') {
-            fetchData(false);
+            fetchData(true);
+        } else {
+            // Trigger validation even if map is open
+            fetchData(true).then(() => {
+                if (document.getElementById('map-view-modal').style.display === 'flex' && window.isMapInitialized) {
+                    updateMapForTime(parseInt(document.getElementById('time-slider').value, 10));
+                }
+            });
         }
     });
     document.getElementById(id).addEventListener('keydown', (e) => {
