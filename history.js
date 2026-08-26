@@ -744,6 +744,9 @@ function renderTrainCharts() {
                     borderColor: '#1e293b',
                     borderWidth: 1,
                     displayColors: false,
+                    filter: function (tooltipItem, currentIndex, tooltipItems) {
+                        return tooltipItems.findIndex(t => t.datasetIndex === tooltipItem.datasetIndex) === currentIndex;
+                    },
                     callbacks: {
                         title: function () { return ''; },
                         label: function (context) {
