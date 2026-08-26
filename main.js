@@ -2,7 +2,11 @@ const width = 800;
 const height = 800;
 
 if (typeof Chart !== 'undefined') {
-    Chart.defaults.font.family = "'Courier New', Courier, monospace, sans-serif";
+    if (window.innerWidth <= 768) {
+        Chart.defaults.font.family = "'GlowSansSCCom-Compressed', 'Courier New', Courier, monospace, sans-serif";
+    } else {
+        Chart.defaults.font.family = "'Courier New', Courier, monospace, sans-serif";
+    }
 }
 
 const svg = d3.select("#map")
