@@ -606,12 +606,12 @@ svg {
 
 /* ????C?城?????蹎? -> ?此??(Circle & Label) */
 #map .station-group.train-stop .station {
-    fill: #ff9900;
-    filter: drop-shadow(0 0 5px #ff9900);
+    fill: #ce6be0;
+    filter: drop-shadow(0 0 5px #ce6be0);
 }
 
 #map .station-group.train-stop .station-label {
-    fill: #ff9900;
+    fill: #ce6be0;
 }
 
 .tooltip {

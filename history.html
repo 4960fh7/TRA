@@ -245,7 +245,8 @@
 
     <div class="sub-header" id="mobile-search-form">
         <div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">
-            <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; background: #00f0ff; color: #060a12; white-space: nowrap;">切換至: 各車站</button>
+            <button id="close-map-btn" class="fetch-btn" style="display: none; padding: 6px 12px; white-space: nowrap;">誤點圖表</button>
+            <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">切換至: 各車站</button>
             <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">誤點區間地圖</button>
         </div>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
@@ -257,12 +258,11 @@
                     <input type="date" id="end-date-input" class="date-input" style="padding: 6px 8px; width: 130px;">
                 </div>
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
-                <button id="close-map-btn" class="fetch-btn" style="display: none; padding: 6px 12px; background: #ef4444; color: white; border-color: #ef4444; font-weight: bold; white-space: nowrap;">關閉地圖</button>
             </div>
 
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; flex: 1 1 auto; max-width: 100%;">
                 <label id="search-label" for="train-search-input" style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap; flex-shrink: 0;">搜尋:</label>
-                <div style="position: relative; flex: 1 1 auto; max-width: 150px; min-width: 80px;">
+                <div style="position: relative; flex: 1 1 auto; max-width: 300px; min-width: 160px;">
                     <input type="text" id="train-search-input" class="date-input" placeholder="搜尋車站或車次" autocomplete="off"
                         style="width: 100%; padding: 6px 10px; box-sizing: border-box;">
                     <div id="train-suggestions" class="suggestions-dropdown custom-scrollbar" style="width: 100%; top: 100%; box-sizing: border-box;"></div>

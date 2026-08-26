@@ -20,13 +20,17 @@ function getTrainTypeName(train, number) {
     const trainMapping = {
         6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號',
         6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號',
-        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
+        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號', 6073: '鳴日號', 6042: '鳴日號',
+        6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
+        6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
+        6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
+        6041: '鳴日號',
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
         4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
-        6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
     };
     const numKey = Number(number);
     if (trainMapping[numKey]) {
@@ -74,7 +78,7 @@ async function init() {
         try {
             const mapRes = await fetch('counties.json');
             window.countiesData = await mapRes.json();
-        } catch(e) { console.error("Failed to load counties.json", e); }
+        } catch (e) { console.error("Failed to load counties.json", e); }
 
     } catch (e) {
         console.error("Failed to load stations.json", e);
@@ -106,7 +110,7 @@ function showErrorMessage(msg, isWarning = false) {
         errorToast.style.pointerEvents = 'none';
         errorToast.style.transition = 'opacity 0.3s';
         errorToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
-        
+
         const btn = document.getElementById('fetch-btn');
         if (btn && btn.parentElement) {
             btn.parentElement.style.position = 'relative';
@@ -121,15 +125,15 @@ function showErrorMessage(msg, isWarning = false) {
             errorToast.style.transform = 'translateX(-50%)';
         }
     }
-    
+
     errorToast.style.backgroundColor = isWarning ? 'rgba(234, 179, 8, 0.95)' : 'rgba(248, 113, 113, 0.85)';
     errorToast.innerText = msg;
     errorToast.style.opacity = '1';
-    
+
     if (errorToast.timeoutId) {
         clearTimeout(errorToast.timeoutId);
     }
-    
+
     errorToast.timeoutId = setTimeout(() => {
         errorToast.style.opacity = '0';
     }, 3000);
@@ -142,18 +146,18 @@ async function fetchData(showError = true) {
         if (showError) showErrorMessage("請選擇日期區間");
         return;
     }
-    
+
     let startDate = new Date(startVal);
     let endDate = new Date(endVal);
-    
+
     if (startDate > endDate) {
         if (showError) showErrorMessage("開始日期不能晚於結束日期");
         return;
     }
-    
+
     const diffTime = Math.abs(endDate - startDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    if (diffDays > 30) { 
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 30) {
         if (showError) showErrorMessage("區間最多只能選擇 31 天");
         return;
     }
@@ -179,7 +183,7 @@ async function fetchData(showError = true) {
             dateObjects.push({ str: `${mm}${dd}`, strVis: `${yyyy}${mm}${dd}`, label: `${mm}/${dd}` });
             currDate.setDate(currDate.getDate() + 1);
         }
-        
+
         window.activeDateObjects = dateObjects;
         const slider = document.getElementById('time-slider');
         if (slider) {
@@ -194,7 +198,7 @@ async function fetchData(showError = true) {
             const dateStrTdx = dateObj.str; // MMDD
             const dateStrVis = dateObj.strVis; // YYYYMMDD
             const dateLabel = dateObj.label;
-            
+
             const [resTdx, resSchedule] = await Promise.allSettled([
                 fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStrTdx}.json`),
                 fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStrVis}.json`)
@@ -204,24 +208,24 @@ async function fetchData(showError = true) {
             let tdxData = null;
 
             if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
-                try { scheduleData = await resSchedule.value.json(); } catch (e) {}
+                try { scheduleData = await resSchedule.value.json(); } catch (e) { }
             }
             if (resTdx.status === 'fulfilled' && resTdx.value.ok) {
-                try { tdxData = await resTdx.value.json(); } catch (e) {}
+                try { tdxData = await resTdx.value.json(); } catch (e) { }
             }
-            
+
             return { dateLabel, scheduleData, tdxData };
         });
 
         const results = await Promise.all(fetchPromises);
-        
+
         for (const result of results) {
             const { dateLabel, scheduleData, tdxData } = result;
-            
+
             if (scheduleData) {
                 scheduleData.forEach(t => { scheduleMap[t.number] = t; });
             }
-            
+
             if (tdxData) {
                 tdxData.forEach(train => {
                     if (!train.data || train.data.length === 0) return;
@@ -283,7 +287,7 @@ async function fetchData(showError = true) {
         processedData.sort((a, b) => parseInt(a.No, 10) - parseInt(b.No, 10));
 
         wrapper.innerHTML = "";
-        
+
         if (processedData.length === 0) {
             wrapper.innerHTML = "";
             if (showError) showErrorMessage("此區間無資料");
@@ -361,14 +365,14 @@ function renderTrainCharts() {
 
         let origin_station_name = null;
         let origin_scheduled_time = null;
-        
+
         if (trainData && trainData.data && trainData.data.length > 0) {
             origin_station_name = trainData.data[0].x;
             origin_scheduled_time = trainData.data[0].y;
         }
 
         let baseDayData = train.daysData[0].data; // Use the first available day to build x-axis ticks
-        
+
         if (origin_scheduled_time === null) {
             if (baseDayData.length > 0) {
                 let firstRecord = baseDayData[0];
@@ -398,7 +402,7 @@ function renderTrainCharts() {
 
         // Build a fixed X mapping for each station so they align perfectly across days
         let stationXMap = {};
-        
+
         train.daysData.forEach(day => {
             day.data.forEach(d => {
                 let sid = d.StationID;
@@ -429,7 +433,7 @@ function renderTrainCharts() {
                         timeSinceDep = sched_time - origin_scheduled_time;
                     }
                 }
-                
+
                 // Only keep positive or 0 offsets
                 if (timeSinceDep >= 0) {
                     stationXMap[sid] = timeSinceDep;
@@ -452,16 +456,16 @@ function renderTrainCharts() {
         const stationDelays = {}; // For overview chart avg
         train.daysData.forEach(day => {
             const chartData = [];
-            
+
             day.data.forEach(d => {
                 let sid = d.StationID;
                 if (stationXMap[sid] === undefined) return; // Filtered out
-                
+
                 let timeSinceDep = stationXMap[sid];
                 let sName = stationsMap[sid] || sid;
 
                 chartData.push({ x: timeSinceDep, y: d.Delay, dateLabel: day.dateLabel, stationName: sName });
-                
+
                 totalDelay += d.Delay;
                 totalCount++;
                 if (d.Delay > localMaxDelay) localMaxDelay = d.Delay;
@@ -543,7 +547,7 @@ function renderTrainCharts() {
 
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.ceil(Math.max(10, localMaxDelay * 1.1) / 5) * 5 : window.yAxisMax;
-        
+
         let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
         const containerHTML = `
@@ -571,41 +575,41 @@ function renderTrainCharts() {
         let interpolatedSum = {};
         let interpolatedCount = {};
         uniqueXTicks.forEach(x => {
-             interpolatedSum[x] = 0;
-             interpolatedCount[x] = 0;
+            interpolatedSum[x] = 0;
+            interpolatedCount[x] = 0;
         });
 
         allDatasets.forEach(dataset => {
-             let data = dataset.data.slice().sort((a, b) => a.x - b.x);
-             if (data.length === 0) return;
-             
-             uniqueXTicks.forEach(x => {
-                 let y;
-                 let exactMatch = data.find(p => p.x === x);
-                 if (exactMatch) {
-                     y = exactMatch.y;
-                 } else if (x <= data[0].x) {
-                     y = data[0].y;
-                 } else if (x >= data[data.length - 1].x) {
-                     y = data[data.length - 1].y;
-                 } else {
-                     let p1, p2;
-                     for (let k = 0; k < data.length - 1; k++) {
-                         if (data[k].x < x && data[k+1].x > x) {
-                             p1 = data[k];
-                             p2 = data[k+1];
-                             break;
-                         }
-                     }
-                     if (p1 && p2) {
-                         y = p1.y + (p2.y - p1.y) * (x - p1.x) / (p2.x - p1.x);
-                     }
-                 }
-                 if (y !== undefined) {
-                     interpolatedSum[x] += y;
-                     interpolatedCount[x] += 1;
-                 }
-             });
+            let data = dataset.data.slice().sort((a, b) => a.x - b.x);
+            if (data.length === 0) return;
+
+            uniqueXTicks.forEach(x => {
+                let y;
+                let exactMatch = data.find(p => p.x === x);
+                if (exactMatch) {
+                    y = exactMatch.y;
+                } else if (x <= data[0].x) {
+                    y = data[0].y;
+                } else if (x >= data[data.length - 1].x) {
+                    y = data[data.length - 1].y;
+                } else {
+                    let p1, p2;
+                    for (let k = 0; k < data.length - 1; k++) {
+                        if (data[k].x < x && data[k + 1].x > x) {
+                            p1 = data[k];
+                            p2 = data[k + 1];
+                            break;
+                        }
+                    }
+                    if (p1 && p2) {
+                        y = p1.y + (p2.y - p1.y) * (x - p1.x) / (p2.x - p1.x);
+                    }
+                }
+                if (y !== undefined) {
+                    interpolatedSum[x] += y;
+                    interpolatedCount[x] += 1;
+                }
+            });
         });
 
         const avgChartData = [];
@@ -942,7 +946,7 @@ function renderStationCharts() {
 
         let isMobile = window.innerWidth <= 600;
         let yMax = isMobile ? Math.ceil(Math.max(10, localMaxDelay * 1.1) / 5) * 5 : window.yAxisMax;
-        
+
         let mobileHeight = isMobile ? Math.floor(140 + (localMaxDelay / (window.yAxisMax || 1)) * 60) : 400;
 
         const containerHTML = `
@@ -1332,14 +1336,14 @@ document.getElementById('delay-map-btn').addEventListener('click', () => {
     document.getElementById('view-mode-btn').style.display = 'none';
     document.getElementById('delay-map-btn').style.display = 'none';
     document.getElementById('search-label').parentElement.style.display = 'none';
-    
+
     // Show close map button
     document.getElementById('close-map-btn').style.display = 'block';
 
     // Toggle chart vs map view
     document.getElementById('charts-main-content').style.display = 'none';
     document.getElementById('map-view-modal').style.display = 'flex';
-    
+
     if (!isMapInitialized) {
         initHistoryMap();
     }
@@ -1348,12 +1352,12 @@ document.getElementById('delay-map-btn').addEventListener('click', () => {
 
 document.getElementById('close-map-btn').addEventListener('click', () => {
     pauseAutoPlay();
-    
+
     // Restore standard elements
     document.getElementById('view-mode-btn').style.display = 'block';
     document.getElementById('delay-map-btn').style.display = 'block';
     document.getElementById('search-label').parentElement.style.display = 'flex';
-    
+
     // Hide close map button
     document.getElementById('close-map-btn').style.display = 'none';
 
@@ -1381,7 +1385,7 @@ function initHistoryMap() {
 
     mapSvg = d3.select("#history-map-svg")
         .attr("viewBox", `0 0 ${width} ${height}`);
-    
+
     mapMainGroup = mapSvg.append("g");
 
     mapProjection = d3.geoMercator()
@@ -1410,7 +1414,7 @@ function initHistoryMap() {
         let objectsKey = Object.keys(window.countiesData.objects)[0];
         if (window.countiesData.objects["counties"]) objectsKey = "counties";
         else if (window.countiesData.objects["towns"]) objectsKey = "towns";
-        
+
         const counties = topojson.feature(window.countiesData, window.countiesData.objects[objectsKey]).features;
         mapMainGroup.selectAll(".county")
             .data(counties)
@@ -1458,7 +1462,7 @@ function initHistoryMap() {
             .on("mouseleave", function (event, d) {
                 d3.select("#history-tooltip").style("opacity", 0);
             });
-        
+
         buildStationsHub();
     }
 }
@@ -1497,7 +1501,7 @@ function buildStationsHub() {
             addEdge(stations[i], stations[i + 1]);
         }
     }
-    
+
     mapChain(makeArr(2, 14));
     mapChain(leftCoast);
     mapChain(makeArr(158, 168));
@@ -1512,7 +1516,7 @@ function buildStationsHub() {
         addEdge(junctionIdx, stationsArr[0]);
         mapChain(stationsArr);
     }
-    
+
     drawBranch([1, 0], 2);
     drawBranch([206], 207);
     drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30);
@@ -1555,7 +1559,7 @@ function getStationNameStr(d) {
 function updateMapForTime(sliderMinutes) {
     let dayIndex = Math.floor((sliderMinutes - 300) / 1440);
     let localMinutes = ((sliderMinutes - 300) % 1440) + 300;
-    
+
     if (window.activeDateObjects && window.activeDateObjects.length > 0) {
         if (dayIndex >= window.activeDateObjects.length) {
             dayIndex = window.activeDateObjects.length - 1;
@@ -1686,7 +1690,7 @@ document.querySelectorAll('.speed-option').forEach(btn => {
         document.querySelectorAll('.speed-option').forEach(b => b.style.backgroundColor = 'transparent');
         e.target.style.backgroundColor = 'rgba(208, 255, 230, 0.2)';
         speedMenu.style.display = 'none';
-        
+
         if (playInterval) {
             pauseAutoPlay();
             toggleAutoPlay();
@@ -1709,7 +1713,7 @@ function toggleAutoPlay() {
             slider.value = slider.min;
             updateMapForTime(parseInt(slider.value, 10));
         }
-        
+
         playPauseBtn.innerText = '⏸️';
         playInterval = setInterval(() => {
             const slider = document.getElementById('time-slider');

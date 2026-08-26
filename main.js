@@ -598,12 +598,12 @@ function drawMap(twData, stationsData) {
         .attr("d", path)
         .on("click", function (event, d) {
             if (window.isTopologyMode) return;
-            
+
             const name = d.properties.name || d.properties.COUNTYNAME || "";
             if (name === "澎湖縣" || name === "金門縣" || name === "連江縣") return;
 
             let targetFeature = d;
-            
+
             if ((name === "宜蘭縣" || name === "臺東縣" || name === "台東縣") && d.geometry.type === "MultiPolygon") {
                 targetFeature = {
                     type: "Feature",
@@ -618,10 +618,10 @@ function drawMap(twData, stationsData) {
                             }
                             // 宜蘭縣：釣魚台列嶼 (經度 > 122.5)
                             if (name === "宜蘭縣" && minLon > 122.5) return false;
-                            
+
                             // 臺東縣：蘭嶼、小蘭嶼 (緯度 < 22.15)
                             if ((name === "臺東縣" || name === "台東縣") && maxLat < 22.15) return false;
-                            
+
                             return true;
                         })
                     }
@@ -1042,13 +1042,17 @@ function getTrainTypeName(train, number) {
     const trainMapping = {
         6094: '鳴日號', 6011: '鳴日號', 6006: '鳴日號', 6007: '鳴日號', 6022: '鳴日號',
         6010: '鳴日號', 6081: '鳴日號', 6057: '鳴日號', 6088: '鳴日號', 6090: '鳴日號',
-        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號',
+        6099: '鳴日號', 6050: '鳴日號', 6075: '鳴日號', 6073: '鳴日號', 6042: '鳴日號',
+        6052: '鳴日號', 6053: '鳴日號', 6014: '鳴日號', 6083: '鳴日號', 6049: '鳴日號',
+        6015: '鳴日號', 6026: '鳴日號', 6016: '鳴日號', 6061: '鳴日號', 6095: '鳴日號',
+        6096: '鳴日號', 6068: '鳴日號', 6070: '鳴日號', 6077: '鳴日號', 6002: '鳴日號',
+        6041: '鳴日號',
         5898: '藍皮解憂', 5899: '藍皮解憂',
         6629: '海風號', 6630: '海風號', 6637: '海風號', 6638: '海風號', 6652: '海風號', 6655: '海風號',
         6631: '山嵐號', 6632: '山嵐號', 6633: '山嵐號', 6676: '山嵐號', 6677: '山嵐號',
         4666: '仲夏寶島', 4667: '仲夏寶島',
         1: '環島之星', 2: '環島之星',
-        6611: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
+        6611: '慧燈專車', 6613: '慧燈專車', 6615: '慧燈專車', 6616: '慧燈專車'
     };
     const numKey = Number(number);
     if (trainMapping[numKey]) {
@@ -1483,7 +1487,7 @@ function initUnifiedSearchAutocomplete() {
             trainMatches = globalScheduleData.filter(t => {
                 const noMatch = String(t.number).includes(normalizedValue);
                 const trainType = t.train || "";
-                const typeMatch = trainType.includes(normalizedValue) || getTrainTypeName(trainType, t.number).includes(normalizedValue);
+                const typeMatch = trainType.toLowerCase().includes(normalizedValue) || getTrainTypeName(trainType, t.number).toLowerCase().includes(normalizedValue);
                 return noMatch || typeMatch;
             });
 
