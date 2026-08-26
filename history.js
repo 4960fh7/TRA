@@ -91,13 +91,12 @@ function parseTime(timeStr) {
     return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
 }
 
-function showErrorMessage(msg) {
+function showErrorMessage(msg, isWarning = false) {
     let errorToast = document.getElementById('history-error-toast');
     if (!errorToast) {
         errorToast = document.createElement('div');
         errorToast.id = 'history-error-toast';
         errorToast.style.position = 'absolute';
-        errorToast.style.backgroundColor = 'rgba(248, 113, 113, 0.85)';
         errorToast.style.color = '#fff';
         errorToast.style.padding = '8px 16px';
         errorToast.style.borderRadius = '4px';
@@ -123,6 +122,7 @@ function showErrorMessage(msg) {
         }
     }
     
+    errorToast.style.backgroundColor = isWarning ? 'rgba(234, 179, 8, 0.95)' : 'rgba(248, 113, 113, 0.85)';
     errorToast.innerText = msg;
     errorToast.style.opacity = '1';
     
@@ -153,9 +153,12 @@ async function fetchData(showError = true) {
     
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
-    if (diffDays > 13) { 
-        if (showError) showErrorMessage("區間最多只能選擇 14 天");
+    if (diffDays > 30) { 
+        if (showError) showErrorMessage("區間最多只能選擇 31 天");
         return;
+    }
+    if (diffDays > 13) {
+        if (showError) showErrorMessage("選取的時間超過 14 天，可能會造成頁面卡頓", true);
     }
 
     const wrapper = document.getElementById('charts-wrapper');
@@ -187,78 +190,90 @@ async function fetchData(showError = true) {
         const dateDisplay = document.getElementById('date-display');
         if (dateDisplay) dateDisplay.innerText = dateObjects[0].label;
 
-        for (let i = 0; i < dateObjects.length; i++) {
-            const dateStrTdx = dateObjects[i].str; // MMDD
-            const dateStrVis = dateObjects[i].strVis; // YYYYMMDD
-            const dateLabel = dateObjects[i].label;
+        const fetchPromises = dateObjects.map(async (dateObj) => {
+            const dateStrTdx = dateObj.str; // MMDD
+            const dateStrVis = dateObj.strVis; // YYYYMMDD
+            const dateLabel = dateObj.label;
             
             const [resTdx, resSchedule] = await Promise.allSettled([
                 fetch(`https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/merged_train_data_${dateStrTdx}.json`),
                 fetch(`https://raw.githubusercontent.com/4960fh7/TRA_Visualization/main/data_new/${dateStrVis}.json`)
             ]);
-            
+
+            let scheduleData = null;
+            let tdxData = null;
+
             if (resSchedule.status === 'fulfilled' && resSchedule.value.ok) {
-                try {
-                    const sData = await resSchedule.value.json();
-                    sData.forEach(t => { scheduleMap[t.number] = t; });
-                } catch (e) {}
+                try { scheduleData = await resSchedule.value.json(); } catch (e) {}
+            }
+            if (resTdx.status === 'fulfilled' && resTdx.value.ok) {
+                try { tdxData = await resTdx.value.json(); } catch (e) {}
             }
             
-            if (resTdx.status === 'fulfilled' && resTdx.value.ok) {
-                try {
-                    const data = await resTdx.value.json();
-                    data.forEach(train => {
-                        if (!train.data || train.data.length === 0) return;
+            return { dateLabel, scheduleData, tdxData };
+        });
 
-                        let baseTime = parseTime(train.data[0].Update);
-                        train.data.forEach(d => {
-                            let rawTime = parseTime(d.Update);
-                            if (rawTime < baseTime - 6 * 3600) {
-                                d._absTime = rawTime + 24 * 3600;
-                            } else if (rawTime > baseTime + 18 * 3600) {
-                                d._absTime = rawTime - 24 * 3600;
-                            } else {
-                                d._absTime = rawTime;
-                            }
-                        });
-                        train.data.sort((a, b) => a._absTime - b._absTime);
+        const results = await Promise.all(fetchPromises);
+        
+        for (const result of results) {
+            const { dateLabel, scheduleData, tdxData } = result;
+            
+            if (scheduleData) {
+                scheduleData.forEach(t => { scheduleMap[t.number] = t; });
+            }
+            
+            if (tdxData) {
+                tdxData.forEach(train => {
+                    if (!train.data || train.data.length === 0) return;
 
-                        const groups = [];
-                        for (let j = 0; j < train.data.length; j++) {
-                            const d = train.data[j];
-                            if (groups.length === 0 || groups[groups.length - 1].StationID !== d.StationID) {
-                                groups.push({ StationID: d.StationID, records: [d] });
-                            } else {
-                                groups[groups.length - 1].records.push(d);
-                            }
-                        }
-
-                        const uniqueData = [];
-                        const seenStations = new Set();
-                        groups.forEach((g, index) => {
-                            if (seenStations.has(g.StationID)) return;
-                            seenStations.add(g.StationID);
-                            if (index === 0) {
-                                uniqueData.push(g.records[g.records.length - 1]);
-                            } else {
-                                uniqueData.push(g.records[0]);
-                            }
-                        });
-
-                        uniqueData.forEach(d => {
-                            if (d.Delay > maxDelay) {
-                                maxDelay = d.Delay;
-                            }
-                        });
-
-                        if (uniqueData.length > 0) {
-                            if (!allProcessedDataMap[train.No]) {
-                                allProcessedDataMap[train.No] = { No: train.No, daysData: [] };
-                            }
-                            allProcessedDataMap[train.No].daysData.push({ dateLabel: dateLabel, data: uniqueData });
+                    let baseTime = parseTime(train.data[0].Update);
+                    train.data.forEach(d => {
+                        let rawTime = parseTime(d.Update);
+                        if (rawTime < baseTime - 6 * 3600) {
+                            d._absTime = rawTime + 24 * 3600;
+                        } else if (rawTime > baseTime + 18 * 3600) {
+                            d._absTime = rawTime - 24 * 3600;
+                        } else {
+                            d._absTime = rawTime;
                         }
                     });
-                } catch(e) {}
+                    train.data.sort((a, b) => a._absTime - b._absTime);
+
+                    const groups = [];
+                    for (let j = 0; j < train.data.length; j++) {
+                        const d = train.data[j];
+                        if (groups.length === 0 || groups[groups.length - 1].StationID !== d.StationID) {
+                            groups.push({ StationID: d.StationID, records: [d] });
+                        } else {
+                            groups[groups.length - 1].records.push(d);
+                        }
+                    }
+
+                    const uniqueData = [];
+                    const seenStations = new Set();
+                    groups.forEach((g, index) => {
+                        if (seenStations.has(g.StationID)) return;
+                        seenStations.add(g.StationID);
+                        if (index === 0) {
+                            uniqueData.push(g.records[g.records.length - 1]);
+                        } else {
+                            uniqueData.push(g.records[0]);
+                        }
+                    });
+
+                    uniqueData.forEach(d => {
+                        if (d.Delay > maxDelay) {
+                            maxDelay = d.Delay;
+                        }
+                    });
+
+                    if (uniqueData.length > 0) {
+                        if (!allProcessedDataMap[train.No]) {
+                            allProcessedDataMap[train.No] = { No: train.No, daysData: [] };
+                        }
+                        allProcessedDataMap[train.No].daysData.push({ dateLabel: dateLabel, data: uniqueData });
+                    }
+                });
             }
         }
 
