@@ -1300,7 +1300,6 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
     const currentMinutesMidnight = now.getHours() * 60 + now.getMinutes();
     const badgeInfo = getTrainStatusBadge(train, rawLiveBoardInfo, currentMinutesMidnight);
 
-    document.getElementById('last-update-time').innerHTML = `最後更新時間：<span>${updateTimeString}</span>`;
     document.getElementById("schedule-train-title").innerHTML = `
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
             <div style="color: ${neonColor}">${titleText}</div>
