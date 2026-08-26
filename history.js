@@ -91,11 +91,55 @@ function parseTime(timeStr) {
     return parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseInt(parts[2], 10);
 }
 
+function showErrorMessage(msg) {
+    let errorToast = document.getElementById('history-error-toast');
+    if (!errorToast) {
+        errorToast = document.createElement('div');
+        errorToast.id = 'history-error-toast';
+        errorToast.style.position = 'absolute';
+        errorToast.style.backgroundColor = 'rgba(239, 68, 68, 0.9)';
+        errorToast.style.color = '#fff';
+        errorToast.style.padding = '8px 16px';
+        errorToast.style.borderRadius = '4px';
+        errorToast.style.fontSize = '14px';
+        errorToast.style.fontWeight = 'bold';
+        errorToast.style.zIndex = '9999';
+        errorToast.style.pointerEvents = 'none';
+        errorToast.style.transition = 'opacity 0.3s';
+        errorToast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.5)';
+        
+        const btn = document.getElementById('fetch-btn');
+        if (btn && btn.parentElement) {
+            btn.parentElement.style.position = 'relative';
+            btn.parentElement.appendChild(errorToast);
+            errorToast.style.top = '100%';
+            errorToast.style.left = '0';
+            errorToast.style.marginTop = '8px';
+        } else {
+            document.body.appendChild(errorToast);
+            errorToast.style.top = '120px';
+            errorToast.style.left = '50%';
+            errorToast.style.transform = 'translateX(-50%)';
+        }
+    }
+    
+    errorToast.innerText = msg;
+    errorToast.style.opacity = '1';
+    
+    if (errorToast.timeoutId) {
+        clearTimeout(errorToast.timeoutId);
+    }
+    
+    errorToast.timeoutId = setTimeout(() => {
+        errorToast.style.opacity = '0';
+    }, 3000);
+}
+
 async function fetchData(showError = true) {
     const startVal = document.getElementById('start-date-input').value;
     const endVal = document.getElementById('end-date-input').value;
     if (!startVal || !endVal) {
-        if (showError) alert("請選擇日期區間");
+        if (showError) showErrorMessage("請選擇日期區間");
         return;
     }
     
@@ -103,14 +147,14 @@ async function fetchData(showError = true) {
     let endDate = new Date(endVal);
     
     if (startDate > endDate) {
-        if (showError) alert("開始日期不能晚於結束日期");
+        if (showError) showErrorMessage("開始日期不能晚於結束日期");
         return;
     }
     
     const diffTime = Math.abs(endDate - startDate);
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
     if (diffDays > 13) { 
-        if (showError) alert("區間最多只能選擇 14 天");
+        if (showError) showErrorMessage("區間最多只能選擇 14 天");
         return;
     }
 
@@ -226,7 +270,8 @@ async function fetchData(showError = true) {
         wrapper.innerHTML = "";
         
         if (processedData.length === 0) {
-            wrapper.innerHTML = "<p style='color: #ef4444;'>此區間無資料</p>";
+            wrapper.innerHTML = "";
+            if (showError) showErrorMessage("此區間無資料");
             return;
         }
 
@@ -237,11 +282,10 @@ async function fetchData(showError = true) {
         closeMobileSearchForm();
 
     } catch (e) {
+        wrapper.innerHTML = "";
+        document.getElementById('overview-chart-container').style.display = 'none';
         if (showError) {
-            wrapper.innerHTML = `<p style='color: #ef4444;'>錯誤: ${e.message}</p>`;
-        } else {
-            wrapper.innerHTML = "";
-            document.getElementById('overview-chart-container').style.display = 'none';
+            showErrorMessage(`錯誤: ${e.message}`);
         }
     }
 }
@@ -1440,7 +1484,19 @@ function updateMapForTime(sliderMinutes) {
             dayIndex = window.activeDateObjects.length - 1;
             localMinutes = 1440 + 300;
         }
-        document.getElementById('date-display').innerText = window.activeDateObjects[dayIndex].label;
+        let displayLabel = window.activeDateObjects[dayIndex].label;
+        if (localMinutes >= 1440) {
+            const baseStrVis = window.activeDateObjects[dayIndex].strVis;
+            const yyyy = parseInt(baseStrVis.substring(0, 4), 10);
+            const mm = parseInt(baseStrVis.substring(4, 6), 10) - 1;
+            const dd = parseInt(baseStrVis.substring(6, 8), 10);
+            const nextDay = new Date(yyyy, mm, dd);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextMm = String(nextDay.getMonth() + 1).padStart(2, '0');
+            const nextDd = String(nextDay.getDate()).padStart(2, '0');
+            displayLabel = `${nextMm}/${nextDd}`;
+        }
+        document.getElementById('date-display').innerText = displayLabel;
     }
 
     const timeDisplay = document.getElementById('time-display');
