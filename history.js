@@ -66,7 +66,7 @@ async function init() {
         const logicalToday = new Date(now.getTime() - 5 * 3600 * 1000);
 
         const targetDate = new Date(logicalToday);
-        targetDate.setDate(targetDate.getDate() - 1);
+        targetDate.setDate(targetDate.getDate() - 2);
 
         const yyyy = targetDate.getFullYear();
         const mm = String(targetDate.getMonth() + 1).padStart(2, '0');
