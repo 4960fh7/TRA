@@ -238,7 +238,7 @@
             padding-top: 15px;
             border-top: 1px solid #1a2a3a;
         }
-        
+
         .result-card.expanded .timeline {
             display: block;
         }
@@ -261,7 +261,7 @@
         .suggestions-dropdown-planner.active {
             display: block;
         }
-        
+
         .suggestion-item-planner {
             padding: 10px;
             cursor: pointer;
@@ -285,9 +285,17 @@
         }
 
         @keyframes pulse {
-            0% { opacity: 0.6; }
-            50% { opacity: 1; }
-            100% { opacity: 0.6; }
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
         }
 
 
@@ -296,31 +304,37 @@
                 flex-direction: column;
                 align-items: stretch;
             }
+
             .form-row.station-row {
                 flex-direction: row;
                 gap: 5px;
             }
+
             .form-row.datetime-row {
                 flex-direction: row;
             }
+
             .swap-btn {
                 transform: none;
                 align-self: flex-end;
                 margin-top: 0;
                 padding: 10px 8px;
             }
+
             .filter-option {
                 margin-bottom: 6px;
                 font-size: 13px;
             }
+
             .filter-option input[type="checkbox"] {
                 transform: scale(0.9);
             }
+
             #planner-container {
                 padding: 15px;
                 height: calc(100vh - 50px);
             }
-            
+
 
         }
     </style>
@@ -332,8 +346,8 @@
             <h1>臺鐵旅程規劃</h1>
         </div>
         <div class="search-wrap">
-            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">即時動態</button>
-            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">歷史資料</button>
+            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">列車動態</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">誤點紀錄</button>
             <button class="hamburger-btn" id="hamburger-btn">☰</button>
         </div>
     </div>
@@ -344,7 +358,7 @@
         <div class="nav-drawer">
             <button class="nav-link" onclick="window.location.href='index.html'">列車動態</button>
             <button class="nav-link active">旅程規劃</button>
-            <button class="nav-link" onclick="window.location.href='history.html'">歷史資料</button>
+            <button class="nav-link" onclick="window.location.href='history.html'">誤點紀錄</button>
         </div>
     </div>
 
@@ -354,7 +368,8 @@
                 <div class="form-row station-row">
                     <div class="form-group">
                         <label for="from-station">出發站</label>
-                        <input type="text" id="from-station" class="planner-input" placeholder="例如：台北" autocomplete="off">
+                        <input type="text" id="from-station" class="planner-input" placeholder="例如：台北"
+                            autocomplete="off">
                         <div id="from-suggestions" class="suggestions-dropdown-planner custom-scrollbar"></div>
                     </div>
                     <button class="swap-btn" id="swap-stations-btn" title="對調起訖站">⇄</button>
@@ -364,7 +379,7 @@
                         <div id="to-suggestions" class="suggestions-dropdown-planner custom-scrollbar"></div>
                     </div>
                 </div>
-                
+
                 <div class="form-row datetime-row">
                     <div class="form-group">
                         <label for="travel-date">日期</label>
@@ -398,17 +413,24 @@
                         <input type="checkbox" id="filter-transfer-station">
                         <label for="filter-transfer-station" style="white-space: nowrap;">指定轉乘站</label>
                         <div style="position: relative; flex: 1; min-width: 120px; margin-left: 8px;">
-                            <input type="text" id="filter-transfer-station-input" class="filter-station-input" style="margin-top: 0; width: 100%;" placeholder="輸入名稱" autocomplete="off" disabled>
-                            <div id="filter-transfer-suggestions" class="suggestions-dropdown-planner custom-scrollbar" style="position: absolute; top: 100%; left: 0; right: 0; z-index: 10;"></div>
+                            <input type="text" id="filter-transfer-station-input" class="filter-station-input"
+                                style="margin-top: 0; width: 100%;" placeholder="輸入名稱" autocomplete="off" disabled>
+                            <div id="filter-transfer-suggestions" class="suggestions-dropdown-planner custom-scrollbar"
+                                style="position: absolute; top: 100%; left: 0; right: 0; z-index: 10;"></div>
                         </div>
                     </div>
                     <div class="filter-option" style="flex-wrap: wrap;">
                         <input type="checkbox" id="filter-transfer-time">
                         <label for="filter-transfer-time" style="white-space: nowrap;">限制轉乘時間</label>
-                        <div style="display: flex; align-items: center; flex: 1; min-width: 150px; margin-left: 8px; gap: 5px;">
-                            <input type="number" id="transfer-time-min" class="filter-station-input" style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="10" min="0" disabled>
+                        <div
+                            style="display: flex; align-items: center; flex: 1; min-width: 150px; margin-left: 8px; gap: 5px;">
+                            <input type="number" id="transfer-time-min" class="filter-station-input"
+                                style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="10"
+                                min="0" disabled>
                             <span style="color: #ccc;">~</span>
-                            <input type="number" id="transfer-time-max" class="filter-station-input" style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="180" min="0" disabled>
+                            <input type="number" id="transfer-time-max" class="filter-station-input"
+                                style="margin-top: 0; width: 60px; text-align: center; padding: 8px 5px;" value="180"
+                                min="0" disabled>
                             <span style="color: #ccc;">分鐘</span>
                         </div>
                     </div>
@@ -434,40 +456,40 @@
         <div id="results-container" class="results-container">
             <div style="text-align: center; color: #888; padding: 20px;">請輸入條件並點擊「規劃旅程」</div>
         </div>
-        
+
         <!-- Virtual empty block for mobile scrolling -->
         <div style="height: 120px; width: 100%; flex-shrink: 0;"></div>
     </div>
 
     <script>
         // Hamburger menu toggle
-        document.getElementById('hamburger-btn').addEventListener('click', function() {
+        document.getElementById('hamburger-btn').addEventListener('click', function () {
             document.getElementById('nav-overlay').classList.toggle('open');
         });
-        document.getElementById('nav-backdrop').addEventListener('click', function() {
+        document.getElementById('nav-backdrop').addEventListener('click', function () {
             document.getElementById('nav-overlay').classList.remove('open');
         });
 
         // Settings panel toggle
-        document.getElementById('settings-toggle-btn').addEventListener('click', function() {
+        document.getElementById('settings-toggle-btn').addEventListener('click', function () {
             document.getElementById('settings-panel').classList.toggle('active');
         });
 
         // Reserved / unreserved mutual exclusion
-        document.getElementById('filter-reserved').addEventListener('change', function() {
+        document.getElementById('filter-reserved').addEventListener('change', function () {
             if (this.checked) document.getElementById('filter-unreserved').checked = false;
         });
-        document.getElementById('filter-unreserved').addEventListener('change', function() {
+        document.getElementById('filter-unreserved').addEventListener('change', function () {
             if (this.checked) document.getElementById('filter-reserved').checked = false;
         });
 
         // Transfer station checkbox enables/disables input
-        document.getElementById('filter-transfer-station').addEventListener('change', function() {
+        document.getElementById('filter-transfer-station').addEventListener('change', function () {
             document.getElementById('filter-transfer-station-input').disabled = !this.checked;
         });
 
         // Transfer time checkbox enables/disables inputs
-        document.getElementById('filter-transfer-time').addEventListener('change', function() {
+        document.getElementById('filter-transfer-time').addEventListener('change', function () {
             document.getElementById('transfer-time-min').disabled = !this.checked;
             document.getElementById('transfer-time-max').disabled = !this.checked;
         });
@@ -481,7 +503,7 @@
             if (document.getElementById('filter-unreserved').checked) count++;
             if (document.getElementById('filter-transfer-station').checked) count++;
             if (document.getElementById('filter-transfer-time').checked) count++;
-            
+
             const btn = document.getElementById('settings-toggle-btn');
             if (count > 0) {
                 btn.textContent = `⚙ 篩選設定 (${count})`;
@@ -496,10 +518,11 @@
         ['filter-direct-only', 'filter-eticket', 'filter-reserved', 'filter-unreserved', 'filter-transfer-station', 'filter-transfer-time'].forEach(id => {
             document.getElementById(id).addEventListener('change', updateFilterCount);
         });
-        
+
         // Initial update
         updateFilterCount();
     </script>
     <script src="planner.js"></script>
 </body>
+
 </html>

@@ -19,7 +19,7 @@
         <div class="search-wrap">
             <button id="reset-widths-btn" class="reset-btn" style="display: none;">重設</button>
             <button onclick="window.location.href='planner.html'" class="reset-btn desktop-nav-btn">旅程規劃</button>
-            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">歷史資料</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">誤點紀錄</button>
             <div class="search-container">
                 <input type="text" id="unified-search-input" placeholder="搜尋車站或車次編號..." autocomplete="off">
                 <div id="unified-suggestions" class="suggestions-dropdown custom-scrollbar"></div>
@@ -34,19 +34,20 @@
         <div class="nav-drawer">
             <button class="nav-link active">列車動態</button>
             <button class="nav-link" onclick="window.location.href='planner.html'">旅程規劃</button>
-            <button class="nav-link" onclick="window.location.href='history.html'">歷史資料</button>
+            <button class="nav-link" onclick="window.location.href='history.html'">誤點紀錄</button>
         </div>
     </div>
     <script>
-        document.getElementById('hamburger-btn').addEventListener('click', function() { document.getElementById('nav-overlay').classList.toggle('open'); });
-        document.getElementById('nav-backdrop').addEventListener('click', function() { document.getElementById('nav-overlay').classList.remove('open'); });
+        document.getElementById('hamburger-btn').addEventListener('click', function () { document.getElementById('nav-overlay').classList.toggle('open'); });
+        document.getElementById('nav-backdrop').addEventListener('click', function () { document.getElementById('nav-overlay').classList.remove('open'); });
     </script>
 
     <div id="tooltip" class="tooltip"></div>
 
     <div id="app-container">
         <div id="map-container">
-            <button id="overview-toggle-btn" class="topology-toggle-btn overview-mobile-btn" onclick="toggleOverviewPanel()">顯示總覽</button>
+            <button id="overview-toggle-btn" class="topology-toggle-btn overview-mobile-btn"
+                onclick="toggleOverviewPanel()">顯示總覽</button>
             <button id="topology-toggle-btn" class="topology-toggle-btn" onclick="toggleTopologyMode()">切換拓樸圖</button>
             <button id="home-view-btn" class="topology-toggle-btn" style="left: 140px; display: none;">🏠</button>
             <div id="map"></div>
@@ -59,7 +60,8 @@
                     <p id="overview-update-time">最後更新：載入中...</p>
                 </div>
                 <div class="overview-header-actions">
-                    <div id="close-overview-btn" class="close-btn overview-mobile-btn" onclick="toggleOverviewPanel()">&times;</div>
+                    <div id="close-overview-btn" class="close-btn overview-mobile-btn" onclick="toggleOverviewPanel()">
+                        &times;</div>
                 </div>
             </div>
             <hr>

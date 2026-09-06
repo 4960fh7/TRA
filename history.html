@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>臺鐵誤點分析</title>
+    <title>臺鐵誤點紀錄</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://d3js.org/d3.v7.min.js"></script>
@@ -234,7 +234,7 @@
 <body>
     <div class="header">
         <div class="header-title-group">
-            <h1>臺鐵誤點分析</h1>
+            <h1>臺鐵誤點紀錄</h1>
         </div>
         <div class="search-wrap">
             <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">列車動態</button>
@@ -256,9 +256,11 @@
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                 <label style="font-weight: bold; color: #d0ffe6; font-size: 14px; white-space: nowrap;">日期：</label>
                 <div style="display: flex; align-items: center; gap: 4px;">
-                    <input type="date" id="start-date-input" class="date-input responsive-date" style="padding: 6px 8px; width: 130px;">
+                    <input type="date" id="start-date-input" class="date-input responsive-date"
+                        style="padding: 6px 8px; width: 130px;">
                     <span style="color: #d0ffe6;">~</span>
-                    <input type="date" id="end-date-input" class="date-input responsive-date" style="padding: 6px 8px; width: 130px;">
+                    <input type="date" id="end-date-input" class="date-input responsive-date"
+                        style="padding: 6px 8px; width: 130px;">
                 </div>
                 <button id="fetch-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">查詢</button>
             </div>
@@ -285,7 +287,7 @@
         <div class="nav-drawer">
             <button class="nav-link" onclick="window.location.href='index.html'">列車動態</button>
             <button class="nav-link" onclick="window.location.href='planner.html'">旅程規劃</button>
-            <button class="nav-link active">歷史資料</button>
+            <button class="nav-link active">誤點紀錄</button>
         </div>
     </div>
     <script>
