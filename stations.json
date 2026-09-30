@@ -330,6 +330,21 @@
         "level": 1
     },
     {
+        "stationCode": "1105",
+        "stationName": "平鎮",
+        "stationEName": "Pingzhen",
+        "name": "平鎮",
+        "ename": "Pingzhen",
+        "stationAddrTw": "桃園市平鎮區新富一街 66 號",
+        "stationAddrEn": "No. 66, Xinfu 1st St., Pingzhen Dist., Taoyuan City",
+        "stationTel": "",
+        "gps": "24.94278 121.21472",
+        "haveBike": "Y",
+        "CW": "桃園、臺北",
+        "CCW": "新竹、苗栗／大甲",
+        "level": 3
+    },
+    {
         "stationCode": "1110",
         "stationName": "埔心",
         "stationEName": "Puxin",
