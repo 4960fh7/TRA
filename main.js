@@ -445,8 +445,8 @@ function drawMap(twData, stationsData) {
             }
         }
 
-        let leftCoast = [...makeArr(14, 30), ...makeArr(43, 47), ...makeArr(64, 84), ...makeArr(85, 92), ...makeArr(99, 124), ...makeArr(127, 158)];
-        let rightCoast = [...makeArr(168, 194), ...makeArr(195, 205), 207, ...makeArr(208, 226), ...makeArr(233, 234), ...makeArr(237, 238), 2];
+        let leftCoast = [...makeArr(14, 31), ...makeArr(44, 48), ...makeArr(65, 85), ...makeArr(86, 93), ...makeArr(100, 125), ...makeArr(128, 159)];
+        let rightCoast = [...makeArr(169, 195), ...makeArr(196, 206), 208, ...makeArr(209, 227), ...makeArr(234, 235), ...makeArr(238, 239), 2];
 
         // 1. Top Edge
         mapChain(makeArr(2, 14), 12, 0, 0, 0);
@@ -455,23 +455,23 @@ function drawMap(twData, stationsData) {
         mapChain(leftCoast, 0, 0, 0, 100);
 
         // 3. Bottom Edge
-        mapChain(makeArr(158, 168), 0, 100, 12, 100);
+        mapChain(makeArr(159, 169), 0, 100, 12, 100);
 
         // 4. Right Edge
         mapChain(rightCoast, 12, 100, 12, 0);
 
         // 5. Sea Line
-        let y_start = stationsData[47].topoY;
-        let y_end = stationsData[85].topoY;
+        let y_start = stationsData[48].topoY;
+        let y_end = stationsData[86].topoY;
         let seaX = p(-2.5, 0).x;
 
-        let seaStations = makeArr(48, 63);
+        let seaStations = makeArr(49, 64);
         let seaCount = seaStations.length;
 
-        addEdge(47, seaStations[0]);
-        addLineAbs(stationsData[47].topoX, y_start, seaX, y_start);
-        addEdge(seaStations[seaCount - 1], 85);
-        addLineAbs(seaX, y_end, stationsData[85].topoX, y_end);
+        addEdge(48, seaStations[0]);
+        addLineAbs(stationsData[48].topoX, y_start, seaX, y_start);
+        addEdge(seaStations[seaCount - 1], 86);
+        addLineAbs(seaX, y_end, stationsData[86].topoX, y_end);
 
         for (let i = 0; i < seaCount; i++) {
             let t = (i + 1) / (seaCount + 1);
@@ -488,13 +488,13 @@ function drawMap(twData, stationsData) {
 
         // 6. Branches
         drawBranch([1, 0], 2, 0, -1);
-        drawBranch([206], 207, 1, 0);
-        drawBranch([31, 32, 33, 35, 36, 37, 38, 39, 40, 41, 42], 30, 1, 0);
-        drawBranch([34], 33, 0, -1);
-        drawBranch(makeArr(93, 98), 92, 1, 0);
-        drawBranch([125, 126], 124, 1, 0);
-        drawBranch(makeArr(227, 232), 226, -1, 0);
-        drawBranch([235, 236], 234, -1, 0);
+        drawBranch([207], 208, 1, 0);
+        drawBranch([32, 33, 34, 36, 37, 38, 39, 40, 41, 42, 43], 31, 1, 0);
+        drawBranch([35], 34, 0, -1);
+        drawBranch(makeArr(94, 99), 93, 1, 0);
+        drawBranch([126, 127], 125, 1, 0);
+        drawBranch(makeArr(228, 233), 227, -1, 0);
+        drawBranch([236, 237], 235, -1, 0);
 
         stationsData.forEach(d => d.isAllowed = true);
 
