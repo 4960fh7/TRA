@@ -6,6 +6,7 @@ let scheduleData = [];
 let liveBoardData = {};
 let currentRoutes = [];
 let searchAbortController = null;
+let currentSearchContext = null;
 
 const branchLineHubs = {
     "海科館": ["瑞芳", "八堵", "七堵"], "八斗子": ["瑞芳", "八堵", "七堵"], "大華": ["瑞芳", "八堵"], "十分": ["瑞芳", "八堵"], "望古": ["瑞芳", "八堵"], "嶺腳": ["瑞芳", "八堵"], "平溪": ["瑞芳", "八堵"], "菁桐": ["瑞芳", "八堵"],
@@ -144,7 +145,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('sort-method').addEventListener('change', () => {
         if (currentRoutes && currentRoutes.length > 0) {
-            applySortingAndRender();
+            let hasMore = currentSearchContext && currentSearchContext.searchedHours < 24;
+            applySortingAndRender(false, hasMore);
         }
     });
 
@@ -385,57 +387,79 @@ async function handleSearch() {
 
         const userStartMins = timeToMinutes(timeStr);
 
-        let searchedHours = 0;
-        let nextBatchHours = 4; // 最初先搜尋 4 小時
-        let batchIndex = 1;
-
+        currentSearchContext = {
+            fromStr,
+            toStr,
+            filters,
+            userStartMins,
+            searchedHours: 0,
+            nextBatchHours: 4,
+            batchIndex: 1,
+            allDirectRoutes: []
+        };
         currentRoutes = [];
-        let allDirectRoutes = []; // Accumulate direct routes across batches for arrWindow estimation
 
-        while (searchedHours < 16) {
-            // Check if search was aborted (user started a new search)
+        await performSearchBatches();
+
+    } catch (e) {
+        if (abortSignal.aborted) return; // Silently ignore aborted searches
+        console.error(e);
+        container.innerHTML = `<div style="color: #ff4444; text-align: center; padding: 20px;">錯誤: ${e.message}</div>`;
+    }
+}
+
+async function performSearchBatches() {
+    if (!currentSearchContext) return;
+    const ctx = currentSearchContext;
+    const abortSignal = searchAbortController.signal;
+    const { fromStr, toStr, filters, userStartMins } = ctx;
+
+    let initialRoutesCount = currentRoutes.length;
+    let sessionSearchedHours = 0;
+    let foundInSession = false;
+
+    const existingBtn = document.getElementById('load-more-btn');
+    if (existingBtn) existingBtn.remove();
+
+    try {
+        while (ctx.searchedHours < 24) {
             if (abortSignal.aborted) return;
 
-            const batchMinDep = userStartMins + searchedHours * 60;
-            const batchMaxDep = userStartMins + (searchedHours + nextBatchHours) * 60;
+            const batchMinDep = userStartMins + ctx.searchedHours * 60;
+            const batchMaxDep = userStartMins + (ctx.searchedHours + ctx.nextBatchHours) * 60;
 
-            console.log(`\n=== 開始搜尋 Batch ${batchIndex} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
-            console.time(`Batch ${batchIndex} 總計時間`);
+            console.log(`\n=== 開始搜尋 Batch ${ctx.batchIndex} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
+            console.time(`Batch ${ctx.batchIndex} 總計時間`);
 
             let batchRoutes = [];
 
-            console.time(`Batch ${batchIndex} - 直達車搜尋`);
+            console.time(`Batch ${ctx.batchIndex} - 直達車搜尋`);
             const directRoutes = findDirectRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-            console.timeEnd(`Batch ${batchIndex} - 直達車搜尋`);
+            console.timeEnd(`Batch ${ctx.batchIndex} - 直達車搜尋`);
             console.log(`> 直達車: 找到 ${directRoutes.length} 條`);
 
             batchRoutes.push(...directRoutes);
-            allDirectRoutes.push(...directRoutes);
+            ctx.allDirectRoutes.push(...directRoutes);
 
             if (!filters.directOnly) {
-                // Dynamically compute arrival window based on fastest direct train,
-                // or fall back to station-order heuristic.
-                const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, allDirectRoutes);
+                const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, ctx.allDirectRoutes);
 
-                console.time(`Batch ${batchIndex} - 1次轉乘搜尋`);
+                console.time(`Batch ${ctx.batchIndex} - 1次轉乘搜尋`);
                 const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters, arrWindowHours);
-                console.timeEnd(`Batch ${batchIndex} - 1次轉乘搜尋`);
+                console.timeEnd(`Batch ${ctx.batchIndex} - 1次轉乘搜尋`);
                 console.log(`> 1次轉乘: 找到 ${oneTransferRoutes.length} 條`);
                 batchRoutes.push(...oneTransferRoutes);
 
-                // Search 2-transfer routes
-                console.time(`Batch ${batchIndex} - 2次轉乘搜尋`);
+                console.time(`Batch ${ctx.batchIndex} - 2次轉乘搜尋`);
                 const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-                console.timeEnd(`Batch ${batchIndex} - 2次轉乘搜尋`);
+                console.timeEnd(`Batch ${ctx.batchIndex} - 2次轉乘搜尋`);
                 console.log(`> 2次轉乘: 找到 ${twoTransferRoutes.length} 條`);
                 batchRoutes.push(...twoTransferRoutes);
 
-                // 根據使用者的漸進式搜尋建議：如果前面的搜尋已經找到足夠路線，
-                // 就直接跳過極度耗時的 3 次轉乘搜尋。
                 if (batchRoutes.length < 5) {
-                    console.time(`Batch ${batchIndex} - 3次轉乘搜尋`);
+                    console.time(`Batch ${ctx.batchIndex} - 3次轉乘搜尋`);
                     const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-                    console.timeEnd(`Batch ${batchIndex} - 3次轉乘搜尋`);
+                    console.timeEnd(`Batch ${ctx.batchIndex} - 3次轉乘搜尋`);
                     console.log(`> 3次轉乘: 找到 ${threeTransferRoutes.length} 條`);
                     batchRoutes.push(...threeTransferRoutes);
                 } else {
@@ -443,12 +467,11 @@ async function handleSearch() {
                 }
             }
 
-            console.timeEnd(`Batch ${batchIndex} 總計時間`);
+            console.timeEnd(`Batch ${ctx.batchIndex} 總計時間`);
 
-            // Merge batch results into currentRoutes
+            if (batchRoutes.length > 0) foundInSession = true;
             currentRoutes.push(...batchRoutes);
 
-            // Cap total routes before expensive O(N²) filter to avoid call stack overflow
             if (currentRoutes.length > 300) {
                 currentRoutes.sort((a, b) => {
                     const aArr = a.type !== 'direct' ? a.options[0].actualArrMins : a.actualArrMins;
@@ -460,39 +483,40 @@ async function handleSearch() {
 
             currentRoutes = filterDominatedRoutes(currentRoutes);
 
-            searchedHours += nextBatchHours;
-            
-            // 判斷是否停止搜尋
+            ctx.searchedHours += ctx.nextBatchHours;
+            sessionSearchedHours += ctx.nextBatchHours;
+
             let shouldStop = false;
-            if (currentRoutes.length > 10) {
-                // 如果目前有超過10個選擇，則停止
+            if (currentRoutes.length - initialRoutesCount >= 10) {
                 shouldStop = true;
-            } else if (searchedHours >= 10 && currentRoutes.length > 0) {
-                // 如果已經尋找10個小時內，且有找到任何一條路線，則停止
+            } else if (sessionSearchedHours >= 10 && foundInSession) {
                 shouldStop = true;
-            } else if (searchedHours >= 16) {
-                // 最多尋找16小時
+            } else if (sessionSearchedHours >= 16 || ctx.searchedHours >= 24) {
                 shouldStop = true;
             }
 
-            // Render current batch results immediately
             if (abortSignal.aborted) return;
-            applySortingAndRender(!shouldStop); // pass isPartial flag
+            applySortingAndRender(!shouldStop);
 
             if (shouldStop) {
                 break;
             }
 
-            nextBatchHours = 2; // 每次加兩個小時
-            batchIndex++;
+            ctx.nextBatchHours = 2;
+            ctx.batchIndex++;
 
-            // Yield to browser for rendering between batches
             await new Promise(r => setTimeout(r, 0));
         }
 
+        if (!abortSignal.aborted) {
+            let hasMore = ctx.searchedHours < 24;
+            applySortingAndRender(false, hasMore);
+        }
+
     } catch (e) {
-        if (abortSignal.aborted) return; // Silently ignore aborted searches
+        if (abortSignal.aborted) return;
         console.error(e);
+        const container = document.getElementById('results-container');
         container.innerHTML = `<div style="color: #ff4444; text-align: center; padding: 20px;">錯誤: ${e.message}</div>`;
     }
 }
@@ -544,7 +568,7 @@ function estimateArrivalWindowHours(fromName, toName, directRoutes) {
     return 12 * 60; // default fallback
 }
 
-function applySortingAndRender(isPartial) {
+function applySortingAndRender(isPartial, hasMore = false) {
     const container = document.getElementById('results-container');
     const sortMethod = document.getElementById('sort-method').value;
 
@@ -588,7 +612,7 @@ function applySortingAndRender(isPartial) {
     });
 
     routes = routes.slice(0, 25);
-    renderRoutes(routes, container, isPartial);
+    renderRoutes(routes, container, isPartial, hasMore);
 }
 
 function extractStops(train, fromName, toName) {
@@ -1558,5 +1582,19 @@ function renderRoutes(routes, container, isPartial) {
         loadingDiv.className = 'loading-text';
         loadingDiv.textContent = '正在搜尋更多路線...';
         container.appendChild(loadingDiv);
+    } else if (hasMore) {
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.id = 'load-more-btn';
+        loadMoreBtn.className = 'planner-btn';
+        loadMoreBtn.style.width = '100%';
+        loadMoreBtn.style.marginTop = '15px';
+        loadMoreBtn.style.marginBottom = '20px';
+        loadMoreBtn.textContent = '顯示更多 (往後搜尋)';
+        loadMoreBtn.addEventListener('click', () => {
+            loadMoreBtn.textContent = '搜尋中...';
+            loadMoreBtn.disabled = true;
+            performSearchBatches();
+        });
+        container.appendChild(loadMoreBtn);
     }
 }
