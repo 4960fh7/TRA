@@ -426,7 +426,16 @@ async function performSearchBatches() {
             if (abortSignal.aborted) return;
 
             const batchMinDep = userStartMins + ctx.searchedHours * 60;
-            const batchMaxDep = userStartMins + (ctx.searchedHours + ctx.nextBatchHours) * 60;
+            let batchMaxDep = userStartMins + (ctx.searchedHours + ctx.nextBatchHours) * 60;
+
+            // 最多搜尋到 23 小時 59 分鐘後
+            const absoluteMaxDep = userStartMins + 24 * 60 - 1;
+            if (batchMaxDep > absoluteMaxDep) {
+                batchMaxDep = absoluteMaxDep;
+            }
+            if (batchMinDep >= absoluteMaxDep) {
+                break;
+            }
 
             console.log(`\n=== 開始搜尋 Batch ${ctx.batchIndex} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
             console.time(`Batch ${ctx.batchIndex} 總計時間`);
@@ -1585,11 +1594,11 @@ function renderRoutes(routes, container, isPartial, hasMore = false) {
     } else if (hasMore) {
         const loadMoreBtn = document.createElement('button');
         loadMoreBtn.id = 'load-more-btn';
-        loadMoreBtn.className = 'planner-btn';
+        loadMoreBtn.className = 'submit-btn';
         loadMoreBtn.style.width = '100%';
         loadMoreBtn.style.marginTop = '15px';
         loadMoreBtn.style.marginBottom = '20px';
-        loadMoreBtn.textContent = '顯示更多 (往後搜尋)';
+        loadMoreBtn.textContent = '顯示更多';
         loadMoreBtn.addEventListener('click', () => {
             loadMoreBtn.textContent = '搜尋中...';
             loadMoreBtn.disabled = true;
