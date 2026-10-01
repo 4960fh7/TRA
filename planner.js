@@ -385,29 +385,28 @@ async function handleSearch() {
 
         const userStartMins = timeToMinutes(timeStr);
 
-        // Batch search: search in 2-hour windows for progressive results
-        const batchSize = 2 * 60; // 2 hours per batch
-        const totalWindow = 8 * 60; // 8 hours total
-        const batchCount = Math.ceil(totalWindow / batchSize); // 4 batches
+        let searchedHours = 0;
+        let nextBatchHours = 4; // 最初先搜尋 4 小時
+        let batchIndex = 1;
 
         currentRoutes = [];
         let allDirectRoutes = []; // Accumulate direct routes across batches for arrWindow estimation
 
-        for (let batch = 0; batch < batchCount; batch++) {
+        while (searchedHours < 16) {
             // Check if search was aborted (user started a new search)
             if (abortSignal.aborted) return;
 
-            const batchMinDep = userStartMins + batch * batchSize;
-            const batchMaxDep = userStartMins + (batch + 1) * batchSize;
+            const batchMinDep = userStartMins + searchedHours * 60;
+            const batchMaxDep = userStartMins + (searchedHours + nextBatchHours) * 60;
 
-            console.log(`\n=== 開始搜尋 Batch ${batch + 1}/${batchCount} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
-            console.time(`Batch ${batch + 1} 總計時間`);
+            console.log(`\n=== 開始搜尋 Batch ${batchIndex} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
+            console.time(`Batch ${batchIndex} 總計時間`);
 
             let batchRoutes = [];
 
-            console.time(`Batch ${batch + 1} - 直達車搜尋`);
+            console.time(`Batch ${batchIndex} - 直達車搜尋`);
             const directRoutes = findDirectRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-            console.timeEnd(`Batch ${batch + 1} - 直達車搜尋`);
+            console.timeEnd(`Batch ${batchIndex} - 直達車搜尋`);
             console.log(`> 直達車: 找到 ${directRoutes.length} 條`);
 
             batchRoutes.push(...directRoutes);
@@ -418,25 +417,25 @@ async function handleSearch() {
                 // or fall back to station-order heuristic.
                 const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, allDirectRoutes);
 
-                console.time(`Batch ${batch + 1} - 1次轉乘搜尋`);
+                console.time(`Batch ${batchIndex} - 1次轉乘搜尋`);
                 const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters, arrWindowHours);
-                console.timeEnd(`Batch ${batch + 1} - 1次轉乘搜尋`);
+                console.timeEnd(`Batch ${batchIndex} - 1次轉乘搜尋`);
                 console.log(`> 1次轉乘: 找到 ${oneTransferRoutes.length} 條`);
                 batchRoutes.push(...oneTransferRoutes);
 
                 // Search 2-transfer routes
-                console.time(`Batch ${batch + 1} - 2次轉乘搜尋`);
+                console.time(`Batch ${batchIndex} - 2次轉乘搜尋`);
                 const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-                console.timeEnd(`Batch ${batch + 1} - 2次轉乘搜尋`);
+                console.timeEnd(`Batch ${batchIndex} - 2次轉乘搜尋`);
                 console.log(`> 2次轉乘: 找到 ${twoTransferRoutes.length} 條`);
                 batchRoutes.push(...twoTransferRoutes);
 
                 // 根據使用者的漸進式搜尋建議：如果前面的搜尋已經找到足夠路線，
                 // 就直接跳過極度耗時的 3 次轉乘搜尋。
                 if (batchRoutes.length < 5) {
-                    console.time(`Batch ${batch + 1} - 3次轉乘搜尋`);
+                    console.time(`Batch ${batchIndex} - 3次轉乘搜尋`);
                     const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-                    console.timeEnd(`Batch ${batch + 1} - 3次轉乘搜尋`);
+                    console.timeEnd(`Batch ${batchIndex} - 3次轉乘搜尋`);
                     console.log(`> 3次轉乘: 找到 ${threeTransferRoutes.length} 條`);
                     batchRoutes.push(...threeTransferRoutes);
                 } else {
@@ -444,7 +443,7 @@ async function handleSearch() {
                 }
             }
 
-            console.timeEnd(`Batch ${batch + 1} 總計時間`);
+            console.timeEnd(`Batch ${batchIndex} 總計時間`);
 
             // Merge batch results into currentRoutes
             currentRoutes.push(...batchRoutes);
@@ -461,19 +460,34 @@ async function handleSearch() {
 
             currentRoutes = filterDominatedRoutes(currentRoutes);
 
+            searchedHours += nextBatchHours;
+            
+            // 判斷是否停止搜尋
+            let shouldStop = false;
+            if (currentRoutes.length > 10) {
+                // 如果目前有超過10個選擇，則停止
+                shouldStop = true;
+            } else if (searchedHours >= 10 && currentRoutes.length > 0) {
+                // 如果已經尋找10個小時內，且有找到任何一條路線，則停止
+                shouldStop = true;
+            } else if (searchedHours >= 16) {
+                // 最多尋找16小時
+                shouldStop = true;
+            }
+
             // Render current batch results immediately
             if (abortSignal.aborted) return;
-            applySortingAndRender(batch < batchCount - 1); // pass isPartial flag
+            applySortingAndRender(!shouldStop); // pass isPartial flag
+
+            if (shouldStop) {
+                break;
+            }
+
+            nextBatchHours = 2; // 每次加兩個小時
+            batchIndex++;
 
             // Yield to browser for rendering between batches
-            if (batch < batchCount - 1) {
-                await new Promise(r => setTimeout(r, 0));
-            }
-        }
-
-        // Final render without loading indicator
-        if (!abortSignal.aborted) {
-            applySortingAndRender(false);
+            await new Promise(r => setTimeout(r, 0));
         }
 
     } catch (e) {
