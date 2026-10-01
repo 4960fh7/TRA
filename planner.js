@@ -194,7 +194,7 @@ function setupAutocomplete(inputId, dropdownId) {
 
         const matches = stations.filter(s => normalizeStationName(s.stationName).includes(val) || s.stationCode.includes(val));
         if (matches.length > 0) {
-            matches.slice(0, 10).forEach(match => {
+            matches.forEach(match => {
                 const div = document.createElement('div');
                 div.className = 'suggestion-item-planner';
                 div.textContent = `${match.stationName} (${match.stationCode})`;
@@ -802,7 +802,6 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
     const normToName = normalizeStationName(toName);
     const normFilterTransfer = filters.transfer ? normalizeStationName(filters.transfer) : null;
 
-    // Added missing major hubs like 板橋, 松山, 南港, 七堵, 員林, 新營, 鳳山, 羅東, etc.
     const majorStations = [
         "基隆", "八堵", "七堵", "南港", "松山", "台北", "板橋", "樹林",
         "桃園", "中壢", "新竹", "竹南", "苗栗", "豐原", "台中", "彰化", "員林",
@@ -811,10 +810,33 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
         "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳"
     ];
 
-    const allowedHubsFrom = (stationsHubData[normFromName] && stationsHubData[normFromName].length > 0)
-        ? stationsHubData[normFromName] : majorStations;
-    const allowedHubsTo = (stationsHubData[normToName] && stationsHubData[normToName].length > 0)
-        ? stationsHubData[normToName] : majorStations;
+    function getNearestMajorStations(stName) {
+        if (stationsHubData[stName] && stationsHubData[stName].length > 0) return stationsHubData[stName];
+        let hubs = new Set();
+        for (let train of scheduleData) {
+            if (!train.data) continue;
+            let idx = train.data.findIndex(s => s.normX === stName);
+            if (idx !== -1) {
+                for (let i = idx + 1; i < train.data.length; i++) {
+                    if (majorStations.includes(train.data[i].normX)) {
+                        hubs.add(train.data[i].normX);
+                        break;
+                    }
+                }
+                for (let i = idx - 1; i >= 0; i--) {
+                    if (majorStations.includes(train.data[i].normX)) {
+                        hubs.add(train.data[i].normX);
+                        break;
+                    }
+                }
+            }
+        }
+        const arr = Array.from(hubs);
+        return arr.length > 0 ? arr : majorStations;
+    }
+
+    const allowedHubsFrom = getNearestMajorStations(normFromName);
+    const allowedHubsTo = getNearestMajorStations(normToName);
 
     const fastTrainLinks = {};
     scheduleData.forEach(train2 => {
@@ -994,8 +1016,33 @@ function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartur
         "蘇澳新", "羅東", "宜蘭", "礁溪", "頭城", "瑞芳", "二水", "中洲"
     ];
 
-    const allowedHubsFrom = fromHubs || ((stationsHubData[normFromName] && stationsHubData[normFromName].length > 0) ? stationsHubData[normFromName] : majorStations);
-    const allowedHubsTo = toHubs || ((stationsHubData[normToName] && stationsHubData[normToName].length > 0) ? stationsHubData[normToName] : majorStations);
+    function getNearestMajorStations(stName) {
+        if (stationsHubData[stName] && stationsHubData[stName].length > 0) return stationsHubData[stName];
+        let hubs = new Set();
+        for (let train of scheduleData) {
+            if (!train.data) continue;
+            let idx = train.data.findIndex(s => s.normX === stName);
+            if (idx !== -1) {
+                for (let i = idx + 1; i < train.data.length; i++) {
+                    if (majorStations.includes(train.data[i].normX)) {
+                        hubs.add(train.data[i].normX);
+                        break;
+                    }
+                }
+                for (let i = idx - 1; i >= 0; i--) {
+                    if (majorStations.includes(train.data[i].normX)) {
+                        hubs.add(train.data[i].normX);
+                        break;
+                    }
+                }
+            }
+        }
+        const arr = Array.from(hubs);
+        return arr.length > 0 ? arr : majorStations;
+    }
+
+    const allowedHubsFrom = fromHubs || getNearestMajorStations(normFromName);
+    const allowedHubsTo = toHubs || getNearestMajorStations(normToName);
 
     const fastTrainLinks = {};
     scheduleData.forEach(train2 => {
@@ -1020,7 +1067,7 @@ function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartur
 
     let fromTrains = [];
     let toTrains = [];
-    
+
     scheduleData.forEach(train => {
         if (!isTrainAllowedByFilter(train.train, filters)) return;
         let fromDepIdx = -1, toArrIdx = -1;
