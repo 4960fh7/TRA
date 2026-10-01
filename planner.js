@@ -431,12 +431,17 @@ async function handleSearch() {
                 console.log(`> 2次轉乘: 找到 ${twoTransferRoutes.length} 條`);
                 batchRoutes.push(...twoTransferRoutes);
 
-                // Search 3-transfer routes for branch lines
-                console.time(`Batch ${batch + 1} - 3次轉乘搜尋`);
-                const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
-                console.timeEnd(`Batch ${batch + 1} - 3次轉乘搜尋`);
-                console.log(`> 3次轉乘: 找到 ${threeTransferRoutes.length} 條`);
-                batchRoutes.push(...threeTransferRoutes);
+                // 根據使用者的漸進式搜尋建議：如果前面的搜尋已經找到足夠路線，
+                // 就直接跳過極度耗時的 3 次轉乘搜尋。
+                if (batchRoutes.length < 5) {
+                    console.time(`Batch ${batch + 1} - 3次轉乘搜尋`);
+                    const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+                    console.timeEnd(`Batch ${batch + 1} - 3次轉乘搜尋`);
+                    console.log(`> 3次轉乘: 找到 ${threeTransferRoutes.length} 條`);
+                    batchRoutes.push(...threeTransferRoutes);
+                } else {
+                    console.log(`> 3次轉乘: 已找到 ${batchRoutes.length} 條路線，跳過 3 次轉乘搜尋。`);
+                }
             }
 
             console.timeEnd(`Batch ${batch + 1} 總計時間`);
