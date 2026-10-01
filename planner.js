@@ -582,9 +582,9 @@ function extractStops(train, fromName, toName) {
     let toIdx = -1;
 
     for (let i = 0; i < stops.length; i++) {
-        const sName = normalizeStationName(stops[i].x);
+        const sName = stops[i].normX || normalizeStationName(stops[i].x);
         if (sName === normFrom && fromIdx === -1) {
-            fromIdx = (i + 1 < stops.length && normalizeStationName(stops[i + 1].x) === normFrom) ? i + 1 : i;
+            fromIdx = (i + 1 < stops.length && (stops[i + 1].normX || normalizeStationName(stops[i + 1].x)) === normFrom) ? i + 1 : i;
         }
         if (sName === normTo && fromIdx !== -1 && i > fromIdx && toIdx === -1) {
             toIdx = i;
@@ -954,6 +954,7 @@ function findTwoTransferRoutes(fromName, toName, minDepartureMins, maxDepartureM
                         const train3 = t3.train;
                         if (train3.number === train1.number || train3.number === train2.number) return;
                         if (train3.stopSet.has(normFromName)) return;
+                        if (!train3.stopSet.has(normHub2)) return;
 
                         let hub2Idx = -1;
                         for (let l = 0; l < t3.toArrIdx; l++) {
@@ -1125,7 +1126,13 @@ function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartur
 
             const t1ArrActual = stops1[i].y + delay1;
 
-            majorStations.forEach(hub2 => {
+            const superHubs = [
+                "七堵", "台北", "板橋", "樹林", "桃園", "新竹",
+                "台中", "彰化", "嘉義", "台南", "新左營", "高雄", "屏東",
+                "花蓮", "台東", "宜蘭", "瑞芳"
+            ];
+
+            superHubs.forEach(hub2 => {
                 const normHub2 = normalizeStationName(hub2);
                 if (normHub2 === normHub1 || normHub2 === normFromName || normHub2 === normToName) return;
 
@@ -1177,6 +1184,7 @@ function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartur
                                 const train4 = t4.train;
                                 if (train4.number === train1.number || train4.number === train2.number || train4.number === train3.number) return;
                                 if (train4.stopSet.has(normFromName)) return;
+                                if (!train4.stopSet.has(normHub3)) return;
 
                                 let hub3Idx = -1;
                                 for (let l = 0; l < t4.toArrIdx; l++) {
