@@ -364,7 +364,7 @@ async function handleSearch() {
                 const retryDay = String(retryDate.getDate()).padStart(2, '0');
                 const retryHour = String(retryDate.getHours()).padStart(2, '0');
                 const retryMin = String(Math.floor(retryDate.getMinutes() / 5) * 5).padStart(2, '0');
-                const retryUrl = `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${retryMonth}${retryDay}${retryHour}${retryMin}.json?t=${new Date().getTime()}`;
+                const retryUrl = `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${retryMonth}${retryDay}${retryHour}${retryMin}.json`;
 
                 try {
                     liveRes = await fetch(retryUrl);
@@ -400,9 +400,16 @@ async function handleSearch() {
             const batchMinDep = userStartMins + batch * batchSize;
             const batchMaxDep = userStartMins + (batch + 1) * batchSize;
 
+            console.log(`\n=== 開始搜尋 Batch ${batch + 1}/${batchCount} (${minutesToTime(batchMinDep)} ~ ${minutesToTime(batchMaxDep)}) ===`);
+            console.time(`Batch ${batch + 1} 總計時間`);
+
             let batchRoutes = [];
 
+            console.time(`Batch ${batch + 1} - 直達車搜尋`);
             const directRoutes = findDirectRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+            console.timeEnd(`Batch ${batch + 1} - 直達車搜尋`);
+            console.log(`> 直達車: 找到 ${directRoutes.length} 條`);
+
             batchRoutes.push(...directRoutes);
             allDirectRoutes.push(...directRoutes);
 
@@ -411,17 +418,28 @@ async function handleSearch() {
                 // or fall back to station-order heuristic.
                 const arrWindowHours = estimateArrivalWindowHours(fromStr, toStr, allDirectRoutes);
 
+                console.time(`Batch ${batch + 1} - 1次轉乘搜尋`);
                 const oneTransferRoutes = findOneTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters, arrWindowHours);
+                console.timeEnd(`Batch ${batch + 1} - 1次轉乘搜尋`);
+                console.log(`> 1次轉乘: 找到 ${oneTransferRoutes.length} 條`);
                 batchRoutes.push(...oneTransferRoutes);
 
                 // Search 2-transfer routes
+                console.time(`Batch ${batch + 1} - 2次轉乘搜尋`);
                 const twoTransferRoutes = findTwoTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+                console.timeEnd(`Batch ${batch + 1} - 2次轉乘搜尋`);
+                console.log(`> 2次轉乘: 找到 ${twoTransferRoutes.length} 條`);
                 batchRoutes.push(...twoTransferRoutes);
 
                 // Search 3-transfer routes for branch lines
+                console.time(`Batch ${batch + 1} - 3次轉乘搜尋`);
                 const threeTransferRoutes = findThreeTransferRoutes(fromStr, toStr, batchMinDep, batchMaxDep, filters);
+                console.timeEnd(`Batch ${batch + 1} - 3次轉乘搜尋`);
+                console.log(`> 3次轉乘: 找到 ${threeTransferRoutes.length} 條`);
                 batchRoutes.push(...threeTransferRoutes);
             }
+
+            console.timeEnd(`Batch ${batch + 1} 總計時間`);
 
             // Merge batch results into currentRoutes
             currentRoutes.push(...batchRoutes);
