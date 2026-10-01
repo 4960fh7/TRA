@@ -1448,7 +1448,7 @@ function buildTimelineHtml(routeData) {
     return html;
 }
 
-function renderRoutes(routes, container, isPartial) {
+function renderRoutes(routes, container, isPartial, hasMore = false) {
     container.innerHTML = '';
 
     if (routes.length === 0 && !isPartial) {
