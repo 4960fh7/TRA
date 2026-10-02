@@ -47,75 +47,172 @@ function isFastTrain(trainType) {
     return ['新自強', '普悠瑪', '太魯閣', '自強'].some(t => trainType.includes(t));
 }
 
-function fixBacktracking(routes) {
+function isStationBeforeOrEqual(trainInfo, norm1, norm2) {
+    const stops = trainInfo.data || [];
+    let idx1 = -1;
+    let idx2 = -1;
+    for (let i = 0; i < stops.length; i++) {
+        const n = normalizeStationName(stops[i].x);
+        if (n === norm1 && idx1 === -1) idx1 = i;
+        if (n === norm2) idx2 = i;
+    }
+    return idx1 !== -1 && idx2 !== -1 && idx1 <= idx2;
+}
+
+function expandAllTransferOptions(routes) {
     routes.forEach(route => {
         if (route.type === 'direct') return;
 
+        let newOptionsMap = new Map();
+
         route.options.forEach(opt => {
-            // Because fixing one transfer might change the segments for the next, 
-            // process sequentially through train segments.
+            let validTransfersPerStop = [];
             for (let k = 0; k < opt.trains.length - 1; k++) {
-                let t1Segment = opt.trains[k];
-                let t2Segment = opt.trains[k+1];
-
-                let t1Stops = t1Segment.stops;
-                let t2Stops = t2Segment.stops;
-
-                let commonStationIdx1 = -1;
-                let commonStationIdx2 = -1;
-
-                // Find the earliest common station in t1Stops to avoid as much backtracking as possible.
-                // We exclude the last stop of t1 (original transfer) and the first stop of t2 (original transfer)
-                for (let i = 0; i < t1Stops.length - 1; i++) {
-                    const stName = normalizeStationName(t1Stops[i].station);
-                    for (let j = 1; j < t2Stops.length; j++) {
-                        if (normalizeStationName(t2Stops[j].station) === stName) {
-                            commonStationIdx1 = i;
-                            commonStationIdx2 = j;
-                            break;
+                let t1Info = opt.trains[k].trainInfo;
+                let t2Info = opt.trains[k+1].trainInfo;
+                
+                let boundStart = opt.trains[k].stops[0].station;
+                let boundEnd = opt.trains[k+1].stops[opt.trains[k+1].stops.length - 1].station;
+                
+                let t1Delay = opt.trains[k].delay;
+                let t2Delay = opt.trains[k+1].delay;
+                
+                let feasible = [];
+                let seen = new Set();
+                
+                let t1FullStops = t1Info.data || [];
+                let t2FullStops = t2Info.data || [];
+                
+                let normBoundStart = normalizeStationName(boundStart);
+                let normBoundEnd = normalizeStationName(boundEnd);
+                
+                for (let i = 0; i < t1FullStops.length; i++) {
+                    let st1 = normalizeStationName(t1FullStops[i].x);
+                    
+                    if (!isStationBeforeOrEqual(t1Info, normBoundStart, st1)) continue;
+                    
+                    for (let j = 0; j < t2FullStops.length; j++) {
+                        let st2 = normalizeStationName(t2FullStops[j].x);
+                        if (st1 === st2 && !seen.has(st1)) {
+                            if (!isStationBeforeOrEqual(t2Info, st2, normBoundEnd)) continue;
+                            
+                            let t1Arr = t1FullStops[i].y + t1Delay;
+                            let t2Dep = t2FullStops[j].y + t2Delay;
+                            if (j + 1 < t2FullStops.length && normalizeStationName(t2FullStops[j+1].x) === st1) {
+                                t2Dep = t2FullStops[j+1].y + t2Delay;
+                            }
+                            
+                            let wait = t2Dep - t1Arr;
+                            if (wait < 0) wait += 24 * 60;
+                            
+                            // To prevent absurd transfers, wait time must be reasonable
+                            if (wait <= 12 * 60) {
+                                feasible.push({
+                                    station: t1FullStops[i].x,
+                                    normStation: st1,
+                                    wait: wait
+                                });
+                                seen.add(st1);
+                            }
                         }
                     }
-                    if (commonStationIdx1 !== -1) break;
                 }
-
-                if (commonStationIdx1 !== -1) {
-                    const newTransferStationName = t1Stops[commonStationIdx1].station;
-                    const t1Arr = t1Stops[commonStationIdx1].timeMins + t1Segment.delay;
-                    const t2Dep = t2Stops[commonStationIdx2].timeMins + t2Segment.delay;
+                validTransfersPerStop.push(feasible);
+            }
+            
+            if (validTransfersPerStop.length === 1) {
+                validTransfersPerStop[0].forEach(c => {
+                    let stops1 = extractStops(opt.trains[0].trainInfo, opt.trains[0].stops[0].station, c.station);
+                    let stops2 = extractStops(opt.trains[1].trainInfo, c.station, opt.trains[1].stops[opt.trains[1].stops.length - 1].station);
                     
-                    let wait = t2Dep - t1Arr;
-                    if (wait < 0) wait += 24 * 60;
-
-                    if (route.type === '1-transfer') {
-                        opt.transferStation = newTransferStationName;
-                        opt.waitTime = wait;
-                    } else {
-                        opt.transferStations[k] = newTransferStationName;
-                        opt.waitTimes[k] = wait;
+                    if (stops1.length > 0 && stops2.length > 0) {
+                        let newOpt = {
+                            transferStation: c.station,
+                            waitTime: c.wait,
+                            actualDepMins: opt.actualDepMins,
+                            actualArrMins: opt.actualArrMins,
+                            trains: [
+                                { trainInfo: opt.trains[0].trainInfo, delay: opt.trains[0].delay, stops: stops1 },
+                                { trainInfo: opt.trains[1].trainInfo, delay: opt.trains[1].delay, stops: stops2 }
+                            ]
+                        };
+                        let key = opt.trains.map(t => t.trainInfo.number).join('_') + '_' + c.station;
+                        newOptionsMap.set(key, newOpt);
                     }
-
-                    t1Segment.stops = t1Stops.slice(0, commonStationIdx1 + 1);
-                    t2Segment.stops = t2Stops.slice(commonStationIdx2);
-                }
+                });
+            } else if (validTransfersPerStop.length === 2) {
+                validTransfersPerStop[0].forEach(c1 => {
+                    validTransfersPerStop[1].forEach(c2 => {
+                        if (!isStationBeforeOrEqual(opt.trains[1].trainInfo, c1.normStation, c2.normStation)) return;
+                        
+                        let stops1 = extractStops(opt.trains[0].trainInfo, opt.trains[0].stops[0].station, c1.station);
+                        let stops2 = extractStops(opt.trains[1].trainInfo, c1.station, c2.station);
+                        let stops3 = extractStops(opt.trains[2].trainInfo, c2.station, opt.trains[2].stops[opt.trains[2].stops.length - 1].station);
+                        
+                        if (stops1.length > 0 && stops2.length > 0 && stops3.length > 0) {
+                            let newOpt = {
+                                transferStations: [c1.station, c2.station],
+                                waitTimes: [c1.wait, c2.wait],
+                                actualDepMins: opt.actualDepMins,
+                                actualArrMins: opt.actualArrMins,
+                                trains: [
+                                    { trainInfo: opt.trains[0].trainInfo, delay: opt.trains[0].delay, stops: stops1 },
+                                    { trainInfo: opt.trains[1].trainInfo, delay: opt.trains[1].delay, stops: stops2 },
+                                    { trainInfo: opt.trains[2].trainInfo, delay: opt.trains[2].delay, stops: stops3 }
+                                ]
+                            };
+                            let key = opt.trains.map(t => t.trainInfo.number).join('_') + '_' + c1.station + '_' + c2.station;
+                            newOptionsMap.set(key, newOpt);
+                        }
+                    });
+                });
+            } else if (validTransfersPerStop.length === 3) {
+                validTransfersPerStop[0].forEach(c1 => {
+                    validTransfersPerStop[1].forEach(c2 => {
+                        if (!isStationBeforeOrEqual(opt.trains[1].trainInfo, c1.normStation, c2.normStation)) return;
+                        validTransfersPerStop[2].forEach(c3 => {
+                            if (!isStationBeforeOrEqual(opt.trains[2].trainInfo, c2.normStation, c3.normStation)) return;
+                            
+                            let stops1 = extractStops(opt.trains[0].trainInfo, opt.trains[0].stops[0].station, c1.station);
+                            let stops2 = extractStops(opt.trains[1].trainInfo, c1.station, c2.station);
+                            let stops3 = extractStops(opt.trains[2].trainInfo, c2.station, c3.station);
+                            let stops4 = extractStops(opt.trains[3].trainInfo, c3.station, opt.trains[3].stops[opt.trains[3].stops.length - 1].station);
+                            
+                            if (stops1.length > 0 && stops2.length > 0 && stops3.length > 0 && stops4.length > 0) {
+                                let newOpt = {
+                                    transferStations: [c1.station, c2.station, c3.station],
+                                    waitTimes: [c1.wait, c2.wait, c3.wait],
+                                    actualDepMins: opt.actualDepMins,
+                                    actualArrMins: opt.actualArrMins,
+                                    trains: [
+                                        { trainInfo: opt.trains[0].trainInfo, delay: opt.trains[0].delay, stops: stops1 },
+                                        { trainInfo: opt.trains[1].trainInfo, delay: opt.trains[1].delay, stops: stops2 },
+                                        { trainInfo: opt.trains[2].trainInfo, delay: opt.trains[2].delay, stops: stops3 },
+                                        { trainInfo: opt.trains[3].trainInfo, delay: opt.trains[3].delay, stops: stops4 }
+                                    ]
+                                };
+                                let key = opt.trains.map(t => t.trainInfo.number).join('_') + '_' + c1.station + '_' + c2.station + '_' + c3.station;
+                                newOptionsMap.set(key, newOpt);
+                            }
+                        });
+                    });
+                });
             }
         });
 
-        // Remove duplicate options if modifying transfer stations created any
-        if (route.type === '1-transfer') {
-            const seen = new Set();
-            route.options = route.options.filter(opt => {
-                if (seen.has(opt.transferStation)) return false;
-                seen.add(opt.transferStation);
-                return true;
+        if (newOptionsMap.size > 0) {
+            let newOptions = Array.from(newOptionsMap.values());
+            // Prioritize minimum number of stops (avoids backtracks) then wait time
+            newOptions.sort((a, b) => {
+                const stopsA = a.trains.reduce((sum, t) => sum + t.stops.length, 0);
+                const stopsB = b.trains.reduce((sum, t) => sum + t.stops.length, 0);
+                if (stopsA !== stopsB) return stopsA - stopsB;
+                
+                const waitA = a.waitTime !== undefined ? a.waitTime : a.waitTimes.reduce((acc, v) => acc + v, 0);
+                const waitB = b.waitTime !== undefined ? b.waitTime : b.waitTimes.reduce((acc, v) => acc + v, 0);
+                return waitA - waitB;
             });
-        } else {
-            const seen = new Set();
-            route.options = route.options.filter(opt => {
-                const key = opt.transferStations.join('_');
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
+            route.options = newOptions;
         }
     });
 }
@@ -551,8 +648,8 @@ async function performSearchBatches() {
 
             console.timeEnd(`Batch ${ctx.batchIndex} 總計時間`);
 
-            // [Fix] Correct backtracking transfers before adding to currentRoutes
-            fixBacktracking(batchRoutes);
+            // [Fix] Expand and correct all possible transfer stations
+            expandAllTransferOptions(batchRoutes);
 
             if (batchRoutes.length > 0) foundInSession = true;
             currentRoutes.push(...batchRoutes);
