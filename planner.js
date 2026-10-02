@@ -47,6 +47,79 @@ function isFastTrain(trainType) {
     return ['新自強', '普悠瑪', '太魯閣', '自強'].some(t => trainType.includes(t));
 }
 
+function fixBacktracking(routes) {
+    routes.forEach(route => {
+        if (route.type === 'direct') return;
+
+        route.options.forEach(opt => {
+            // Because fixing one transfer might change the segments for the next, 
+            // process sequentially through train segments.
+            for (let k = 0; k < opt.trains.length - 1; k++) {
+                let t1Segment = opt.trains[k];
+                let t2Segment = opt.trains[k+1];
+
+                let t1Stops = t1Segment.stops;
+                let t2Stops = t2Segment.stops;
+
+                let commonStationIdx1 = -1;
+                let commonStationIdx2 = -1;
+
+                // Find the earliest common station in t1Stops to avoid as much backtracking as possible.
+                // We exclude the last stop of t1 (original transfer) and the first stop of t2 (original transfer)
+                for (let i = 0; i < t1Stops.length - 1; i++) {
+                    const stName = normalizeStationName(t1Stops[i].station);
+                    for (let j = 1; j < t2Stops.length; j++) {
+                        if (normalizeStationName(t2Stops[j].station) === stName) {
+                            commonStationIdx1 = i;
+                            commonStationIdx2 = j;
+                            break;
+                        }
+                    }
+                    if (commonStationIdx1 !== -1) break;
+                }
+
+                if (commonStationIdx1 !== -1) {
+                    const newTransferStationName = t1Stops[commonStationIdx1].station;
+                    const t1Arr = t1Stops[commonStationIdx1].timeMins + t1Segment.delay;
+                    const t2Dep = t2Stops[commonStationIdx2].timeMins + t2Segment.delay;
+                    
+                    let wait = t2Dep - t1Arr;
+                    if (wait < 0) wait += 24 * 60;
+
+                    if (route.type === '1-transfer') {
+                        opt.transferStation = newTransferStationName;
+                        opt.waitTime = wait;
+                    } else {
+                        opt.transferStations[k] = newTransferStationName;
+                        opt.waitTimes[k] = wait;
+                    }
+
+                    t1Segment.stops = t1Stops.slice(0, commonStationIdx1 + 1);
+                    t2Segment.stops = t2Stops.slice(commonStationIdx2);
+                }
+            }
+        });
+
+        // Remove duplicate options if modifying transfer stations created any
+        if (route.type === '1-transfer') {
+            const seen = new Set();
+            route.options = route.options.filter(opt => {
+                if (seen.has(opt.transferStation)) return false;
+                seen.add(opt.transferStation);
+                return true;
+            });
+        } else {
+            const seen = new Set();
+            route.options = route.options.filter(opt => {
+                const key = opt.transferStations.join('_');
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+        }
+    });
+}
+
 function filterDominatedRoutes(routes) {
     let deleted = new Set();
 
@@ -477,6 +550,9 @@ async function performSearchBatches() {
             }
 
             console.timeEnd(`Batch ${ctx.batchIndex} 總計時間`);
+
+            // [Fix] Correct backtracking transfers before adding to currentRoutes
+            fixBacktracking(batchRoutes);
 
             if (batchRoutes.length > 0) foundInSession = true;
             currentRoutes.push(...batchRoutes);
