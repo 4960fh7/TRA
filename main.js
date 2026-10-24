@@ -345,7 +345,7 @@ function checkOverlap(box, allocatedBoxes, k, isTopologyMode) {
     return false;
 }
 
-function drawMap(twData, stationsData) {
+function drawMap(twData, stationsData, railData) {
     if (!twData || !twData.objects) return;
 
     let objectsKey = Object.keys(twData.objects)[0];
@@ -526,7 +526,7 @@ function drawMap(twData, stationsData) {
     function enableTopologyView() {
         mainGroup.classed("topology-mode-active", true);
         generateTopologyLayout();
-        mainGroup.selectAll(".county").transition().duration(500).style("opacity", 0);
+        mainGroup.selectAll(".county, .rail-line").transition().duration(500).style("opacity", 0);
 
         if (activeStationSelection) {
             const d = d3.select(activeStationSelection).datum();
@@ -564,7 +564,7 @@ function drawMap(twData, stationsData) {
 
     function disableTopologyView() {
         mainGroup.classed("topology-mode-active", false);
-        mainGroup.selectAll(".county").transition().duration(500).style("opacity", 1);
+        mainGroup.selectAll(".county, .rail-line").transition().duration(500).style("opacity", 1);
 
         const stationGroups = mainGroup.selectAll(".station-group");
 
@@ -652,6 +652,18 @@ function drawMap(twData, stationsData) {
 
             svg.transition().duration(750).call(zoom.transform, d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale));
         });
+
+    // 臺鐵路線 (資料來源：內政部國土測繪中心「臺灣鐵路」，見 scripts/build_rail_lines.py)
+    if (railData && railData.features) {
+        mainGroup.append("g")
+            .attr("id", "rail-lines-group")
+            .selectAll(".rail-line")
+            .data(railData.features)
+            .enter()
+            .append("path")
+            .attr("class", d => `rail-line rail-${d.properties.category}`)
+            .attr("d", path);
+    }
 
     const stationGroups = mainGroup.selectAll(".station-group")
         .data(stationsData)
@@ -769,6 +781,12 @@ async function loadData() {
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
+        let railData = null;
+        try {
+            railData = await fetchWithCache("rail_lines.json", 'cache_rail_lines_json');
+        } catch (e) {
+            console.warn("Rail lines data file loading failed!");
+        }
 
 
         // Cache the daily schedule file globally to handle standalone train search actions
@@ -798,7 +816,7 @@ async function loadData() {
             console.warn("Global daily schedules pre-cache failure", e);
         }
 
-        drawMap(twData, globalStationsData);
+        drawMap(twData, globalStationsData, railData);
         svg.call(zoom.transform, d3.zoomIdentity); // Trigger initial zoom event to render labels
         initUnifiedSearchAutocomplete(); // Launch unified combined search engine
         updateOverviewPanel();
