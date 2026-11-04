@@ -516,6 +516,29 @@ svg {
     opacity: 0.7;
 }
 
+/* Schedule panel: keep each time string intact; wrap the delayed time below when narrow */
+#schedule-stops-container .stop-name-text {
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-right: 8px;
+}
+
+/* Scheduled (struck) and delayed times are separate blocks: side by side when wide,
+   stacked when narrow, so a struck time never mixes with a delayed one on the same line. */
+.stop-time-cell {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: baseline;
+    column-gap: 6px;
+    min-width: 0;
+    text-align: right;
+}
+
+.stop-time-cell .scheduled-time-strike {
+    margin-right: 0;
+}
+
 /* Delay Indicators */
 .delay-badge {
     font-size: 11px;

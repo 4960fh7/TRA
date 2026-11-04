@@ -909,6 +909,160 @@ function getLatestTDXUrl(minuteOffset = 0) {
     return `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${datetimeStr}.json?t=${now.getTime()}`;
 }
 
+/* ===== Per-station historical delay reconstruction =====
+ * The live board is archived every 5 minutes as data_MMDDHHmm.json (~75 KB raw, ~4 KB gzipped).
+ * To know the delay a train had when it left each station, only the snapshots inside that
+ * train's running window are fetched. Snapshots are immutable once written, so each one is
+ * fetched at most once per page session and shared across every train the user opens.
+ */
+const SNAPSHOT_INTERVAL_MS = 5 * 60 * 1000;
+const SNAPSHOT_FETCH_CONCURRENCY = 16;
+const SNAPSHOT_FRESH_WINDOW_MS = 15 * 60 * 1000; // newer slots may still be missing / CDN-stale
+const SNAPSHOT_MAX_SLOTS = 300; // safety cap (a full service day is ~288 slots)
+// slot key (MMDDHHmm) -> Promise<Map<trainNo, observation> | null>
+const liveSnapshotCache = new Map();
+let scheduleDelayRenderToken = 0;
+
+// Start of the current service day; before 04:00 the previous day's timetable is still running.
+function getServiceDayStart(now = new Date()) {
+    const start = new Date(now);
+    if (start.getHours() < 4) start.setDate(start.getDate() - 1);
+    start.setHours(0, 0, 0, 0);
+    return start;
+}
+
+function formatSnapshotSlotKey(date) {
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(date.getMonth() + 1)}${pad(date.getDate())}${pad(date.getHours())}${pad(date.getMinutes())}`;
+}
+
+function normalizeStationNameForMatch(name) {
+    return String(name || "").split("_")[0].replace(/台/g, "臺").trim();
+}
+
+function fetchSnapshotSlot(slotDate, nowMs) {
+    const key = formatSnapshotSlotKey(slotDate);
+    if (liveSnapshotCache.has(key)) return liveSnapshotCache.get(key);
+
+    const isFresh = nowMs - slotDate.getTime() < SNAPSHOT_FRESH_WINDOW_MS;
+    // Old slots are immutable: omit the cache buster so the browser HTTP cache can serve them too.
+    const url = `https://raw.githubusercontent.com/4960fh7/TDX_Fetch/main/data/data_${key}.json${isFresh ? `?t=${nowMs}` : ""}`;
+
+    const promise = fetch(url)
+        .then(res => (res.ok ? res.json() : null))
+        .then(json => {
+            if (!json || !Array.isArray(json.TrainLiveBoards)) return null;
+            // Keep only the fields needed, indexed by train number (one entry per train per slot).
+            const byTrain = new Map();
+            json.TrainLiveBoards.forEach(board => {
+                const delay = parseInt(board.DelayTime, 10);
+                const t = Date.parse(board.UpdateTime);
+                if (isNaN(delay) || isNaN(t)) return;
+                byTrain.set(String(board.TrainNo), {
+                    name: normalizeStationNameForMatch(board.StationName?.Zh_tw),
+                    status: board.TrainStationStatus,
+                    delay,
+                    t
+                });
+            });
+            return byTrain;
+        })
+        .catch(() => null)
+        .then(result => {
+            // A missing recent slot may still appear later, so do not cache that negative result.
+            if (result === null && isFresh && liveSnapshotCache.get(key) === promise) {
+                liveSnapshotCache.delete(key);
+            }
+            return result;
+        });
+
+    liveSnapshotCache.set(key, promise);
+    return promise;
+}
+
+// Returns the train's observations within [startMs, endMs], sorted by update time.
+async function fetchTrainObservations(trainNumber, startMs, endMs) {
+    const nowMs = Date.now();
+    const slots = [];
+    for (let ms = Math.floor(startMs / SNAPSHOT_INTERVAL_MS) * SNAPSHOT_INTERVAL_MS;
+        ms <= Math.min(endMs, nowMs) && slots.length < SNAPSHOT_MAX_SLOTS;
+        ms += SNAPSHOT_INTERVAL_MS) {
+        slots.push(new Date(ms));
+    }
+
+    // Bounded-concurrency pool: O(#slots) requests, at most SNAPSHOT_FETCH_CONCURRENCY in flight.
+    const results = new Array(slots.length);
+    let cursor = 0;
+    const worker = async () => {
+        while (cursor < slots.length) {
+            const i = cursor++;
+            results[i] = await fetchSnapshotSlot(slots[i], nowMs);
+        }
+    };
+    await Promise.all(Array.from({ length: Math.min(SNAPSHOT_FETCH_CONCURRENCY, slots.length) }, worker));
+
+    const seen = new Set();
+    const observations = [];
+    results.forEach(slotMap => {
+        const obs = slotMap && slotMap.get(String(trainNumber));
+        if (obs && !seen.has(obs.t)) {
+            seen.add(obs.t);
+            observations.push(obs);
+        }
+    });
+    observations.sort((a, b) => a.t - b.t);
+    return observations;
+}
+
+/* Delay (minutes) to show for each stop, or null when unknown.
+ * - A snapshot taken at the stop itself wins (the last one, i.e. the departure delay).
+ * - Otherwise, for a stop the train has already passed, use the snapshot whose
+ *   "timetable position" (update time minus delay) is closest to the stop's scheduled departure.
+ * - Stops not reached yet use fallbackDelay (the latest known delay).
+ */
+function computePerStopDelays(groupedStops, observations, serviceDayStartMs, nowMinutes, fallbackDelay) {
+    const obs = observations.map(o => ({
+        ...o,
+        schedPos: (o.t - serviceDayStartMs) / 60000 - o.delay
+    }));
+    const latestSchedPos = obs.length > 0 ? obs[obs.length - 1].schedPos : -Infinity;
+
+    return groupedStops.map(stop => {
+        const refMinutes = stop.depMinutes !== null ? stop.depMinutes : stop.arrMinutes;
+        const stopName = normalizeStationNameForMatch(stop.stationName);
+
+        for (let i = obs.length - 1; i >= 0; i--) {
+            if (obs[i].name === stopName) return obs[i].delay;
+        }
+
+        if (obs.length > 0 && latestSchedPos >= refMinutes) {
+            let best = obs[0];
+            obs.forEach(o => {
+                if (Math.abs(o.schedPos - refMinutes) <= Math.abs(best.schedPos - refMinutes)) best = o;
+            });
+            return best.delay;
+        }
+
+        if (fallbackDelay === null) return null;
+        // Without any history, do not project the current delay onto stops already passed.
+        if (obs.length === 0 && refMinutes + fallbackDelay < nowMinutes) return null;
+        return fallbackDelay;
+    });
+}
+
+function buildStopTimeHTML(stop, delay, colorAttr) {
+    const hasPair = stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes;
+    const single = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+    const format = offset => hasPair
+        ? `${convertMinutesToHHMM(stop.arrMinutes + offset)} / ${convertMinutesToHHMM(stop.depMinutes + offset)}`
+        : convertMinutesToHHMM(single + offset);
+
+    if (delay !== null && delay > 0) {
+        return `<span class="scheduled-time-strike">${format(0)}</span><strong ${colorAttr}>${format(delay)}</strong>`;
+    }
+    return `<strong ${colorAttr}>${format(0)}</strong>`;
+}
+
 function scheduleNextAutoRefresh() {
     const now = new Date();
     const currentMinutes = now.getMinutes();
@@ -1391,32 +1545,17 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
 
     const delayMinutesValue = (train.delay !== undefined && !isNaN(train.delay)) ? parseInt(train.delay, 10) : 0;
 
-    stopsContainer.innerHTML = groupedStops.map(stop => {
+    // Per-stop delays: render the timetable immediately, then refine with archived snapshots.
+    const renderToken = ++scheduleDelayRenderToken;
+    const serviceDayStartMs = getServiceDayStart(now).getTime();
+    const nowServiceMinutes = (now.getTime() - serviceDayStartMs) / 60000;
+    const liveFallbackDelay = badgeInfo.isActivelyInService ? delayMinutesValue : null;
+    const initialStopDelays = computePerStopDelays(groupedStops, [], serviceDayStartMs, nowServiceMinutes, liveFallbackDelay);
+    const stopColorAttrs = groupedStops.map(stop => stop.stationName === targetStationName ? `style="color: ${neonColor}"` : "");
+
+    stopsContainer.innerHTML = groupedStops.map((stop, stopIdx) => {
         const isCurrentStation = stop.stationName === targetStationName;
-
-        let scheduledString = "";
-        if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
-            scheduledString = `${convertMinutesToHHMM(stop.arrMinutes)} / ${convertMinutesToHHMM(stop.depMinutes)}`;
-        } else {
-            const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
-            scheduledString = convertMinutesToHHMM(singleTime);
-        }
-
-        const stringColor = isCurrentStation ? `style="color: ${neonColor}"` : "";
-
-        let timeDisplayHTML = "";
-        if (delayMinutesValue > 0) {
-            let delayedString = "";
-            if (stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes) {
-                delayedString = `${convertMinutesToHHMM(stop.arrMinutes + delayMinutesValue)} / ${convertMinutesToHHMM(stop.depMinutes + delayMinutesValue)}`;
-            } else {
-                const singleTime = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
-                delayedString = convertMinutesToHHMM(singleTime + delayMinutesValue);
-            }
-            timeDisplayHTML = `<strong ${stringColor}>${delayedString}</strong>`;
-        } else {
-            timeDisplayHTML = `<strong ${stringColor}>${scheduledString}</strong>`;
-        }
+        const timeDisplayHTML = `<span class="stop-time-cell" data-stop-idx="${stopIdx}">${buildStopTimeHTML(stop, initialStopDelays[stopIdx], stopColorAttrs[stopIdx])}</span>`;
 
         const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 6px; font-weight: bold;` : "";
         const activeClassAttr = isCurrentStation ? `class="current-selected-stop-row"` : "";
@@ -1428,7 +1567,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
                  data-associated-train="${trainNumber}"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; margin-bottom: 3px; cursor: pointer; ${highlightStyle}">
                 <span class="stop-name-text" style="transition: color 0.2s;">${stop.stationName}</span>
-                <span>${timeDisplayHTML}</span>
+                ${timeDisplayHTML}
             </div>
         `;
     }).join("");
@@ -1471,6 +1610,53 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
             });
         }, 60);
     }
+
+    refineScheduleStopDelays({
+        renderToken, trainNumber, groupedStops, stopsContainer, routeContainer,
+        serviceDayStartMs, nowServiceMinutes, liveFallbackDelay,
+        isActivelyInService: badgeInfo.isActivelyInService, stopColorAttrs
+    });
+}
+
+// Fetches the snapshots covering the train's run and rewrites each stop's time cell in place.
+async function refineScheduleStopDelays(ctx) {
+    const { renderToken, trainNumber, groupedStops, stopsContainer, routeContainer,
+        serviceDayStartMs, nowServiceMinutes, liveFallbackDelay, isActivelyInService, stopColorAttrs } = ctx;
+    if (groupedStops.length === 0) return;
+
+    const firstStop = groupedStops[0];
+    const lastStop = groupedStops[groupedStops.length - 1];
+    const firstMinutes = firstStop.depMinutes !== null ? firstStop.depMinutes : firstStop.arrMinutes;
+    const lastMinutes = lastStop.arrMinutes !== null ? lastStop.arrMinutes : lastStop.depMinutes;
+    if (firstMinutes - 5 > nowServiceMinutes) return; // not departed yet: no history exists
+
+    // A finished train is no longer on the live board; allow up to 60 min of terminal delay.
+    const windowStartMs = serviceDayStartMs + (firstMinutes - 5) * 60000;
+    const windowEndMs = isActivelyInService ? Date.now() : serviceDayStartMs + (lastMinutes + 60) * 60000;
+
+    const statusEl = document.createElement("div");
+    statusEl.style.cssText = "color: #64748b; font-size: 12px; margin-top: 6px;";
+    statusEl.textContent = "各站誤點紀錄載入中...";
+    routeContainer.appendChild(statusEl);
+
+    let observations = [];
+    try {
+        observations = await fetchTrainObservations(trainNumber, windowStartMs, windowEndMs);
+    } catch (e) {
+        console.warn("Per-station delay history fetch failed", e);
+    }
+    if (renderToken !== scheduleDelayRenderToken) return; // user has opened another train meanwhile
+
+    statusEl.remove();
+    if (observations.length === 0) return;
+
+    const fallbackDelay = liveFallbackDelay !== null ? liveFallbackDelay : observations[observations.length - 1].delay;
+    const stopDelays = computePerStopDelays(groupedStops, observations, serviceDayStartMs, nowServiceMinutes, fallbackDelay);
+
+    stopsContainer.querySelectorAll(".stop-time-cell").forEach(cell => {
+        const idx = parseInt(cell.getAttribute("data-stop-idx"), 10);
+        cell.innerHTML = buildStopTimeHTML(groupedStops[idx], stopDelays[idx], stopColorAttrs[idx]);
+    });
 }
 
 function hexToRgb(hex) {
