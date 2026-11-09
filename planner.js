@@ -1476,7 +1476,7 @@ function findThreeTransferRoutes(fromName, toName, minDepartureMins, maxDepartur
 
 
 function buildTimelineHtml(routeData) {
-    let html = '<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #1a2a3a;">';
+    let html = '<div style="margin-top: 12px; padding-top: 4px;">';
 
     // Flatten all rows (stops + transfer markers) into a single list
     let rows = [];
@@ -1679,12 +1679,12 @@ function renderRoutes(routes, container, isPartial, hasMore = false) {
             const origArr = lastTrain.stops && lastTrain.stops.length > 0 ? lastTrain.stops[lastTrain.stops.length - 1].timeMins : totalArr;
 
             if (origDep !== totalDep || origArr !== totalArr) {
-                headerTimeHtml = `<span style="text-decoration: line-through; color: #888; font-size: 16px;">${minutesToTime(origDep)} → ${minutesToTime(origArr)}</span> <span style="color: #ff4444;">${depTimeStr} → ${arrTimeStr}</span>${delayBadge}`;
+                headerTimeHtml = `<span style="text-decoration: line-through; color: #888; font-size: 16px;">${minutesToTime(origDep)}${icon('arrow-right', 'pi-inline')}${minutesToTime(origArr)}</span> <span style="color: #ff4444;">${depTimeStr}${icon('arrow-right', 'pi-inline')}${arrTimeStr}</span>${delayBadge}`;
             } else {
-                headerTimeHtml = `${depTimeStr} → ${arrTimeStr}${delayBadge}`;
+                headerTimeHtml = `${depTimeStr}${icon('arrow-right', 'pi-inline')}${arrTimeStr}${delayBadge}`;
             }
         } else {
-            headerTimeHtml = `${depTimeStr} → ${arrTimeStr}`;
+            headerTimeHtml = `${depTimeStr}${icon('arrow-right', 'pi-inline')}${arrTimeStr}`;
         }
 
         let headerHtml = `
@@ -1705,7 +1705,7 @@ function renderRoutes(routes, container, isPartial, hasMore = false) {
         bodyWrapper.style.display = 'none';
 
         if (route.type !== 'direct' && route.options.length > 1) {
-            let selectHtml = `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #1a2a3a;">
+            let selectHtml = `<div style="margin-top: 10px; padding-top: 4px;">
                 <label style="color: #ccc; font-size: 12px; margin-right: 10px;">選擇轉乘車站：</label>
                 <select class="transfer-select planner-input custom-scrollbar" style="width: auto; padding: 5px; font-size: 12px; display: inline-block; font-family: inherit;">
                     ${route.options.map((opt, i) => {
@@ -1748,10 +1748,10 @@ function renderRoutes(routes, container, isPartial, hasMore = false) {
         card.addEventListener('click', () => {
             if (bodyWrapper.style.display === 'none') {
                 bodyWrapper.style.display = 'block';
-                card.style.borderColor = '#00f0ff';
+                card.style.background = '#16222e';
             } else {
                 bodyWrapper.style.display = 'none';
-                card.style.borderColor = '#1a2a3a';
+                card.style.background = '';
             }
         });
 
@@ -1771,7 +1771,7 @@ function renderRoutes(routes, container, isPartial, hasMore = false) {
         loadMoreBtn.style.width = '100%';
         loadMoreBtn.style.marginTop = '15px';
         loadMoreBtn.style.marginBottom = '20px';
-        loadMoreBtn.textContent = '顯示更多';
+        loadMoreBtn.innerHTML = `${icon('chevron-down')} 顯示更多`;
         loadMoreBtn.addEventListener('click', () => {
             loadMoreBtn.textContent = '搜尋中...';
             loadMoreBtn.disabled = true;

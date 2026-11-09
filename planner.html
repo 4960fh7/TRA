@@ -22,7 +22,6 @@
         .planner-panel {
             background: #111a22;
             border-radius: 10px;
-            border: 1px solid #1a2a3a;
             padding: 20px;
             width: 100%;
             max-width: 800px;
@@ -58,7 +57,7 @@
             width: 100%;
             padding: 10px;
             background: #060a12;
-            border: 1px solid #1a2a3a;
+            border: none;
             color: #00f0ff;
             border-radius: 5px;
             box-sizing: border-box;
@@ -113,7 +112,7 @@
         .settings-btn {
             background: #1a2a3a;
             color: #ccc;
-            border: 1px solid #1a2a3a;
+            border: none;
             padding: 10px;
             font-size: 14px;
             font-family: inherit;
@@ -121,11 +120,13 @@
             cursor: pointer;
             transition: 0.3s;
             text-align: left;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         @media (hover: hover) {
             .settings-btn:hover {
-                border-color: #00f0ff;
                 color: #00f0ff;
             }
         }
@@ -133,7 +134,6 @@
         .settings-panel {
             display: none;
             background: #0a1520;
-            border: 1px solid #1a2a3a;
             border-radius: 5px;
             padding: 15px;
             margin-top: -5px;
@@ -166,7 +166,7 @@
             width: 100%;
             padding: 6px 10px;
             background: #060a12;
-            border: 1px solid #1a2a3a;
+            border: none;
             color: #00f0ff;
             border-radius: 3px;
             box-sizing: border-box;
@@ -185,16 +185,15 @@
 
         .result-card {
             background: #111a22;
-            border: 1px solid #1a2a3a;
             border-radius: 10px;
             padding: 12px;
             cursor: pointer;
-            transition: 0.2s;
+            transition: background 0.2s;
         }
 
         @media (hover: hover) {
             .result-card:hover {
-                border-color: #00f0ff;
+                background: #16222e;
             }
         }
 
@@ -235,8 +234,7 @@
         .timeline {
             display: none;
             margin-top: 15px;
-            padding-top: 15px;
-            border-top: 1px solid #1a2a3a;
+            padding-top: 5px;
         }
 
         .result-card.expanded .timeline {
@@ -249,9 +247,9 @@
             top: 100%;
             left: 0;
             width: 100%;
-            background: #0a111a;
-            border: 1px solid #00f0ff;
+            background: #0d1626;
             border-radius: 0 0 5px 5px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
             max-height: 200px;
             overflow-y: auto;
             z-index: 100;
@@ -266,7 +264,6 @@
             padding: 10px;
             cursor: pointer;
             color: #eee;
-            border-bottom: 1px solid #1a2a3a;
             font-family: inherit;
         }
 
@@ -341,14 +338,15 @@
 </head>
 
 <body>
+    <script src="icons.js"></script>
     <div class="header">
         <div class="header-title-group">
             <h1>臺鐵旅程規劃</h1>
         </div>
         <div class="search-wrap">
-            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">列車動態</button>
-            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn">誤點紀錄</button>
-            <button class="hamburger-btn" id="hamburger-btn">☰</button>
+            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn"><svg class="pi" aria-hidden="true"><use href="#pi-train-front"/></svg>列車動態</button>
+            <button onclick="window.location.href='history.html'" class="reset-btn desktop-nav-btn"><svg class="pi" aria-hidden="true"><use href="#pi-chart-line"/></svg>誤點紀錄</button>
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="選單"><svg class="pi" aria-hidden="true"><use href="#pi-menu"/></svg></button>
         </div>
     </div>
 
@@ -356,9 +354,9 @@
     <div class="nav-overlay" id="nav-overlay">
         <div class="nav-backdrop" id="nav-backdrop"></div>
         <div class="nav-drawer">
-            <button class="nav-link" onclick="window.location.href='index.html'">列車動態</button>
-            <button class="nav-link active">旅程規劃</button>
-            <button class="nav-link" onclick="window.location.href='history.html'">誤點紀錄</button>
+            <button class="nav-link" onclick="window.location.href='index.html'"><svg class="pi" aria-hidden="true"><use href="#pi-train-front"/></svg>列車動態</button>
+            <button class="nav-link active"><svg class="pi" aria-hidden="true"><use href="#pi-route"/></svg>旅程規劃</button>
+            <button class="nav-link" onclick="window.location.href='history.html'"><svg class="pi" aria-hidden="true"><use href="#pi-chart-line"/></svg>誤點紀錄</button>
         </div>
     </div>
 
@@ -372,7 +370,7 @@
                             autocomplete="off">
                         <div id="from-suggestions" class="suggestions-dropdown-planner custom-scrollbar"></div>
                     </div>
-                    <button class="swap-btn" id="swap-stations-btn" title="對調起訖站">⇄</button>
+                    <button class="swap-btn" id="swap-stations-btn" title="對調起訖站" aria-label="對調起訖站"><svg class="pi" aria-hidden="true"><use href="#pi-arrow-left-right"/></svg></button>
                     <div class="form-group">
                         <label for="to-station">抵達站</label>
                         <input type="text" id="to-station" class="planner-input" placeholder="例如：高雄" autocomplete="off">
@@ -391,7 +389,7 @@
                     </div>
                 </div>
 
-                <button class="settings-btn" id="settings-toggle-btn">⚙ 篩選設定</button>
+                <button class="settings-btn" id="settings-toggle-btn"><svg class="pi" aria-hidden="true"><use href="#pi-sliders-horizontal"/></svg><span id="settings-toggle-label">篩選設定</span></button>
                 <div class="settings-panel" id="settings-panel">
                     <div class="filter-option">
                         <input type="checkbox" id="filter-direct-only">
@@ -505,11 +503,12 @@
             if (document.getElementById('filter-transfer-time').checked) count++;
 
             const btn = document.getElementById('settings-toggle-btn');
+            const label = document.getElementById('settings-toggle-label');
             if (count > 0) {
-                btn.textContent = `⚙ 篩選設定 (${count})`;
+                label.textContent = `篩選設定 (${count})`;
                 btn.style.color = '#00f0ff';
             } else {
-                btn.textContent = '⚙ 篩選設定';
+                label.textContent = '篩選設定';
                 btn.style.color = '#ccc';
             }
         }

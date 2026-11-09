@@ -56,7 +56,7 @@ function closeMobileSearchForm() {
     const toggle = document.getElementById('mobile-search-toggle');
     if (form && form.classList.contains('show')) {
         form.classList.remove('show');
-        if (toggle) toggle.innerHTML = '搜尋設定 ▼';
+        if (toggle) toggle.innerHTML = icon('sliders-horizontal') + ' ' + icon('chevron-down');
     }
 }
 
@@ -372,7 +372,7 @@ function renderTrainCharts() {
             let startStr = startTime ? `${startTime} ` : "";
             let endStr = endTime ? `${endTime} ` : "";
 
-            titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
+            titleHTML += ` <span style="color: #94a3b8; font-size: 0.85em; font-weight: normal; text-shadow: none;">${startStr}${trainData.info.start}${icon('arrow-right', 'pi-inline')}${endStr}${trainData.info.end}</span>`;
         }
 
         let origin_station_name = null;
@@ -566,7 +566,7 @@ function renderTrainCharts() {
             <div class="chart-container" id="chart-train-${train.No}" style="overflow: hidden; --mobile-height: ${mobileHeight}px;">
                 <h2 class="chart-title">${titleHTML}</h2>
                 <div style="display: flex; height: calc(100% - ${isMobile ? 20 : 40}px); width: 100%;">
-                    <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
+                    <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); z-index: 10;">
                         <canvas class="y-axis-canvas"></canvas>
                     </div>
                     <div class="history-chart-scroll-container custom-scrollbar" style="flex-grow: 1; overflow-x: auto; overflow-y: hidden;">
@@ -709,7 +709,7 @@ function renderTrainCharts() {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
+                            backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderWidth: 0, displayColors: false,
                             callbacks: {
                                 title: function (context) {
                                     return context[0].raw.stationName || timeToStation[context[0].raw.x] || '';
@@ -772,8 +772,7 @@ function renderTrainCharts() {
                     backgroundColor: 'rgba(13, 21, 38, 0.9)',
                     titleColor: '#00f0ff',
                     bodyColor: '#e2e8f0',
-                    borderColor: '#1e293b',
-                    borderWidth: 1,
+                    borderWidth: 0,
                     displayColors: false,
                     filter: function (tooltipItem, currentIndex, tooltipItems) {
                         return tooltipItems.findIndex(t => t.datasetIndex === tooltipItem.datasetIndex) === currentIndex;
@@ -851,7 +850,7 @@ function renderStationCharts() {
         <div class="chart-container" id="avg-delay-bar-chart">
             <h2 class="chart-title">各車站平均誤點時間排名</h2>
             <div style="display: flex; height: calc(100% - 40px); width: 100%;">
-                <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
+                <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); z-index: 10;">
                     <canvas class="y-axis-canvas"></canvas>
                 </div>
                 <div class="history-chart-scroll-container custom-scrollbar" style="flex-grow: 1; overflow-x: auto; overflow-y: hidden;">
@@ -969,7 +968,7 @@ function renderStationCharts() {
                     <span style="color: #ff9900; font-size: 0.85em; font-weight: normal; margin-left: 10px;">平均誤點: ${avgDelay} 分</span>
                 </h2>
                 <div style="display: flex; height: calc(100% - ${isMobile ? 20 : 40}px); width: 100%;">
-                    <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); border-right: 1px solid rgba(208, 255, 230, 0.1); z-index: 10;">
+                    <div style="width: 60px; flex-shrink: 0; background-color: rgba(13, 21, 38, 0.95); z-index: 10;">
                         <canvas class="y-axis-canvas"></canvas>
                     </div>
                     <div class="history-chart-scroll-container custom-scrollbar" style="flex-grow: 1; overflow-x: auto; overflow-y: hidden;">
@@ -1072,7 +1071,7 @@ function renderSingleStationChart(sid, points, container) {
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderColor: '#1e293b', borderWidth: 1, displayColors: false,
+                    backgroundColor: 'rgba(13, 21, 38, 0.9)', titleColor: '#00f0ff', bodyColor: '#e2e8f0', borderWidth: 0, displayColors: false,
                     callbacks: {
                         title: function (context) {
                             const p = context[0].raw;
@@ -1183,7 +1182,7 @@ searchInput.addEventListener('input', () => {
             const endTime = sData.length > 0 ? sData[sData.length - 1].arr : "";
             let startStr = startTime ? `${startTime} ` : "";
             let endStr = endTime ? `${endTime} ` : "";
-            displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start} → ${endStr}${trainData.info.end}</span>`;
+            displayName += ` <span style="color: #94a3b8; font-size: 0.9em;">${startStr}${trainData.info.start}${icon('arrow-right', 'pi-inline')}${endStr}${trainData.info.end}</span>`;
         }
         suggestions.push(`<div class="suggestion-item" data-id="${t.No}" data-type="train">${displayName}</div>`);
     });
@@ -1726,7 +1725,7 @@ function toggleAutoPlay() {
             updateMapForTime(parseInt(slider.value, 10));
         }
 
-        playPauseBtn.innerText = '⏸️';
+        playPauseBtn.innerHTML = icon('pause');
         playInterval = setInterval(() => {
             const slider = document.getElementById('time-slider');
             let val = parseInt(slider.value, 10);
@@ -1750,7 +1749,7 @@ function pauseAutoPlay() {
         clearInterval(playInterval);
         playInterval = null;
     }
-    playPauseBtn.innerText = '▶️';
+    playPauseBtn.innerHTML = icon('play');
 }
 playPauseBtn.addEventListener('click', toggleAutoPlay);
 

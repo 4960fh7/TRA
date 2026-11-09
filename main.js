@@ -515,10 +515,10 @@ function drawMap(twData, stationsData, railData) {
         isTopologyMode = !isTopologyMode;
         const btn = document.getElementById("topology-toggle-btn");
         if (isTopologyMode) {
-            if (btn) btn.innerHTML = '<i class="fas fa-map"></i> 切換地圖';
+            if (btn) btn.innerHTML = `${icon('map')}切換地圖`;
             enableTopologyView();
         } else {
-            if (btn) btn.innerHTML = '<i class="fas fa-project-diagram"></i> 切換拓樸圖';
+            if (btn) btn.innerHTML = `${icon('network')}切換拓樸圖`;
             disableTopologyView();
         }
     };
@@ -1189,9 +1189,8 @@ async function showStationInfoPanel(code, name, address, cwTarget, ccwTarget, ta
         if (!updateBadge) {
             updateBadge = document.createElement("div");
             updateBadge.id = "live-data-update-time-badge";
-            updateBadge.style.cssText = "float: right; margin-right: 10px; background: #162238; border: 1px solid #00f0ff; color: #00f0ff; padding: 6px 14px; border-radius: 2px; font-size: 11px; font-weight: bold; text-transform: uppercase;";
+            updateBadge.style.cssText = "float: right; margin-right: 10px; background: rgba(0, 240, 255, 0.08); color: #00f0ff; padding: 6px 12px; border-radius: 4px; font-size: 11px; font-weight: bold; text-transform: uppercase; align-self: center;";
             const closeBtn = document.getElementById("close-panel-btn");
-            closeBtn.innerHTML = window.innerWidth <= 768 ? `&times;` : `&times; 關閉`;
             closeBtn.parentNode.insertBefore(updateBadge, closeBtn);
         }
 
@@ -1498,7 +1497,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
 
     const routeContainer = document.getElementById("schedule-train-route");
     routeContainer.innerHTML = `
-        <div style="font-size: 15px; margin-top: 4px;">${infoObj.start || "N/A"} → ${infoObj.end || "N/A"}</div>
+        <div style="font-size: 15px; margin-top: 4px;">${infoObj.start || "N/A"}${icon('arrow-right', 'pi-inline')}${infoObj.end || "N/A"}</div>
         ${currentPositionHTML}
         <div id="schedule-note-container" style="color: #64748b; font-size: 12px; margin-top: 6px; ${noteText.length > 15 ? 'cursor: pointer;' : ''}">${noteHTML}</div>
     `;
@@ -1557,7 +1556,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
         const isCurrentStation = stop.stationName === targetStationName;
         const timeDisplayHTML = `<span class="stop-time-cell" data-stop-idx="${stopIdx}">${buildStopTimeHTML(stop, initialStopDelays[stopIdx], stopColorAttrs[stopIdx])}</span>`;
 
-        const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-left: 2px solid ${neonColor}; padding-left: 6px; font-weight: bold;` : "";
+        const highlightStyle = isCurrentStation ? `background: rgba(${hexToRgb(neonColor)}, 0.15); border-radius: 4px; padding-left: 6px; font-weight: bold;` : "";
         const activeClassAttr = isCurrentStation ? `class="current-selected-stop-row"` : "";
 
         return `
@@ -1760,7 +1759,7 @@ function initUnifiedSearchAutocomplete() {
 
                 const item = document.createElement("div");
                 item.className = "suggestion-item";
-                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType, trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode} → ${endNode})</span>`;
+                item.innerHTML = `<span style="color:${colorPalette[trainType]}; font-weight:bold;">${getTrainTypeName(trainType, trainNum)}</span> <span style="font-size:12px; color:#a1a1aa;">(${startNode}${icon('arrow-right', 'pi-inline')}${endNode})</span>`;
 
                 item.addEventListener("click", () => {
                     searchInput.value = "";
@@ -2023,7 +2022,7 @@ document.addEventListener("DOMContentLoaded", () => {
             (scheduleWidthStr && scheduleWidthStr !== '20vw') ||
             (overviewWidthStr && overviewWidthStr !== '33.33vw');
 
-        resetBtn.style.display = isCustomized ? 'block' : 'none';
+        resetBtn.style.display = isCustomized ? 'inline-flex' : 'none';
     }
 
     const resetBtn = document.getElementById('reset-widths-btn');
@@ -2169,7 +2168,7 @@ document.addEventListener("click", (e) => {
     const panel = document.getElementById("overview-panel");
     const toggleBtn = document.getElementById("overview-toggle-btn");
     if (panel && panel.classList.contains("mobile-open") && window.innerWidth <= 768) {
-        if (!panel.contains(e.target) && e.target !== toggleBtn) {
+        if (!panel.contains(e.target) && !(toggleBtn && toggleBtn.contains(e.target))) {
             panel.classList.remove("mobile-open");
         }
     }
@@ -2278,7 +2277,7 @@ async function updateOverviewPanel() {
                             <span class="delay-col-right">誤點 <span class="delay-highlight-time">${item.delay}</span> 分</span>
                         </div>
                         <div class="delay-item-details">
-                            ${item.start} → ${item.end} ${viaText}
+                            ${item.start}${icon('arrow-right', 'pi-inline')}${item.end} ${viaText}
                         </div>
                     </div>
                 `;

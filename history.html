@@ -26,7 +26,6 @@
             display: flex;
             align-items: center;
             background: #060a12;
-            border-bottom: 1px dashed #d0ffe6;
             padding: 10px 30px;
             gap: 10px;
             flex-wrap: wrap;
@@ -42,10 +41,10 @@
             background: #00f0ff;
             color: #060a12;
             border: none;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
             display: none;
             align-items: center;
             justify-content: center;
@@ -55,7 +54,6 @@
 
         #back-to-top-btn:hover {
             background: #d0ffe6;
-            box-shadow: 0 0 20px rgba(0, 240, 255, 1);
         }
 
         @media (max-width: 600px) {
@@ -71,7 +69,7 @@
                 padding: 15px;
                 flex-direction: column;
                 align-items: flex-start;
-                border-bottom: 1px solid #00f0ff;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
             }
 
             .sub-header.show {
@@ -108,36 +106,38 @@
         }
 
         .date-input {
-            background: #060a12;
-            border: 1px solid #00f0ff;
+            background: #111c2e;
+            border: none;
             color: #fff;
             padding: 8px 12px;
             font-family: inherit;
             font-size: 14px;
             outline: none;
-            box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
-            border-radius: 2px;
+            border-radius: 4px;
+            color-scheme: dark;
+        }
+
+        .date-input:focus {
+            background: #16283f;
         }
 
         .fetch-btn {
             background: #162238;
-            border: 1px solid #00f0ff;
+            border: none;
             color: #00f0ff;
             padding: 8px 16px;
             font-family: inherit;
             font-size: 14px;
             cursor: pointer;
-            box-shadow: 0 0 5px rgba(0, 240, 255, 0.2);
-            transition: all 0.2s;
-            border-radius: 2px;
+            transition: background 0.2s, color 0.2s;
+            border-radius: 4px;
             font-weight: bold;
         }
 
         @media (hover: hover) {
             .fetch-btn:hover {
-                box-shadow: 0 0 15px rgba(0, 240, 255, 0.6);
-                background: #00f0ff;
-                color: #060a12;
+                background: #1e3350;
+                color: #d0ffe6;
             }
         }
 
@@ -148,7 +148,6 @@
             flex-shrink: 0;
             margin-bottom: 30px;
             background: rgba(13, 21, 38, 0.8);
-            border: 1px solid #162238;
             padding: 15px;
             box-sizing: border-box;
             border-radius: 4px;
@@ -191,7 +190,6 @@
             gap: 15px;
             padding: 15px;
             background: rgba(6, 10, 18, 0.95);
-            border-top: 1px solid #00f0ff;
             flex-wrap: wrap;
         }
 
@@ -215,7 +213,7 @@
             top: 15px;
             right: 15px;
             background: rgba(13, 21, 38, 0.8);
-            border: 1px solid #ef4444;
+            border: none;
             color: #ef4444;
             padding: 8px 12px;
             border-radius: 4px;
@@ -232,25 +230,26 @@
 </head>
 
 <body>
+    <script src="icons.js"></script>
     <div class="header">
         <div class="header-title-group">
             <h1>臺鐵誤點紀錄</h1>
         </div>
         <div class="search-wrap">
-            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn">列車動態</button>
-            <button onclick="window.location.href='planner.html'" class="reset-btn desktop-nav-btn">旅程規劃</button>
-            <button id="mobile-search-toggle" class="fetch-btn mobile-only" style="margin-left: 10px;">搜尋設定 ▼</button>
-            <button class="hamburger-btn" id="hamburger-btn">☰</button>
+            <button onclick="window.location.href='index.html'" class="reset-btn desktop-nav-btn"><svg class="pi" aria-hidden="true"><use href="#pi-train-front"/></svg>列車動態</button>
+            <button onclick="window.location.href='planner.html'" class="reset-btn desktop-nav-btn"><svg class="pi" aria-hidden="true"><use href="#pi-route"/></svg>旅程規劃</button>
+            <button id="mobile-search-toggle" class="fetch-btn mobile-only" style="margin-left: 10px; padding: 6px 10px;" title="搜尋設定" aria-label="搜尋設定"><svg class="pi" aria-hidden="true"><use href="#pi-sliders-horizontal"/></svg> <svg class="pi" aria-hidden="true"><use href="#pi-chevron-down"/></svg></button>
+            <button class="hamburger-btn" id="hamburger-btn" aria-label="選單"><svg class="pi" aria-hidden="true"><use href="#pi-menu"/></svg></button>
         </div>
     </div>
 
     <div class="sub-header" id="mobile-search-form">
         <div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">
             <button id="close-map-btn" class="fetch-btn"
-                style="display: none; padding: 6px 12px; white-space: nowrap;">返回誤點圖表</button>
+                style="display: none; padding: 6px 12px; white-space: nowrap;"><svg class="pi" aria-hidden="true"><use href="#pi-arrow-left"/></svg> 返回誤點圖表</button>
             <button id="view-mode-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">切換至：
                 各車站</button>
-            <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;">誤點區間地圖</button>
+            <button id="delay-map-btn" class="fetch-btn" style="padding: 6px 12px; white-space: nowrap;"><svg class="pi" aria-hidden="true"><use href="#pi-map"/></svg> 誤點區間地圖</button>
         </div>
         <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap; flex: 1;">
             <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -276,7 +275,7 @@
                         style="width: 100%; top: 100%; box-sizing: border-box;"></div>
                 </div>
                 <button id="search-btn" class="fetch-btn"
-                    style="padding: 6px 12px; white-space: nowrap; flex-shrink: 0;">跳轉</button>
+                    style="padding: 6px 10px; white-space: nowrap; flex-shrink: 0;" title="跳轉" aria-label="跳轉"><svg class="pi" aria-hidden="true"><use href="#pi-arrow-right"/></svg></button>
             </div>
         </div>
     </div>
@@ -285,9 +284,9 @@
     <div class="nav-overlay" id="nav-overlay">
         <div class="nav-backdrop" id="nav-backdrop"></div>
         <div class="nav-drawer">
-            <button class="nav-link" onclick="window.location.href='index.html'">列車動態</button>
-            <button class="nav-link" onclick="window.location.href='planner.html'">旅程規劃</button>
-            <button class="nav-link active">誤點紀錄</button>
+            <button class="nav-link" onclick="window.location.href='index.html'"><svg class="pi" aria-hidden="true"><use href="#pi-train-front"/></svg>列車動態</button>
+            <button class="nav-link" onclick="window.location.href='planner.html'"><svg class="pi" aria-hidden="true"><use href="#pi-route"/></svg>旅程規劃</button>
+            <button class="nav-link active"><svg class="pi" aria-hidden="true"><use href="#pi-chart-line"/></svg>誤點紀錄</button>
         </div>
     </div>
     <script>
@@ -318,16 +317,16 @@
             </div>
             <div class="map-time-controls">
                 <button id="play-pause-btn" class="fetch-btn" style="width: 40px; padding: 6px;"
-                    title="播放/暫停">▶️</button>
+                    title="播放/暫停" aria-label="播放/暫停"><svg class="pi" aria-hidden="true"><use href="#pi-play"/></svg></button>
                 <button id="reset-time-btn" class="fetch-btn" style="width: 40px; padding: 6px;"
-                    title="重設時間">🔄</button>
+                    title="重設時間" aria-label="重設時間"><svg class="pi" aria-hidden="true"><use href="#pi-rotate-ccw"/></svg></button>
                 <button id="loop-btn" class="fetch-btn" style="width: 40px; padding: 6px; opacity: 0.5;"
-                    title="循環播放">🔁</button>
+                    title="循環播放" aria-label="循環播放"><svg class="pi" aria-hidden="true"><use href="#pi-repeat"/></svg></button>
                 <div style="position: relative; display: inline-block;">
                     <button id="speed-btn" class="fetch-btn" style="width: 50px; padding: 6px; font-weight: bold;"
-                        title="播放速度">⏩</button>
+                        title="播放速度" aria-label="播放速度"><svg class="pi" aria-hidden="true"><use href="#pi-fast-forward"/></svg></button>
                     <div id="speed-menu"
-                        style="display: none; position: absolute; bottom: 100%; left: 0; background-color: rgba(13, 21, 38, 0.95); border: 1px solid rgba(208, 255, 230, 0.2); border-radius: 4px; padding: 5px; margin-bottom: 5px; flex-direction: column; gap: 5px; z-index: 2000;">
+                        style="display: none; position: absolute; bottom: 100%; left: 0; background-color: rgba(13, 21, 38, 0.95); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5); border-radius: 4px; padding: 5px; margin-bottom: 5px; flex-direction: column; gap: 5px; z-index: 2000;">
                         <button class="fetch-btn speed-option" data-speed="8"
                             style="width: 40px; padding: 4px;">8x</button>
                         <button class="fetch-btn speed-option" data-speed="4"
@@ -347,17 +346,14 @@
         </div>
     </div>
 
-    <button id="back-to-top-btn" title="回頂端">↑</button>
+    <button id="back-to-top-btn" title="回頂端" aria-label="回頂端"><svg class="pi" aria-hidden="true"><use href="#pi-arrow-up"/></svg></button>
 
     <script>
         document.getElementById('mobile-search-toggle').addEventListener('click', function () {
             var form = document.getElementById('mobile-search-form');
             form.classList.toggle('show');
-            if (form.classList.contains('show')) {
-                this.innerHTML = '搜尋設定 ▲';
-            } else {
-                this.innerHTML = '搜尋設定 ▼';
-            }
+            this.innerHTML = icon('sliders-horizontal') + ' ' +
+                icon(form.classList.contains('show') ? 'chevron-up' : 'chevron-down');
         });
 
         const appContainer = document.getElementById('history-app-container');
