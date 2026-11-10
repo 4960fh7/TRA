@@ -1537,6 +1537,44 @@ button, input, select, textarea, text, tspan {
     background: rgba(230, 184, 92, 0.18);
 }
 
+/* Train departing within 2 minutes (scheduled + delay): a translucent white
+   band keeps sweeping left to right across the row */
+.fb-row.fb-row-imminent {
+    position: relative;
+    overflow: hidden;
+}
+
+.fb-row.fb-row-imminent::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 45%;
+    background: linear-gradient(90deg,
+        rgba(255, 255, 255, 0) 0%,
+        rgba(255, 255, 255, 0.22) 50%,
+        rgba(255, 255, 255, 0) 100%);
+    transform: translateX(-100%);
+    animation: fb-imminent-sweep 1.8s linear infinite;
+    z-index: 5;
+    pointer-events: none;
+}
+
+@keyframes fb-imminent-sweep {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(calc(100% / 0.45)); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .fb-row.fb-row-imminent::after {
+        animation: none;
+        width: 100%;
+        transform: none;
+        background: rgba(255, 255, 255, 0.12);
+    }
+}
+
 .fb-head {
     padding-bottom: 0.2em;
 }
@@ -1641,7 +1679,7 @@ button, input, select, textarea, text, tspan {
     right: 0;
     top: calc(50% - 0.5px);
     height: 1px;
-    background: rgba(0, 0, 0, 0.75);
+    background: rgba(0, 0, 0, 0.3);
     z-index: 3;
     pointer-events: none;
 }
@@ -1654,6 +1692,11 @@ button, input, select, textarea, text, tspan {
 @media screen and (max-width: 768px) {
     #info-panel.board-mode #flapboard-wrapper {
         padding-bottom: 85px;
+    }
+
+    /* Narrow screens: the board uses the same compressed font as the rest of the page */
+    .fb-board {
+        font-family: 'GlowSansSCCom-Compressed', "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", sans-serif;
     }
 }
 

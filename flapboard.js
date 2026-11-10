@@ -27,6 +27,8 @@
     const ROWS = 6;
     /** Duration of one half-flip (top leaf falling, then bottom leaf landing). */
     const HALF_FLIP_MS = 42;
+    /** Rows departing within this many minutes (scheduled + delay) get the sweeping highlight. */
+    const IMMINENT_MINUTES = 2;
     /** Digit flap deck, in mechanical order (blank first). */
     const DIGIT_DECK = [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
     const VIEW_KEY = 'stationPanelView';
@@ -48,7 +50,17 @@
     const VIA_NAMES = { '成追線': '成追' };
     const TYPE_NAMES = { '柴聯自強': '柴自強' };
     /** Deck order of the fixed columns; unseen values are appended. */
-    const VIA_DECK = ['', '山線', '海線', '成追'];
+    const VIA_DECK = ['', '山線', '海線', '成追', '北迴', '南迴'];
+
+    /**
+     * 經由 for trains without a 山線/海線/成追線 label (board only), in priority
+     * order: a train whose route covers the whole 花蓮～蘇澳新 stretch is 北迴,
+     * otherwise one covering the whole 枋寮～臺東 stretch is 南迴.
+     */
+    const RING_SEGMENTS = [
+        { via: '北迴', ends: ['花蓮', '蘇澳新'] },
+        { via: '南迴', ends: ['枋寮', '臺東'] }
+    ];
     const TYPE_DECK = ['', '區間', '區間快', '莒光', '自強', 'PP自強', '新自強', '普悠瑪', '太魯閣', '柴自強', '普通專列'];
     const NOTE_MARK_DECK = ['', '準', '晚'];
     const NOTE_UNIT_DECK = ['', '點', '分'];
@@ -99,6 +111,74 @@
     }
 
     /** Station name of an info.end field ("HH:MM 站名"); mirrors the Python script. */
+    /* --- 北迴 / 南迴 detection on the island ring --- */
+
+    /** Ring context derived from globalStationsData, rebuilt when that array changes. */
+    let ringCache = { source: null, ctx: null };
+    /** Per train object: { ctx, via } so the route is scanned once per data set. */
+    const ringViaCache = new WeakMap();
+
+    /**
+     * stations.json lists the stations in order around the island ring
+     * (west coast -> 屏東 -> 南迴 -> 臺東 -> 花蓮 -> 北迴 -> 宜蘭線), with
+     * branch lines next to their junctions; the list index is a ring position.
+     * Each segment becomes the run of gaps (i, i+1) between its two ends.
+     */
+    function ringContext() {
+        const stations = typeof globalStationsData !== 'undefined' ? globalStationsData : null;
+        if (!Array.isArray(stations) || stations.length === 0) return null;
+        if (ringCache.source === stations) return ringCache.ctx;
+        const pos = new Map();
+        stations.forEach((s, i) => { if (!pos.has(s.stationName)) pos.set(s.stationName, i); });
+        const segments = [];
+        RING_SEGMENTS.forEach(seg => {
+            const [a, b] = seg.ends.map(name => pos.get(name));
+            if (a === undefined || b === undefined) return;
+            segments.push({ via: seg.via, from: Math.min(a, b), to: Math.max(a, b) });
+        });
+        ringCache = { source: stations, ctx: { pos, n: stations.length, segments } };
+        return ringCache.ctx;
+    }
+
+    /**
+     * 北迴 / 南迴 / '' for a train. Between two consecutive stops the train is
+     * taken to run the shorter way round the ring (no hop spans half the
+     * island), so express trains skipping a whole segment still cover it.
+     * Time: O(S + G) per train for S stops and G ring gaps covered.
+     */
+    function ringVia(train) {
+        const ctx = ringContext();
+        if (!ctx) return '';
+        const cached = ringViaCache.get(train);
+        if (cached && cached.ctx === ctx) return cached.via;
+
+        const n = ctx.n;
+        const gaps = new Set();
+        let prev = null;
+        for (const stop of train.data || []) {
+            const p = ctx.pos.get(stop.x);
+            if (p === undefined || p === prev) continue;
+            if (prev !== null) {
+                const forward = ((p - prev) % n + n) % n;
+                if (forward <= n / 2) {
+                    for (let k = 0; k < forward; k++) gaps.add((prev + k) % n);
+                } else {
+                    for (let k = 0; k < n - forward; k++) gaps.add((p + k) % n);
+                }
+            }
+            prev = p;
+        }
+
+        let via = '';
+        for (const seg of ctx.segments) {
+            let covered = true;
+            for (let g = seg.from; g < seg.to && covered; g++) covered = gaps.has(g);
+            if (covered) { via = seg.via; break; }
+        }
+        ringViaCache.set(train, { ctx, via });
+        return via;
+    }
+
     function cleanDestination(end) {
         return (end.length > 6 ? end.substring(6) : end).replace(/_/g, '');
     }
@@ -325,6 +405,7 @@
             if (values.trainNumber !== this.trainNumber) this.el.classList.remove('fb-row-selected');
             this.trainNumber = values.trainNumber;
             this.el.classList.toggle('fb-row-active', values.trainNumber !== null);
+            this.el.classList.toggle('fb-row-imminent', Boolean(values.imminent));
             const faces = rowFaces(values);
             const jobs = [];
             this.flaps.forEach((flap, i) => {
@@ -435,7 +516,8 @@
             const depMinutes = Math.floor(depStop.y);
             const hh = Math.floor(depMinutes / 60) % 24;
             const mm = depMinutes % 60;
-            const via = info.via && info.via !== '-' ? (VIA_NAMES[info.via] || info.via) : '';
+            // 山線/海線/成追 first; otherwise 北迴 or 南迴 (board only, not the card list)
+            const via = info.via && info.via !== '-' ? (VIA_NAMES[info.via] || info.via) : ringVia(train);
 
             let note = ['', '', ''];
             if (isLive) note = delay > 0 ? ['晚', String(delay), '分'] : ['準', '', '點'];
@@ -490,7 +572,7 @@
                 // Expected departure (scheduled + delay) first, scheduled time breaks ties
                 .sort((a, b) => a.effectiveMinutes - b.effectiveMinutes || a.depMinutes - b.depMinutes)
                 .slice(0, ROWS)
-                .map(d => d.values);
+                .map(d => ({ ...d.values, imminent: d.effectiveMinutes - nowMinutes <= IMMINENT_MINUTES }));
             while (upcoming.length < ROWS) upcoming.push(blankRow());
             section.request(upcoming);
         });
