@@ -1409,3 +1409,262 @@ button, input, select, textarea, text, tspan {
     }
 }
 
+
+/* =======================================================
+   Station panel view toggle (cards / split-flap board)
+   ======================================================= */
+#app-container .info-panel-header-actions {
+    align-items: center;
+    gap: 8px;
+}
+
+.view-toggle {
+    display: inline-flex;
+    background: #111c2e;
+    border-radius: 4px;
+    padding: 2px;
+    flex-shrink: 0;
+}
+
+.view-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    width: 30px;
+    height: 28px;
+    border-radius: 3px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+.view-toggle-btn.active {
+    background: #16283f;
+    color: #00f0ff;
+}
+
+@media (hover: hover) {
+    .view-toggle-btn:not(.active):hover {
+        color: #cbd5e1;
+    }
+}
+
+#flapboard-wrapper {
+    display: none;
+}
+
+#info-panel.board-mode #unified-train-wrapper {
+    display: none;
+}
+
+#info-panel.board-mode #flapboard-wrapper {
+    display: block;
+    flex: 1;
+    overflow-y: auto;
+    container-type: inline-size;
+}
+
+/* =======================================================
+   Split-flap departure board (flapboard.js) — retro station style
+   ======================================================= */
+.fb-board {
+    /* All sizes below are em of this font size, which tracks the panel width */
+    font-size: clamp(10px, 3.7cqi, 22px);
+    font-family: "Microsoft JhengHei", "PingFang TC", "Noto Sans TC", "Heiti TC", sans-serif;
+    font-weight: 700;
+    color: #f3e8cc;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8em;
+    padding-bottom: 1em;
+}
+
+.fb-section {
+    background: linear-gradient(180deg, #2c1f14 0%, #22180f 100%);
+    border-radius: 0.35em;
+    padding: 0.45em 0.6em 0.6em;
+    box-shadow: inset 0 0 0 0.12em #3d2b1b, 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+}
+
+.fb-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5em;
+    color: #e6b85c;
+    padding: 0.1em 0.2em 0.45em;
+}
+
+.fb-title-zh {
+    font-size: 1.25em;
+    letter-spacing: 0.15em;
+}
+
+.fb-title-target {
+    font-size: 0.85em;
+    color: #d8c49a;
+}
+
+.fb-table {
+    display: flex;
+    flex-direction: column;
+    gap: 0.28em;
+}
+
+.fb-row {
+    display: grid;
+    /* 開往 | 車次 | 經由 | 車種 | 開車時刻 | 備註 */
+    grid-template-columns: 3.6em 4.1em 2.4em 3.5em 4.5em 3.8em;
+    column-gap: 0.3em;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.12em 0.15em;
+    border-radius: 0.2em;
+}
+
+.fb-row.fb-row-active {
+    cursor: pointer;
+}
+
+@media (hover: hover) {
+    .fb-row.fb-row-active:hover {
+        background: rgba(230, 184, 92, 0.1);
+    }
+}
+
+.fb-row.fb-row-selected {
+    background: rgba(230, 184, 92, 0.18);
+}
+
+.fb-head {
+    padding-bottom: 0.2em;
+}
+
+.fb-head .fb-cell {
+    font-size: 0.72em;
+    color: #e9dcc0;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.fb-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.08em;
+    min-width: 0;
+}
+
+.fb-colon {
+    width: 0.32em;
+    text-align: center;
+    color: #f3e8cc;
+    line-height: 1;
+}
+
+/* --- One split-flap unit --- */
+.flap {
+    position: relative;
+    display: inline-block;
+    height: 1.5em;
+    perspective: 5em;
+    flex-shrink: 0;
+}
+
+.flap-word {
+    width: 100%;
+}
+
+.flap-digit {
+    width: 0.95em;
+}
+
+/* 備註: [準][ ][點] / [晚][N][分] */
+.flap-glyph {
+    width: 1.1em;
+}
+
+.flap-count {
+    width: 1.4em;
+}
+
+.flap-half {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 50%;
+    overflow: hidden;
+    backface-visibility: hidden;
+}
+
+.flap-top {
+    top: 0;
+    border-radius: 0.14em 0.14em 0 0;
+    background: linear-gradient(180deg, #34302c 0%, #2a2623 100%);
+    transform-origin: 50% 100%;
+}
+
+.flap-bottom {
+    bottom: 0;
+    border-radius: 0 0 0.14em 0.14em;
+    background: linear-gradient(180deg, #24211e 0%, #1c1a18 100%);
+    transform-origin: 50% 0;
+}
+
+.flap-text {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 200%;
+    line-height: 1.5em;
+    text-align: center;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transform-origin: 50% 50%;
+}
+
+.flap-top .flap-text {
+    top: 0;
+}
+
+.flap-bottom .flap-text {
+    top: -100%;
+}
+
+/* The hinge gap between the two halves */
+.flap::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: calc(50% - 0.5px);
+    height: 1px;
+    background: rgba(0, 0, 0, 0.75);
+    z-index: 3;
+    pointer-events: none;
+}
+
+.flap-leaf {
+    z-index: 2;
+    visibility: hidden;
+}
+
+@media screen and (max-width: 768px) {
+    #info-panel.board-mode #flapboard-wrapper {
+        padding-bottom: 85px;
+    }
+}
+
+/* Keep the live-update badge on one line next to the view toggle */
+#live-data-update-time-badge {
+    white-space: nowrap;
+}
+
+@media screen and (max-width: 768px) {
+    #live-data-update-time-badge {
+        margin-right: 0 !important;
+        padding: 6px 8px !important;
+    }
+}

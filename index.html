@@ -76,6 +76,12 @@
             <div id="info-panel-meta-container">
                 <div id="station-details"></div>
                 <div class="info-panel-header-actions">
+                    <div class="view-toggle" role="group" aria-label="顯示方式">
+                        <button type="button" class="view-toggle-btn active" data-view="cards" title="卡片列表"
+                            aria-label="卡片列表"><svg class="pi" aria-hidden="true"><use href="#pi-layout-grid"/></svg></button>
+                        <button type="button" class="view-toggle-btn" data-view="board" title="翻牌時刻表"
+                            aria-label="翻牌時刻表"><svg class="pi" aria-hidden="true"><use href="#pi-rows-4"/></svg></button>
+                    </div>
                     <div id="close-panel-btn" class="close-btn" role="button" aria-label="關閉"><svg class="pi" aria-hidden="true"><use href="#pi-x"/></svg></div>
                 </div>
             </div>
@@ -91,6 +97,9 @@
                     <p class="placeholder-text">選擇車站以顯示資訊...</p>
                 </div>
             </div>
+
+            <!-- Split-flap departure board (built by flapboard.js) -->
+            <div id="flapboard-wrapper" class="custom-scrollbar"></div>
         </div>
 
         <div id="schedule-panel">
@@ -110,6 +119,7 @@
         </div>
     </div>
     <script src="main.js"></script>
+    <script src="flapboard.js"></script>
 </body>
 
 </html>

@@ -58,6 +58,30 @@ const colorPalette = {
     "區間": "#00ffff"
 };
 
+// 經由成追線的列車：偶數(順行)是臺中→大甲方向，奇數(逆行)是大甲→臺中方向。
+// 在海線上與車站方向一致，但在山線(成功～苗栗)上實際行駛方向相反，
+// 因此這些車站的順行/逆行要對調。(scripts/build_station_destinations.py 使用同一份清單)
+const CHENGZHUI_REVERSED_STATIONS = new Set([
+    "成功", "新烏日", "烏日", "大慶", "五權", "臺中", "精武", "太原", "松竹", "頭家厝",
+    "潭子", "栗林", "豐原", "后里", "泰安", "三義", "銅鑼", "南勢", "苗栗"
+]);
+
+/**
+ * Whether a train runs 順行 (clockwise) at the given station.
+ * Even train numbers are 順行, odd ones 逆行, except trains via 成追線 at the
+ * 山線 stations above, whose direction is reversed.
+ * @param {{number: (string|number), info?: {via?: string}}} train
+ * @param {string} stationName
+ * @returns {boolean}
+ */
+function isClockwiseAtStation(train, stationName) {
+    const trainNumberInt = parseInt(train.number, 10);
+    const isEven = !isNaN(trainNumberInt) && trainNumberInt % 2 === 0;
+    const via = train.info ? train.info.via : undefined;
+    const reversed = via === "成追線" && CHENGZHUI_REVERSED_STATIONS.has(stationName);
+    return reversed ? !isEven : isEven;
+}
+
 // 全域力學模擬器變數 (已廢棄，使用高性能靜態防重疊演算法)
 let labelSimulation = null;
 
@@ -777,7 +801,7 @@ async function loadData() {
 
         const twData = await fetchWithCache(mapUrl, 'cache_counties_json');
         try {
-            globalStationsData = await fetchWithCache("stations.json", 'cache_stations_json');
+            globalStationsData = await fetchWithCache("stations.json", 'cache_stations_json_v4');
         } catch (e) {
             console.warn("Stations data file loading failed!");
         }
@@ -870,6 +894,9 @@ function selectStationElement(circleDOM, d, targetTrainNumberToExpand = null, se
 
     const cwTarget = d.CW || "未知";
     const ccwTarget = d.CCW || "未知";
+
+    // Every station selection restarts the split-flap board from blank faces
+    if (window.FlapBoard) window.FlapBoard.stationSelected();
 
     showStationInfoPanel(stationCode, stationName, stationAddrTw, cwTarget, ccwTarget, targetTrainNumberToExpand, searchInjectedDelay);
 
@@ -1255,6 +1282,17 @@ function getTrainTypeName(train, number) {
 function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer, delayMap, liveBoardData, targetTrainNumberToExpand = null) {
     if (!Array.isArray(trainsList)) return;
 
+    // Feed the split-flap departure board (flapboard.js) with the same snapshot
+    if (window.FlapBoard) {
+        window.FlapBoard.setData({
+            trains: trainsList,
+            stationName: targetStationName,
+            delayMap: delayMap,
+            cwTarget: currentActiveStationCW,
+            ccwTarget: currentActiveStationCCW
+        });
+    }
+
     const connectedStationNames = new Set();
     const combinedSortedTrains = [];
     const now = new Date();
@@ -1326,14 +1364,15 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
         const card = document.createElement("div");
         card.className = "train-card";
         card.setAttribute("data-train-number", String(train.number));
+        card.setAttribute("data-sort-minutes", String(train.sortingMinutes));
 
         const trainType = train.train || "N/A";
         const trainNumber = train.number || "N/A";
-        const trainNumberInt = parseInt(trainNumber, 10);
-        const isEven = (!isNaN(trainNumberInt) && trainNumberInt % 2 === 0);
+        // 順行 cards go right, 逆行 left (成追線 trains are reversed on 山線 stations)
+        const isClockwise = isClockwiseAtStation(train, targetStationName);
         const spacerCard = document.createElement("div");
 
-        if (isEven) {
+        if (isClockwise) {
             card.classList.add("side-right");
             spacerCard.className = "train-card-spacer side-left";
         } else {
@@ -1390,7 +1429,7 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             }
         });
 
-        if (isEven) {
+        if (isClockwise) {
             listContainer.appendChild(spacerCard);
             listContainer.appendChild(card);
         } else {
@@ -1456,6 +1495,27 @@ function renderUnifiedPassingTrains(trainsList, targetStationName, listContainer
             });
         }
     }
+}
+
+/**
+ * Scroll the station card list to the next train still to depart (the same
+ * rule as the initial render); used when switching back from the flap board.
+ */
+function scrollTrainListToUpcoming() {
+    const listContainer = document.getElementById("unified-train-list");
+    if (!listContainer) return;
+    const now = new Date();
+    let hours = now.getHours();
+    if (hours < 4) hours += 24;
+    const currentMinutesMidnight = hours * 60 + now.getMinutes();
+
+    const cards = Array.from(listContainer.querySelectorAll(".train-card"));
+    const target = cards.find(c => Number(c.dataset.sortMinutes) >= currentMinutesMidnight) || cards[0];
+    if (!target) return;
+    listContainer.scrollTo({
+        top: target.offsetTop - listContainer.offsetTop - 10,
+        behavior: 'smooth'
+    });
 }
 
 function renderSchedulePanelContent(train, targetStationName, neonColor, rawLiveBoardInfo) {
