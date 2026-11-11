@@ -552,6 +552,12 @@ svg {
     margin-right: 8px;
 }
 
+/* Delay recorded at a stop the train has already reached, e.g. 花蓮(+6) */
+.stop-delay-tag {
+    color: #ef4444;
+    font-weight: bold;
+}
+
 /* Scheduled (struck) and delayed times are separate blocks: side by side when wide,
    stacked when narrow, so a struck time never mixes with a delayed one on the same line. */
 .stop-time-cell {

@@ -1077,6 +1077,35 @@ function computePerStopDelays(groupedStops, observations, serviceDayStartMs, now
     });
 }
 
+/* Whether the train has already arrived at each stop, judged from the snapshots.
+ * A stop counts as reached when the train was seen standing at / leaving it (status 1 or 2),
+ * or when the latest snapshot's timetable position is at or beyond the stop's scheduled arrival.
+ * Every stop before a reached stop is reached too. A finished train has reached all stops.
+ */
+function computeReachedStops(groupedStops, observations, serviceDayStartMs, trainFinished) {
+    if (observations.length === 0) return groupedStops.map(() => false);
+    if (trainFinished) return groupedStops.map(() => true);
+
+    const latest = observations[observations.length - 1];
+    const latestSchedPos = (latest.t - serviceDayStartMs) / 60000 - latest.delay;
+    const seenAtStation = new Set(
+        observations.filter(o => o.status === 1 || o.status === 2).map(o => o.name)
+    );
+
+    let lastReachedIdx = -1;
+    groupedStops.forEach((stop, idx) => {
+        const arrMinutes = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
+        if (seenAtStation.has(normalizeStationNameForMatch(stop.stationName)) || latestSchedPos >= arrMinutes) {
+            lastReachedIdx = idx;
+        }
+    });
+    return groupedStops.map((_, idx) => idx <= lastReachedIdx);
+}
+
+function buildStopDelayTagHTML(delay, reached) {
+    return (reached && delay !== null && delay > 0) ? `(+${delay})` : "";
+}
+
 function buildStopTimeHTML(stop, delay, colorAttr) {
     const hasPair = stop.arrMinutes !== null && stop.depMinutes !== null && stop.arrMinutes !== stop.depMinutes;
     const single = stop.arrMinutes !== null ? stop.arrMinutes : stop.depMinutes;
@@ -1625,7 +1654,7 @@ function renderSchedulePanelContent(train, targetStationName, neonColor, rawLive
                  data-station-click-name="${stop.stationName}"
                  data-associated-train="${trainNumber}"
                  style="display: flex; justify-content: space-between; align-items: center; padding: 6px 4px; margin-bottom: 3px; cursor: pointer; ${highlightStyle}">
-                <span class="stop-name-text" style="transition: color 0.2s;">${stop.stationName}</span>
+                <span class="stop-name-text" style="transition: color 0.2s;">${stop.stationName}<span class="stop-delay-tag" data-stop-idx="${stopIdx}"></span></span>
                 ${timeDisplayHTML}
             </div>
         `;
@@ -1711,10 +1740,16 @@ async function refineScheduleStopDelays(ctx) {
 
     const fallbackDelay = liveFallbackDelay !== null ? liveFallbackDelay : observations[observations.length - 1].delay;
     const stopDelays = computePerStopDelays(groupedStops, observations, serviceDayStartMs, nowServiceMinutes, fallbackDelay);
+    // Not in service but with history => the train has completed its run.
+    const reachedStops = computeReachedStops(groupedStops, observations, serviceDayStartMs, !isActivelyInService);
 
     stopsContainer.querySelectorAll(".stop-time-cell").forEach(cell => {
         const idx = parseInt(cell.getAttribute("data-stop-idx"), 10);
         cell.innerHTML = buildStopTimeHTML(groupedStops[idx], stopDelays[idx], stopColorAttrs[idx]);
+    });
+    stopsContainer.querySelectorAll(".stop-delay-tag").forEach(tag => {
+        const idx = parseInt(tag.getAttribute("data-stop-idx"), 10);
+        tag.textContent = buildStopDelayTagHTML(stopDelays[idx], reachedStops[idx]);
     });
 }
 
