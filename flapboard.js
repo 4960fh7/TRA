@@ -31,6 +31,9 @@
     const IMMINENT_MINUTES = 2;
     /** Digit flap deck, in mechanical order (blank first). */
     const DIGIT_DECK = [' ', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+    /** 開車時刻 tens digits only carry the faces a clock can show (hours 0-2, minutes 0-5). */
+    const HOUR_TENS_DECK = [' ', '0', '1', '2'];
+    const MINUTE_TENS_DECK = [' ', '0', '1', '2', '3', '4', '5'];
     const VIEW_KEY = 'stationPanelView';
     /** Per-station faces stored by an earlier version; removed on load. */
     const LEGACY_SEEN_KEY = 'flapboardSeen';
@@ -231,12 +234,14 @@
          * @param {string} opts.className   Size class (flap-digit, flap-word, ...)
          * @param {number} [opts.capacity]  Text width in em before squeezing
          * @param {function(): string[]} [opts.deck]  Ordered deck (word flaps)
+         * @param {string[]} [opts.digits]  Digit deck override (default DIGIT_DECK)
          * @param {function(string): string} [opts.color]  Text colour per face
          */
         constructor(opts) {
             this.kind = opts.kind;
             this.capacityEm = opts.capacity || 0;
             this.deck = opts.deck || null;
+            this.digits = opts.digits || DIGIT_DECK;
             this.color = opts.color || null;
             this.value = this.kind === 'digit' ? ' ' : '';
             /** Bumped by setInstant(); an in-flight flip with an older token stops. */
@@ -288,7 +293,7 @@
         /** Ordered faces to show after the current one, ending at `target`. */
         sequenceTo(target) {
             if (this.kind === 'count') return countSequence(this.value, target);
-            const deck = this.kind === 'digit' ? DIGIT_DECK : buildDeck(this.deck(), [this.value, target]);
+            const deck = this.kind === 'digit' ? this.digits : buildDeck(this.deck(), [this.value, target]);
             const n = deck.length;
             const from = deck.indexOf(this.value);
             const to = deck.indexOf(target);
@@ -364,7 +369,7 @@
                 flaps.forEach(f => c.appendChild(f));
                 el.appendChild(c);
             };
-            const digit = () => this.addFlap({ kind: 'digit', className: 'flap-digit' });
+            const digit = (digits) => this.addFlap({ kind: 'digit', className: 'flap-digit', digits });
             const colon = document.createElement('span');
             colon.className = 'fb-colon';
             colon.textContent = ':';
@@ -383,7 +388,7 @@
                 deck: () => buildDeck(TYPE_DECK, state.extraTypes),
                 color: v => TYPE_COLORS[v] || ''
             }));
-            cell('time', digit(), digit(), colon, digit(), digit());
+            cell('time', digit(HOUR_TENS_DECK), digit(), colon, digit(MINUTE_TENS_DECK), digit());
             const noteColor = v => NOTE_COLORS[v] || '';
             cell('note',
                 this.addFlap({ kind: 'word', className: 'flap-glyph', deck: () => NOTE_MARK_DECK, color: noteColor }),
